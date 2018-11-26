@@ -1,4 +1,13 @@
-from slim.nets import inception_v4
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
+
+import tensorflow as tf
+
+from slim.nets import inception_v2
+
+slim = tf.contrib.slim
 
 
 def FCN(inputs,
@@ -7,22 +16,11 @@ def FCN(inputs,
         dropout_keep_prob=0.8,
         scope='GVCNN'):
 
-    """
-    Args:
-    inputs: a tensor of size [batch_size, height, width, channels].
-    num_classes: number of predicted classes. If 0 or None, the logits layer
-      is omitted and the input features to the logits layer (before dropout)
-      are returned instead.
-    is_training: whether is training or not.
-    dropout_keep_prob: the percentage of activation values that are retained.
-
-
-    Returns:
-        net: a Tensor with the logits (pre-softmax activations) if num_classes
-        is a non - zero integer, or the non - dropped - out input to the logits
-        layer if num_classes is 0 or None.
-        end_points: a dictionary from components of the network to the corresponding activation.
-    """
+    return inception_v2.inception_v2_base(inputs,
+                                          final_endpoint='Mixed_5c',
+                                          min_depth=16,
+                                          depth_multiplier=1.0,
+                                          scope=None)
 
 
 
@@ -47,28 +45,36 @@ def view_pooling():
 
 
 def group_fusion():
-
+    return
 
 
 def gvcnn(inputs,
           num_classes=1000,
           is_training=True,
           dropout_keep_prob=0.8,
-          scope='GVCNN'):
+          scope='gvcnn'):
+
     """
     Args:
-    inputs: a tensor of size [batch_size, height, width, channels].
-    num_classes: number of predicted classes. If 0 or None, the logits layer
-      is omitted and the input features to the logits layer (before dropout)
-      are returned instead.
-    is_training: whether is training or not.
-    dropout_keep_prob: the percentage of activation values that are retained.
-
-
-    Returns:
-        net: a Tensor with the logits (pre-softmax activations) if num_classes
-        is a non - zero integer, or the non - dropped - out input to the logits
-        layer if num_classes is 0 or None.
-        end_points: a dictionary from components of the network to the corresponding activation.
+    inputs: list of a tensor of shape [[batch_size, height, width, channels], ...].
     """
-    return logits, end_points
+
+    fcn_results = []    # Raw View Descriptors
+    for i, input in enumerate(inputs):
+        # result = (logits, end_points)
+        result = inception_v2.inception_v2(
+            input,
+            num_classes=num_classes,
+            is_training=is_training,
+            dropout_keep_prob=dropout_keep_prob,
+            min_depth=16,
+            depth_multiplier=1.0,
+            prediction_fn=slim.softmax,
+            spatial_squeeze=True,
+            reuse=None,
+            scope=scope,
+            global_pool=False)
+
+        fcn_results.append(result)
+
+    # Final View Descriptors -> View Pooling
