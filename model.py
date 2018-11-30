@@ -11,7 +11,7 @@ from slim.nets import inception_v2
 slim = tf.contrib.slim
 
 
-def FCN(inputs):
+def FCN(views, n_classes, keep_prob):
     """
     Raw View Descriptor Generation
 
@@ -22,33 +22,39 @@ def FCN(inputs):
     represent the view feature better.
 
     Args:
-    inputs: list of a tensor of shape [[batch_size, height, width, channels], ...].
+    views: N x V x H x W x C tensor
 
     Returns:
     tensor_outs: list of output tensor corresponding to the final_endpoint.
     # end_points: a set of activations for external use, for example summaries or
     #             losses.
 
-
     """
 
-    fcn_results = []  # Raw View Descriptors
-    for i, input in enumerate(inputs):
+    n_views = views.get_shape().as_list()[1]
 
-        net, _ = inception_v2.inception_v2_base(input,
+    # transpose views: (NxVxHxWxC) -> (VxNxHxWxC)
+    views = tf.transpose(views, perm=[1, 0, 2, 3, 4])
+
+    raw_view_descriptors = []  # Raw View Descriptors
+    for i in range(n_views):
+
+        view = tf.gather(views, i)  # NxWxHxC
+
+        net, _ = inception_v2.inception_v2_base(view,
                                           final_endpoint='Mixed_5c',
                                           min_depth=16,
                                           depth_multiplier=1.0,
                                           use_separable_conv=True,
                                           data_format='NHWC',
                                           scope=None)
-        fcn_results.append(net)
+        raw_view_descriptors.append(net)
 
-    return fcn_results
+    return raw_view_descriptors
 
 
 
-def grouping_module(fcn_nets,
+def grouping_module(raw_view_descriptors,
                     reuse=None,
                     scope='FC',
                     global_pool=True,
@@ -63,7 +69,7 @@ def grouping_module(fcn_nets,
     """
 
     discrimination_logits = []
-    for i, net in enumerate(fcn_nets):
+    for i, net in enumerate(raw_view_descriptors):
 
         # Final pooling and prediction
         with tf.variable_scope('Logits'):
@@ -106,33 +112,33 @@ def grouping_module(fcn_nets,
 #     return
 
 
-def gvcnn(inputs,
-          num_classes=1000,
-          is_training=True,
-          dropout_keep_prob=0.8,
-          scope='gvcnn'):
-
-    """
-    Args:
-    inputs: list of a tensor of shape [[batch_size, height, width, channels], ...].
-    """
-
-    fcn_results = []    # Raw View Descriptors
-    for i, input in enumerate(inputs):
-        # result = (logits, end_points)
-        result = inception_v2.inception_v2(
-            input,
-            num_classes=num_classes,
-            is_training=is_training,
-            dropout_keep_prob=dropout_keep_prob,
-            min_depth=16,
-            depth_multiplier=1.0,
-            prediction_fn=slim.softmax,
-            spatial_squeeze=True,
-            reuse=None,
-            scope=scope,
-            global_pool=False)
-
-        fcn_results.append(result)
-
-    # Final View Descriptors -> View Pooling
+# def gvcnn(inputs,
+#           num_classes=1000,
+#           is_training=True,
+#           dropout_keep_prob=0.8,
+#           scope='gvcnn'):
+#
+#     """
+#     Args:
+#     inputs: list of a tensor of shape [[batch_size, height, width, channels], ...].
+#     """
+#
+#     fcn_results = []    # Raw View Descriptors
+#     for i, input in enumerate(inputs):
+#         # result = (logits, end_points)
+#         result = inception_v2.inception_v2(
+#             input,
+#             num_classes=num_classes,
+#             is_training=is_training,
+#             dropout_keep_prob=dropout_keep_prob,
+#             min_depth=16,
+#             depth_multiplier=1.0,
+#             prediction_fn=slim.softmax,
+#             spatial_squeeze=True,
+#             reuse=None,
+#             scope=scope,
+#             global_pool=False)
+#
+#         fcn_results.append(result)
+#
+#     # Final View Descriptors -> View Pooling
