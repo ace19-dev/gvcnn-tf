@@ -11,7 +11,7 @@ from slim.nets import inception_v2
 slim = tf.contrib.slim
 
 
-def FCN(views, n_classes, keep_prob):
+def FCN(inputs):
     """
     Raw View Descriptor Generation
 
@@ -22,7 +22,7 @@ def FCN(views, n_classes, keep_prob):
     represent the view feature better.
 
     Args:
-    views: N x V x H x W x C tensor
+    inputs: N x V x H x W x C tensor
 
     Returns:
     tensor_outs: list of output tensor corresponding to the final_endpoint.
@@ -31,34 +31,39 @@ def FCN(views, n_classes, keep_prob):
 
     """
 
-    n_views = views.get_shape().as_list()[1]
+    with tf.variable_scope('InceptionV2', 'InceptionV2', [inputs], reuse=True) as scope:
+        with slim.arg_scope([slim.batch_norm, slim.dropout],
+                            is_training=True):
+            n_views = inputs.get_shape().as_list()[1]
 
-    # transpose views: (NxVxHxWxC) -> (VxNxHxWxC)
-    views = tf.transpose(views, perm=[1, 0, 2, 3, 4])
+            # transpose views: (NxVxHxWxC) -> (VxNxHxWxC)
+            views = tf.transpose(inputs, perm=[1, 0, 2, 3, 4])
 
-    raw_view_descriptors = []  # Raw View Descriptors
-    for i in range(n_views):
+            raw_view_descriptors = []  # Raw View Descriptors
+            for i in range(n_views):
 
-        view = tf.gather(views, i)  # NxWxHxC
+                view = tf.gather(views, i)  # NxWxHxC
 
-        net, _ = inception_v2.inception_v2_base(view,
-                                          final_endpoint='Mixed_5c',
-                                          min_depth=16,
-                                          depth_multiplier=1.0,
-                                          use_separable_conv=True,
-                                          data_format='NHWC',
-                                          scope=None)
-        raw_view_descriptors.append(net)
+                net, end_points = inception_v2.inception_v2_base(view,
+                                                  final_endpoint='Mixed_5c',
+                                                  min_depth=16,
+                                                  depth_multiplier=1.0,
+                                                  use_separable_conv=True,
+                                                  data_format='NHWC',
+                                                  scope=scope)
+                raw_view_descriptors.append(net)
 
-    return raw_view_descriptors
+    return raw_view_descriptors, end_points
 
 
 
 def grouping_module(raw_view_descriptors,
+                    end_points,
+                    num_classes,
                     reuse=None,
-                    scope='FC',
+                    scope='grouping_module',
                     global_pool=True,
-                    prediction_fn=tf.nn.sigmoid,
+                    # prediction_fn=tf.nn.sigmoid,
                     spatial_squeeze=True,
                     dropout_keep_prob=0.8):
     """
@@ -68,38 +73,39 @@ def grouping_module(raw_view_descriptors,
     :return:
     """
 
-    discrimination_logits = []
-    for i, net in enumerate(raw_view_descriptors):
-
-        # Final pooling and prediction
+    # Final pooling and prediction
+    with tf.variable_scope(scope, 'InceptionV2', [inputs], reuse=reuse) as scope:
         with tf.variable_scope('Logits'):
+            discrimination_scores = []
+            for i, net in enumerate(raw_view_descriptors):
+
             if global_pool:
                 # Global average pooling.
                 net = tf.reduce_mean(net, [1, 2], keep_dims=True, name='global_pool')
-                # end_points['global_pool'] = net
+                end_points['global_pool'] = net
             else:
                 # Pooling with a fixed kernel size.
                 kernel_size = inception_v2._reduced_kernel_size_for_small_input(net, [7, 7])
                 net = slim.avg_pool2d(net, kernel_size, padding='VALID',
                                       scope='AvgPool_1a_{}x{}'.format(*kernel_size))
-                # end_points['AvgPool_1a'] = net
+                end_points['AvgPool_1a'] = net
             # if not num_classes:
             #     return net, end_points
 
-        #     # 1 x 1 x 1024
-        #     net = slim.dropout(net, keep_prob=dropout_keep_prob, scope='Dropout_1b')
-        #     logits = slim.conv2d(net, num_classes, [1, 1], activation_fn=None,
-        #                          normalizer_fn=None, scope='Conv2d_1c_1x1')
-        #     if spatial_squeeze:
-        #         logits = tf.squeeze(logits, [1, 2], name='SpatialSqueeze')
-        # # end_points['Logits'] = logits
+            # 1 x 1 x 1024
+            net = slim.dropout(net, keep_prob=dropout_keep_prob, scope='Dropout_1b')
+            logits = slim.conv2d(net, num_classes, [1, 1], activation_fn=None,
+                                 normalizer_fn=None, scope='Conv2d_1c_1x1')
+            if spatial_squeeze:
+                logits = tf.squeeze(logits, [1, 2], name='SpatialSqueeze')
+        end_points['Logits'] = logits
         # end_points['Predictions'] = prediction_fn(logits, scope='Predictions')
 
-            logits = tf.nn.sigmoid(tf.log(tf.abs(net)))
-            # predictions = tf.argmax(logits, 1)
-            discrimination_logits.append(logits)
+        score = tf.nn.sigmoid(tf.log(tf.abs(net)))
+        # predictions = tf.argmax(logits, 1)
+        discrimination_scores.append(score)
 
-    return discrimination_logits
+    return discrimination_scores
 
 
 # def view_pooling():

@@ -86,21 +86,18 @@ flags.DEFINE_integer('num_views', 4, 'Number of views')
 
 def test():
     train_batch_size = 1
+    num_views = 8
     eval_batch_size = 2
     height, width = 224, 224
-    num_classes = 1000
+    num_classes = 3
 
-    inputs = []
-    for i in range(1, 5):
-        train_inputs = tf.random_uniform((train_batch_size, height, width, 3))
-        inputs.append(train_inputs)
-
-    raw_view_descriptors = model.FCN(inputs)
-    discrimination_logits = model.grouping_module(raw_view_descriptors)
+    train_inputs = tf.random_uniform((train_batch_size, num_views, height, width, 3))
+    raw_view_descriptors, end_points = model.FCN(train_inputs)
+    discrimination_scores = model.grouping_module(raw_view_descriptors, end_points, num_classes)
 
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
-        output = sess.run(discrimination_logits[0])
+        output = sess.run(discrimination_scores[0])
         tf.logging.info("logging -> ", output)
         # tf.test.TestCase.assertEquals(output.shape, (batch_size,))
 
@@ -114,42 +111,42 @@ def read_lists(list_of_lists_file):
 def main(unused_argv):
     tf.logging.set_verbosity(tf.logging.INFO)
 
-    # test()
+    test()
 
-    # Set up deployment (i.e. multi-GPUs and/or multi-replicas).
-    config = model_deploy.DeploymentConfig(
-        num_clones=FLAGS.num_clones,
-        clone_on_cpu=FLAGS.clones_on_cpu,
-        replica_id=FLAGS.task,
-        num_replicas=FLAGS.num_replicas,
-        num_ps_tasks=FLAGS.num_ps_tasks)
-
-    # Split the batch across GPUs.
-    assert FLAGS.train_batch_size % config.num_clones == 0, (
-        'Training batch size not divisible by number of clones (GPUs).')
-
-    clone_batch_size = FLAGS.train_batch_size // config.num_clones
-
-    # Get dataset infomation
-    st = time.time()
-    print('start loading data')
-
-    # listfiles_train, labels_train = read_lists(g_.TRAIN_LOL)
-    # listfiles_val, labels_val = read_lists(g_.VAL_LOL)
-    # dataset_train = Dataset(listfiles_train, labels_train, subtract_mean=False, V=g_.NUM_VIEWS)
-    # dataset_val = Dataset(listfiles_val, labels_val, subtract_mean=False, V=g_.NUM_VIEWS)
-
-    print('done loading data, time=', time.time() - st)
-
-
-    tf.gfile.MakeDirs(FLAGS.train_logdir)
-    tf.logging.info('Training on %s set', FLAGS.train_split)
-
-    with tf.Graph().as_default() as graph:
-        # placeholders for graph input
-        view_ = tf.placeholder('float32', shape=(None, FLAGS.num_views, 224, 224, 3), name='views')
-        y_ = tf.placeholder('int64', shape=(None), name='y')
-        keep_prob_ = tf.placeholder('float32')
+    # # Set up deployment (i.e. multi-GPUs and/or multi-replicas).
+    # config = model_deploy.DeploymentConfig(
+    #     num_clones=FLAGS.num_clones,
+    #     clone_on_cpu=FLAGS.clones_on_cpu,
+    #     replica_id=FLAGS.task,
+    #     num_replicas=FLAGS.num_replicas,
+    #     num_ps_tasks=FLAGS.num_ps_tasks)
+    #
+    # # Split the batch across GPUs.
+    # assert FLAGS.train_batch_size % config.num_clones == 0, (
+    #     'Training batch size not divisible by number of clones (GPUs).')
+    #
+    # clone_batch_size = FLAGS.train_batch_size // config.num_clones
+    #
+    # # Get dataset infomation
+    # st = time.time()
+    # print('start loading data')
+    #
+    # # listfiles_train, labels_train = read_lists(g_.TRAIN_LOL)
+    # # listfiles_val, labels_val = read_lists(g_.VAL_LOL)
+    # # dataset_train = Dataset(listfiles_train, labels_train, subtract_mean=False, V=g_.NUM_VIEWS)
+    # # dataset_val = Dataset(listfiles_val, labels_val, subtract_mean=False, V=g_.NUM_VIEWS)
+    #
+    # print('done loading data, time=', time.time() - st)
+    #
+    #
+    # tf.gfile.MakeDirs(FLAGS.train_logdir)
+    # tf.logging.info('Training on %s set', FLAGS.train_split)
+    #
+    # with tf.Graph().as_default() as graph:
+    #     # placeholders for graph input
+    #     view_ = tf.placeholder('float32', shape=(None, FLAGS.num_views, 224, 224, 3), name='views')
+    #     y_ = tf.placeholder('int64', shape=(None), name='y')
+    #     keep_prob_ = tf.placeholder('float32')
 
     # with tf.Graph().as_default() as graph:
     #     with tf.device(config.inputs_device()):
