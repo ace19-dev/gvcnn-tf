@@ -92,8 +92,7 @@ def test():
     num_classes = 3
 
     train_inputs = tf.random_uniform((train_batch_size, num_views, height, width, 3))
-    raw_view_descriptors, end_points = model.FCN(train_inputs)
-    discrimination_scores = model.grouping_module(raw_view_descriptors, end_points, num_classes)
+    discrimination_scores = model.gvcnn(train_inputs, num_classes, reuse=True)
 
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
