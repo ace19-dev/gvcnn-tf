@@ -38,6 +38,7 @@ def FCN(inputs, scope):
     # transpose views: (NxVxHxWxC) -> (VxNxHxWxC)
     views = tf.transpose(inputs, perm=[1, 0, 2, 3, 4])
 
+    input_views = []
     raw_view_descriptors = []  # Raw View Descriptors
     for i in range(n_views):
 
@@ -50,9 +51,21 @@ def FCN(inputs, scope):
                                                          # use_separable_conv=True,
                                                          # data_format='NHWC',
                                                          scope=scope)
+        input_views.append(view)
         raw_view_descriptors.append(net)
 
     return raw_view_descriptors, end_points
+
+
+
+'''
+CNN is the same as GoogLeNet.
+'''
+def CNN():
+
+
+
+    return
 
 
 
@@ -113,6 +126,15 @@ def grouping_module(raw_view_descriptors,
 
         # predictions = tf.argmax(logits, 1)
         discrimination_scores.append(score)
+
+
+    # grouping weight
+
+
+
+    # grouping scheme
+
+
 
     return discrimination_scores
 
