@@ -16,6 +16,7 @@ flags = tf.app.flags
 FLAGS = flags.FLAGS
 
 
+
 LABELS_CLASS = 'labels_class'
 IMAGE = 'image'
 HEIGHT = 'height'
@@ -87,17 +88,18 @@ flags.DEFINE_integer('num_views', 4, 'Number of views')
 def test():
     train_batch_size = 1
     num_views = 8
-    eval_batch_size = 2
+    # eval_batch_size = 2
     height, width = 224, 224
     num_classes = 3
 
     train_inputs = tf.random_uniform((train_batch_size, num_views, height, width, 3))
-    discrimination_scores = model.gvcnn(train_inputs, num_classes, reuse=True)
+    discrimination_scores = model.gvcnn(train_inputs, num_classes)
 
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
-        output = sess.run(discrimination_scores[0])
-        tf.logging.info("logging -> ", output)
+        for i, _ in enumerate(discrimination_scores):
+            output = sess.run(discrimination_scores[i])
+            tf.logging.info("logging -> %s", output)
         # tf.test.TestCase.assertEquals(output.shape, (batch_size,))
 
 
@@ -293,53 +295,5 @@ def main(unused_argv):
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 if __name__ == '__main__':
     tf.app.run()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

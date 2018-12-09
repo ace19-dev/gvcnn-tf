@@ -44,11 +44,11 @@ def FCN(inputs, scope):
         view = tf.gather(views, i)  # NxWxHxC
 
         net, end_points = inception_v2.inception_v2_base(view,
-                                                         final_endpoint='Mixed_5c',
-                                                         min_depth=16,
-                                                         depth_multiplier=1.0,
-                                                         use_separable_conv=True,
-                                                         data_format='NHWC',
+                                                         # final_endpoint='Mixed_5c',
+                                                         # min_depth=16,
+                                                         # depth_multiplier=1.0,
+                                                         # use_separable_conv=True,
+                                                         # data_format='NHWC',
                                                          scope=scope)
         raw_view_descriptors.append(net)
 
@@ -62,7 +62,7 @@ def grouping_module(raw_view_descriptors,
                     reuse=None,
                     scope='InceptionV2',
                     global_pool=True,
-                    # prediction_fn=tf.nn.sigmoid,
+                    prediction_fn=slim.softmax,
                     spatial_squeeze=True,
                     dropout_keep_prob=0.8):
     """
@@ -91,14 +91,26 @@ def grouping_module(raw_view_descriptors,
 
         # 1 x 1 x 1024
         net = slim.dropout(net, keep_prob=dropout_keep_prob, scope='Dropout_1b')
-        logits = slim.conv2d(net, num_classes, [1, 1], activation_fn=None,
-                             normalizer_fn=None, scope='Conv2d_1c_1x1')
-        if spatial_squeeze:
-            logits = tf.squeeze(logits, [1, 2], name='SpatialSqueeze')
+        net = slim.flatten(net)
+        net = slim.fully_connected(net, 512)
+        logits = slim.fully_connected(net, 1, activation_fn=None)
+
+        # logits = slim.conv2d(net, num_classes, [1, 1], activation_fn=None,
+        #                      normalizer_fn=None, scope='Conv2d_1c_1x1')
+        # if spatial_squeeze:
+        #     logits = tf.squeeze(logits, [1, 2], name='SpatialSqueeze')
         end_points['Logits'] = logits
         # end_points['Predictions'] = prediction_fn(logits, scope='Predictions')
 
-        score = tf.nn.sigmoid(tf.log(tf.abs(net)))
+        # logits = slim.fully_connected(net, num_classes, activation_fn=None)
+
+        score = tf.nn.sigmoid(tf.log(tf.abs(logits)))
+
+
+
+
+
+
         # predictions = tf.argmax(logits, 1)
         discrimination_scores.append(score)
 
@@ -117,9 +129,9 @@ def grouping_module(raw_view_descriptors,
 
 def gvcnn(inputs,
           num_classes=1000,
-          reuse=None,
+          reuse=tf.AUTO_REUSE,
           is_training=True,
-          scope='gvcnn',
+          scope='InceptionV2',
           global_pool=True,
           spatial_squeeze=True,
           dropout_keep_prob=0.8):
@@ -129,7 +141,7 @@ def gvcnn(inputs,
     inputs: a tensor of shape [batch_size, views, height, width, channels].
     """
 
-    with tf.variable_scope(scope, 'gvcnn', [inputs], reuse=reuse) as scope:
+    with tf.variable_scope(scope, 'InceptionV2', [inputs], reuse=reuse) as scope:
         with slim.arg_scope([slim.batch_norm, slim.dropout],
                             is_training=is_training):
             raw_view_descriptors, end_points = model.FCN(inputs, scope)
