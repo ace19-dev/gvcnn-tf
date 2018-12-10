@@ -9,8 +9,12 @@ import numpy as np
 import model
 
 from slim.nets import inception_v2
+from nets import googLeNet
 
 slim = tf.contrib.slim
+
+NUM_SUB_RANGE = 5
+
 
 
 def FCN(inputs, scope):
@@ -44,95 +48,98 @@ def FCN(inputs, scope):
 
         view = tf.gather(views, i)  # NxWxHxC
 
-        net, end_points = inception_v2.inception_v2_base(view,
-                                                         # final_endpoint='Mixed_5c',
-                                                         # min_depth=16,
-                                                         # depth_multiplier=1.0,
-                                                         # use_separable_conv=True,
-                                                         # data_format='NHWC',
-                                                         scope=scope)
+        net, end_points = inception_v2.inception_v2_base(view, scope=scope)
+
         input_views.append(view)
         raw_view_descriptors.append(net)
 
-    return raw_view_descriptors, end_points
+    return input_views, raw_view_descriptors, end_points
 
 
 
 '''
 CNN is the same as GoogLeNet.
+
+Inception. v1. (a.k.a GoogLeNet)
 '''
 def CNN():
-
-
 
     return
 
 
 
-def grouping_module(raw_view_descriptors,
+def grouping_weight_scheme(input_views, discrimination_scores):
+    group = {}
+
+    for i, score in enumerate(discrimination_scores):
+        group_list = []
+        if score > 0 and score < 2:
+            group[1] = 
+
+
+    return {}
+
+
+
+def grouping_module(input_views,
+                    raw_view_descriptors,
                     end_points,
                     num_classes,
                     reuse=None,
                     scope='InceptionV2',
                     global_pool=True,
-                    prediction_fn=slim.softmax,
                     spatial_squeeze=True,
                     dropout_keep_prob=0.8):
     """
     The grouping module aims to learn the group information
     to assist in mining the relationship among views.
 
+    Args:
+    input_views: N x H x W x C tensor
+
     :return:
     """
 
-    # with tf.variable_scope('Logits'):
     discrimination_scores = []
     for i, net in enumerate(raw_view_descriptors):
+        with tf.variable_scope('Logits'):
+            if global_pool:
+                # Global average pooling.
+                net = tf.reduce_mean(net, [1, 2], keep_dims=True, name='global_pool')
+                end_points['global_pool'] = net
+            else:
+                # Pooling with a fixed kernel size.
+                kernel_size = inception_v2._reduced_kernel_size_for_small_input(net, [7, 7])
+                net = slim.avg_pool2d(net, kernel_size, padding='VALID',
+                                      scope='AvgPool_1a_{}x{}'.format(*kernel_size))
+                end_points['AvgPool_1a'] = net
+            # if not num_classes:
+            #     return net, end_points
 
-        if global_pool:
-            # Global average pooling.
-            net = tf.reduce_mean(net, [1, 2], keep_dims=True, name='global_pool')
-            end_points['global_pool'] = net
-        else:
-            # Pooling with a fixed kernel size.
-            kernel_size = inception_v2._reduced_kernel_size_for_small_input(net, [7, 7])
-            net = slim.avg_pool2d(net, kernel_size, padding='VALID',
-                                  scope='AvgPool_1a_{}x{}'.format(*kernel_size))
-            end_points['AvgPool_1a'] = net
-        # if not num_classes:
-        #     return net, end_points
+            # 1 x 1 x 1024
+            net = slim.dropout(net, dropout_keep_prob, scope='Dropout_1b')
+            net = slim.flatten(net)
+            # net = slim.fully_connected(net, 512)
+            logits = slim.fully_connected(net, 1, activation_fn=None)
 
-        # 1 x 1 x 1024
-        net = slim.dropout(net, keep_prob=dropout_keep_prob, scope='Dropout_1b')
-        net = slim.flatten(net)
-        net = slim.fully_connected(net, 512)
-        logits = slim.fully_connected(net, 1, activation_fn=None)
-
-        # logits = slim.conv2d(net, num_classes, [1, 1], activation_fn=None,
-        #                      normalizer_fn=None, scope='Conv2d_1c_1x1')
-        # if spatial_squeeze:
-        #     logits = tf.squeeze(logits, [1, 2], name='SpatialSqueeze')
-        end_points['Logits'] = logits
-        # end_points['Predictions'] = prediction_fn(logits, scope='Predictions')
-
-        # logits = slim.fully_connected(net, num_classes, activation_fn=None)
-
-        score = tf.nn.sigmoid(tf.log(tf.abs(logits)))
+            # logits = slim.conv2d(net, num_classes, [1, 1], activation_fn=None,
+            #                      normalizer_fn=None, scope='Conv2d_0c_1x1')
+            # if spatial_squeeze:
+            #     logits = tf.squeeze(logits, [1, 2], name='SpatialSqueeze')
+            end_points['Logits'] = logits
+            # end_points['Predictions'] = prediction_fn(logits, scope='Predictions')
+            score = tf.nn.sigmoid(tf.log(tf.abs(logits)))
 
 
+            # predictions = tf.argmax(logits, 1)
+            discrimination_scores.append(score)
 
 
-
-
-        # predictions = tf.argmax(logits, 1)
-        discrimination_scores.append(score)
-
-
-    # grouping weight
+    # grouping weight/scheme
+    gruop = grouping_weight_scheme(input_views, discrimination_scores)
 
 
 
-    # grouping scheme
 
 
 
@@ -166,8 +173,9 @@ def gvcnn(inputs,
     with tf.variable_scope(scope, 'InceptionV2', [inputs], reuse=reuse) as scope:
         with slim.arg_scope([slim.batch_norm, slim.dropout],
                             is_training=is_training):
-            raw_view_descriptors, end_points = model.FCN(inputs, scope)
-            discrimination_scores = model.grouping_module(raw_view_descriptors,
+            input_views, raw_view_descriptors, end_points = model.FCN(inputs, scope)
+            discrimination_scores = model.grouping_module(input_views,
+                                                          raw_view_descriptors,
                                                           end_points,
                                                           num_classes,
                                                           reuse,
