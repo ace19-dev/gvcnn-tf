@@ -84,33 +84,34 @@ def grouping_weight_scheme(input_views, discrimination_scores):
         g0 = tf.logical_and(score >= tf.constant(0, dtype=tf.float32),
                             score < tf.constant(0.2, dtype=tf.float32))
 
-        # g1 = tf.greater_equal(score, tf.constant(0.2, dtype=tf.float32)) and \
-        #      tf.less(score, tf.constant(0.4, dtype=tf.float32))
-        #
-        # g2 = tf.greater_equal(score, tf.constant(0.4, dtype=tf.float32)) and \
-        #      tf.less(score, tf.constant(0.6, dtype=tf.float32))
-        #
-        # g3 = tf.greater_equal(score, tf.constant(0.6, dtype=tf.float32)) and \
-        #      tf.less(score, tf.constant(0.8, dtype=tf.float32))
-        #
-        # g4 = tf.greater_equal(score, tf.constant(0.8, dtype=tf.float32)) and \
-        #      tf.less(score, tf.constant(1, dtype=tf.float32))
+        g1 = tf.logical_and(score >= tf.constant(0.2, dtype=tf.float32),
+                            score < tf.constant(0.4, dtype=tf.float32))
+
+        g2 = tf.logical_and(score >= tf.constant(0.4, dtype=tf.float32),
+                            score < tf.constant(0.6, dtype=tf.float32))
+
+        g3 = tf.logical_and(score >= tf.constant(0.6, dtype=tf.float32),
+                            score < tf.constant(0.8, dtype=tf.float32))
+
+        g4 = tf.logical_and(score >= tf.constant(0.8, dtype=tf.float32),
+                            score < tf.constant(1, dtype=tf.float32))
+
 
         tf.where(g0,
                  group[str(0) + "_group_scheme"].append(input_views[i]),
                  print(-1))
-        # tf.where(g1,
-        #          group[str(1) + "_group_scheme"].append(input_views[i]),
-        #          print(-1))
-        # tf.where(g2,
-        #          group[str(2) + "_group_scheme"].append(input_views[i]),
-        #          print(-1))
-        # tf.where(g3,
-        #          group[str(3) + "_group_scheme"].append(input_views[i]),
-        #          print(-1))
-        # tf.where(g4,
-        #          group[str(4) + "_group_scheme"].append(input_views[i]),
-        #          print(-1))
+        tf.where(g1,
+                 group[str(1) + "_group_scheme"].append(input_views[i]),
+                 print(-1))
+        tf.where(g2,
+                 group[str(2) + "_group_scheme"].append(input_views[i]),
+                 print(-1))
+        tf.where(g3,
+                 group[str(3) + "_group_scheme"].append(input_views[i]),
+                 print(-1))
+        tf.where(g4,
+                 group[str(4) + "_group_scheme"].append(input_views[i]),
+                 print(-1))
 
 
     return {}
