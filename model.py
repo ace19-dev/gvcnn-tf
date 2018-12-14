@@ -76,6 +76,8 @@ def CNN():
 
 
 def grouping_weight_scheme(input_views, discrimination_scores):
+
+
     group = {}
     for i in range(NUM_SUB_RANGE):
         group[str(i) + "_group_scheme"] = []
@@ -95,23 +97,23 @@ def grouping_weight_scheme(input_views, discrimination_scores):
 
         g4 = tf.logical_and(score >= tf.constant(0.8, dtype=tf.float32),
                             score < tf.constant(1, dtype=tf.float32))
+        # Tensor("InceptionV2/LogicalAnd_1:0", shape=(1, 1), dtype=bool)
 
-
-        tf.where(g0,
-                 group[str(0) + "_group_scheme"].append(input_views[i]),
-                 print(-1))
-        tf.where(g1,
-                 group[str(1) + "_group_scheme"].append(input_views[i]),
-                 print(-1))
-        tf.where(g2,
-                 group[str(2) + "_group_scheme"].append(input_views[i]),
-                 print(-1))
-        tf.where(g3,
-                 group[str(3) + "_group_scheme"].append(input_views[i]),
-                 print(-1))
-        tf.where(g4,
-                 group[str(4) + "_group_scheme"].append(input_views[i]),
-                 print(-1))
+        tf.cond(g0,
+                lambda: group[str(0) + "_group_scheme"].append(input_views[i]),
+                lambda: input_views[i])
+        tf.cond(g1,
+                lambda: group[str(1) + "_group_scheme"].append(input_views[i]),
+                lambda: tf.constant(-1.0))
+        tf.cond(g2,
+                lambda: group[str(2) + "_group_scheme"].append(input_views[i]),
+                lambda: tf.constant(-1.0))
+        tf.cond(g3,
+                lambda: group[str(3) + "_group_scheme"].append(input_views[i]),
+                lambda: tf.constant(-1.0))
+        tf.cond(g4,
+                lambda: group[str(4) + "_group_scheme"].append(input_views[i]),
+                lambda: tf.constant(-1.0))
 
 
     return {}
