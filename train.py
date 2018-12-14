@@ -93,13 +93,16 @@ def test():
     num_classes = 3
 
     train_inputs = tf.random_uniform((train_batch_size, num_views, height, width, 3))
-    discrimination_scores = model.gvcnn(train_inputs, num_classes)
+    discrimination_scores, group = model.gvcnn(train_inputs, num_classes)
 
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
+
         for i, _ in enumerate(discrimination_scores):
             output = sess.run(discrimination_scores[i])
             tf.logging.info("logging -> %s", output)
+
+        g = sess.run(group)
         # tf.test.TestCase.assertEquals(output.shape, (batch_size,))
 
 

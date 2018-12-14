@@ -80,41 +80,39 @@ def grouping_weight_scheme(input_views, discrimination_scores):
     for i in range(NUM_SUB_RANGE):
         group[str(i) + "_group_scheme"] = []
 
+    g0 = tf.constant(0, dtype=tf.float32)
+    g1 = tf.constant(0.2, dtype=tf.float32)
+    g2 = tf.constant(0.4, dtype=tf.float32)
+    g3 = tf.constant(0.6, dtype=tf.float32)
+    g4 = tf.constant(0.8, dtype=tf.float32)
+    g5 = tf.constant(1, dtype=tf.float32)
+
+    def fn1(g, i):
+        group[str(g) + "_group_scheme"].append(input_views[i])
+        return tf.constant(1)
+        # return
+
     for i, score in enumerate(discrimination_scores):
-        g0 = tf.logical_and(score >= tf.constant(0, dtype=tf.float32),
-                            score < tf.constant(0.2, dtype=tf.float32))
+        # tf.case(
+        #     pred_fn_pairs=[
+        #         ((tf.greater_equal(score, g0) & tf.less(score, g1)), lambda: fn1(0, i)),
+        #         ((tf.greater_equal(score, g1) & tf.less(score, g2)), lambda: fn1(1, i)),
+        #         ((tf.greater_equal(score, g2) & tf.less(score, g3)), lambda: fn1(2, i)),
+        #         ((tf.greater_equal(score, g3) & tf.less(score, g4)), lambda: fn1(3, i)),
+        #         ((tf.greater_equal(score, g4) & tf.less(score, g5)), lambda: fn1(4, i))],
+        #     default=None,
+        #     exclusive=False)
+        tf.case(
+            pred_fn_pairs=[
+                (tf.logical_and(tf.greater_equal(score, g0), tf.less(score, g1)), lambda: fn1(0, i)),
+                (tf.logical_and(tf.greater_equal(score, g1), tf.less(score, g2)), lambda: fn1(1, i)),
+                (tf.logical_and(tf.greater_equal(score, g2), tf.less(score, g3)), lambda: fn1(2, i)),
+                (tf.logical_and(tf.greater_equal(score, g3), tf.less(score, g4)), lambda: fn1(3, i)),
+                (tf.logical_and(tf.greater_equal(score, g4), tf.less(score, g5)), lambda: fn1(4, i))],
+            default=None,
+            exclusive=True)
 
-        g1 = tf.logical_and(score >= tf.constant(0.2, dtype=tf.float32),
-                            score < tf.constant(0.4, dtype=tf.float32))
-
-        g2 = tf.logical_and(score >= tf.constant(0.4, dtype=tf.float32),
-                            score < tf.constant(0.6, dtype=tf.float32))
-
-        g3 = tf.logical_and(score >= tf.constant(0.6, dtype=tf.float32),
-                            score < tf.constant(0.8, dtype=tf.float32))
-
-        g4 = tf.logical_and(score >= tf.constant(0.8, dtype=tf.float32),
-                            score < tf.constant(1, dtype=tf.float32))
-
-
-        tf.where(g0,
-                 group[str(0) + "_group_scheme"].append(input_views[i]),
-                 print(-1))
-        tf.where(g1,
-                 group[str(1) + "_group_scheme"].append(input_views[i]),
-                 print(-1))
-        tf.where(g2,
-                 group[str(2) + "_group_scheme"].append(input_views[i]),
-                 print(-1))
-        tf.where(g3,
-                 group[str(3) + "_group_scheme"].append(input_views[i]),
-                 print(-1))
-        tf.where(g4,
-                 group[str(4) + "_group_scheme"].append(input_views[i]),
-                 print(-1))
-
-
-    return {}
+    return group
 
 
 
@@ -166,21 +164,19 @@ def grouping_module(input_views,
             end_points['Logits'] = logits
             # end_points['Predictions'] = prediction_fn(logits, scope='Predictions')
             score = tf.nn.sigmoid(tf.log(tf.abs(logits)))
-
-
-            # predictions = tf.argmax(logits, 1)
+            score = tf.reshape(score, [])
             discrimination_scores.append(score)
 
 
     # grouping weight/scheme
-    gruop = grouping_weight_scheme(input_views, discrimination_scores)
+    group = grouping_weight_scheme(input_views, discrimination_scores)
 
 
 
 
 
 
-    return discrimination_scores
+    return discrimination_scores, group
 
 
 # def view_pooling():
@@ -211,7 +207,7 @@ def gvcnn(inputs,
         with slim.arg_scope([slim.batch_norm, slim.dropout],
                             is_training=is_training):
             input_views, raw_view_descriptors, end_points = model.FCN(inputs, scope)
-            discrimination_scores = model.grouping_module(input_views,
+            discrimination_scores, group = model.grouping_module(input_views,
                                                           raw_view_descriptors,
                                                           end_points,
                                                           num_classes,
@@ -221,4 +217,4 @@ def gvcnn(inputs,
 
     # Final View Descriptors -> View Pooling
 
-    return discrimination_scores
+    return discrimination_scores, group
