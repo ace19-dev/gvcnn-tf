@@ -17,6 +17,7 @@ NUM_SUB_RANGE = 5
 def FCN(inputs, scope):
     """
     Raw View Descriptor Generation
+    first part of the network (FCN) to get the raw descriptor in the view level.
 
     TODO: The “FCN” part is the top five convolutional layers of GoogLeNet. (mid-level representation ??)
 
@@ -60,7 +61,6 @@ def FCN(inputs, scope):
 
 '''
 CNN is the same as GoogLeNet.
-
 Inception. v1. (a.k.a GoogLeNet)
 '''
 def CNN(inputs, scope):
@@ -122,7 +122,7 @@ def grouping_weight_scheme(view_discrimination_scores):
             default=lambda: tf.Variable(-1),
             exclusive=False)
 
-        group['view_' + str(view_idx+1)] = group_idx
+        group[view_idx] = group_idx
 
     return group
 
@@ -145,6 +145,7 @@ def grouping_module(raw_view_descriptors,
     :return:
     """
 
+    # FC layer to obtain the discrimination scores from raw view descriptors
     view_discrimination_scores = []
     for i, net in enumerate(raw_view_descriptors):
         with tf.variable_scope('Logits'):
@@ -186,12 +187,24 @@ def grouping_module(raw_view_descriptors,
     # return view_discrimination_scores
 
 
-# def view_pooling():
-#
-#
-#
-#
-#
+'''
+1. 같은 그룹에 속하는 net 를 tf.div(tf.add(a, b), num_same_group) ?
+2. 2d pooling ?
+'''
+def view_pooling(final_view_descriptors, group):
+
+    '''
+    :param final_view_descriptors:
+    :param group: Grouping Scheme
+    :return:
+    '''
+
+    # for i in range(NUM_SUB_RANGE):
+    for i, view_desc in enumerate(final_view_descriptors):
+        group[i]
+
+
+
 # def group_fusion():
 #     return
 
@@ -213,14 +226,21 @@ def gvcnn(inputs,
     with tf.variable_scope(scope, 'InceptionV2', [inputs], reuse=reuse) as scope:
         with slim.arg_scope([slim.batch_norm, slim.dropout],
                             is_training=is_training):
+            '''
+            First part of the network (FCN) to get the raw descriptor in the view level.
+            '''
             input_views, raw_view_descriptors, end_points = FCN(inputs, scope)
             group = grouping_module(raw_view_descriptors,
                                     end_points,
                                     num_classes,
                                     reuse,
                                     scope)
+            '''
+            The second part of the network (CNN) and the group module, are used to extract 
+            the final view descriptors together with the discrimination scores, separately.
+            '''
             final_view_descriptors, end_points2 = CNN(inputs, scope)
-
+            group_level_description = view_pooling(final_view_descriptors, group)
 
     # Final View Descriptors -> View Pooling
 
