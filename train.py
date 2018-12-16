@@ -2,7 +2,7 @@ import time
 import numpy as np
 
 import tensorflow as tf
-import model
+import gvcnn
 from utils import train_utils
 
 from slim.deployment import model_deploy
@@ -92,14 +92,31 @@ def test():
     height, width = 224, 224
     num_classes = 3
 
-    train_inputs = tf.random_uniform((train_batch_size, num_views, height, width, 3))
-    discrimination_scores = model.gvcnn(train_inputs, num_classes)
+    train_inputs = tf.placeholder(tf.float32, [None, num_views, height, width, 3])
+
+    # discrimination_scores = gvcnn.gvcnn(train_inputs, num_classes)
+    group = gvcnn.gvcnn(train_inputs, num_classes)
+
+    # X1 = tf.Variable(1.)
+    # X2 = tf.Variable(1.)
+    # cond_value = tf.Variable(True)
+    # cond_result = tf.cond(cond_value, lambda: tf.assign(X1, 2.), lambda: tf.assign(X2, 2.))
 
     with tf.Session() as sess:
+        # sess.run(tf.global_variables_initializer())
+        # sess.run(cond_result)
+        # print(sess.run(X1), sess.run(X2))
         sess.run(tf.global_variables_initializer())
-        for i, _ in enumerate(discrimination_scores):
-            output = sess.run(discrimination_scores[i])
-            tf.logging.info("logging -> %s", output)
+
+        inputs = tf.random_uniform((train_batch_size, num_views, height, width, 3))
+
+        # for i, _ in enumerate(discrimination_scores):
+        #     output = sess.run(discrimination_scores[i], feed_dict={train_inputs: inputs.eval()})
+        #     tf.logging.info("logging -> %s", output)
+        # output = [sess.run(discrimination_scores[i], feed_dict={train_inputs: inputs.eval()}) for i, _ in enumerate(discrimination_scores)]
+        # tf.logging.info("logging -> %s", output)
+
+        g = sess.run(group, feed_dict={train_inputs: inputs.eval()})
         # tf.test.TestCase.assertEquals(output.shape, (batch_size,))
 
 
