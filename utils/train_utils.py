@@ -209,3 +209,22 @@ def get_model_learning_rate(
   # Employ small learning rate at the first few steps for warm start.
   return tf.where(global_step < slow_start_step, slow_start_learning_rate,
                   learning_rate)
+
+
+# def dict2list(dict):
+#     dictlist = []
+#     for key, value in dict.items():
+#         temp = [key, value]
+#         dictlist.append(temp)
+#
+#     return dictlist
+
+def refine_dict(dict):
+    new_dict = {}
+    for key, value in dict.items():
+        try:
+            new_dict[value].append(key)
+        except KeyError:
+            new_dict[value] = [key]
+
+    return new_dict

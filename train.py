@@ -24,6 +24,7 @@ WIDTH = 'width'
 IMAGE_NAME = 'image_name'
 LABEL = 'label'
 NUM_VIEWS = 12
+NUM_GROUP = 5
 
 
 flags.DEFINE_integer('num_clones', 1, 'Number of clones to deploy.')
@@ -87,39 +88,52 @@ flags.DEFINE_integer('num_views', 4, 'Number of views')
 
 def test():
     train_batch_size = 1
-    num_views = 8
+    num_views = 8       # set of views
     # eval_batch_size = 2
     height, width = 224, 224
     num_classes = 3
+    num_group = 5
 
+    # TODO: Use Princeton ModelNet dataset
+    # TODO: TFRecord
     train_inputs = tf.placeholder(tf.float32, [None, num_views, height, width, 3])
+    dropout_keep_prob = tf.placeholder(tf.float32)
+    is_training = tf.placeholder(tf.bool)
 
-    # discrimination_scores = gvcnn.gvcnn(train_inputs, num_classes)
-    group = gvcnn.gvcnn(train_inputs, num_classes)
-
-    # X1 = tf.Variable(1.)
-    # X2 = tf.Variable(1.)
-    # cond_value = tf.Variable(True)
-    # cond_result = tf.cond(cond_value, lambda: tf.assign(X1, 2.), lambda: tf.assign(X2, 2.))
+    # Make grouping module
+    d_scores, g_scheme, g_weight = \
+        gvcnn.make_grouping_module(train_inputs,
+                                   num_group,
+                                   is_training,
+                                   dropout_keep_prob=dropout_keep_prob)
 
     with tf.Session() as sess:
-        # sess.run(tf.global_variables_initializer())
-        # sess.run(cond_result)
-        # print(sess.run(X1), sess.run(X2))
         sess.run(tf.global_variables_initializer())
 
         inputs = tf.random_uniform((train_batch_size, num_views, height, width, 3))
+        scores, scheme, weight = sess.run([d_scores, g_scheme, g_weight],
+                                          feed_dict={train_inputs: inputs.eval(),
+                                                     dropout_keep_prob: 0.8,
+                                                     is_training: True})
+        sess.close()
 
-        # for i, _ in enumerate(discrimination_scores):
-        #     output = sess.run(discrimination_scores[i], feed_dict={train_inputs: inputs.eval()})
-        #     tf.logging.info("logging -> %s", output)
-        # output = [sess.run(discrimination_scores[i], feed_dict={train_inputs: inputs.eval()}) for i, _ in enumerate(discrimination_scores)]
-        # tf.logging.info("logging -> %s", output)
+    group_scheme = train_utils.refine_dict(scheme)
+    logits, end_points = gvcnn.gvcnn(train_inputs,
+                                     group_scheme,
+                                     is_training,
+                                     dropout_keep_prob=dropout_keep_prob)
 
-        g = sess.run(group, feed_dict={train_inputs: inputs.eval()})
-        # tf.test.TestCase.assertEquals(output.shape, (batch_size,))
+    with tf.Session() as sess:
+        sess.run(tf.global_variables_initializer())
 
-        tf.logging.info("++++++")
+        # sess.run([logits], feed_dict={train_inputs: inputs.eval(),
+        #                               dropout_keep_prob: 0.8,
+        #                               is_training: True})
+
+
+    tf.logging.info("++++++")
+
+
 
 
 def read_lists(list_of_lists_file):
