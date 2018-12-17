@@ -103,6 +103,8 @@ def CNN(inputs, scope):
 
 def grouping_weight_scheme(view_discrimination_scores):
     group = {}
+    # for i in range(NUM_SUB_RANGE):
+    #     group[i] = []
 
     g0 = tf.constant(0, dtype=tf.float32)
     g1 = tf.constant(1/NUM_SUB_RANGE, dtype=tf.float32)
@@ -114,15 +116,16 @@ def grouping_weight_scheme(view_discrimination_scores):
     for view_idx, score in enumerate(view_discrimination_scores):
         group_idx = tf.case(
             pred_fn_pairs=[
-                (tf.logical_and(tf.greater_equal(score, g0), tf.less(score, g1)), lambda: tf.Variable(1)),
-                (tf.logical_and(tf.greater_equal(score, g1), tf.less(score, g2)), lambda: tf.Variable(2)),
-                (tf.logical_and(tf.greater_equal(score, g2), tf.less(score, g3)), lambda: tf.Variable(3)),
-                (tf.logical_and(tf.greater_equal(score, g3), tf.less(score, g4)), lambda: tf.Variable(4)),
-                (tf.logical_and(tf.greater_equal(score, g4), tf.less(score, g5)), lambda: tf.Variable(5))],
-            default=lambda: tf.Variable(-1),
+                (tf.logical_and(tf.greater_equal(score, g0), tf.less(score, g1)), lambda: tf.constant(0)),
+                (tf.logical_and(tf.greater_equal(score, g1), tf.less(score, g2)), lambda: tf.constant(1)),
+                (tf.logical_and(tf.greater_equal(score, g2), tf.less(score, g3)), lambda: tf.constant(2)),
+                (tf.logical_and(tf.greater_equal(score, g3), tf.less(score, g4)), lambda: tf.constant(3)),
+                (tf.logical_and(tf.greater_equal(score, g4), tf.less(score, g5)), lambda: tf.constant(4))],
+            default=lambda: tf.constant(-1),
             exclusive=False)
 
         group[view_idx] = group_idx
+
 
     return group
 
@@ -201,8 +204,23 @@ def view_pooling(final_view_descriptors, group):
 
     # for i in range(NUM_SUB_RANGE):
     for i, view_desc in enumerate(final_view_descriptors):
-        group[i]
+        g0 = tf.cond(tf.equal(group[i], tf.Variable(0)),
+                lambda: tf.add(view_desc, g0),
+                lambda: tf.zeros(view_desc.shape))
+        g1 = tf.cond(tf.equal(group[i], tf.Variable(1)),
+                     lambda: tf.add(view_desc, g1),
+                     lambda: tf.zeros(view_desc.shape))
+        g2 = tf.cond(tf.equal(group[i], tf.Variable(2)),
+                     lambda: tf.add(view_desc, g2),
+                     lambda: tf.zeros(view_desc.shape))
+        g3 = tf.cond(tf.equal(group[i], tf.Variable(3)),
+                     lambda: tf.add(view_desc, g3),
+                     lambda: tf.zeros(view_desc.shape))
+        g4 = tf.cond(tf.equal(group[i], tf.Variable(4)),
+                     lambda: tf.add(view_desc, g4),
+                     lambda: tf.zeros(view_desc.shape))
 
+    tf.logging.info("=========")
 
 
 # def group_fusion():
@@ -239,9 +257,10 @@ def gvcnn(inputs,
             The second part of the network (CNN) and the group module, are used to extract 
             the final view descriptors together with the discrimination scores, separately.
             '''
-            final_view_descriptors, end_points2 = CNN(inputs, scope)
-            group_level_description = view_pooling(final_view_descriptors, group)
+            # final_view_descriptors, end_points2 = CNN(inputs, scope)
+            # group_level_description = view_pooling(final_view_descriptors, group)
 
     # Final View Descriptors -> View Pooling
 
     return group
+    # return group_level_description

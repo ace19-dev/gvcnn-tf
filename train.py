@@ -119,6 +119,8 @@ def test():
         g = sess.run(group, feed_dict={train_inputs: inputs.eval()})
         # tf.test.TestCase.assertEquals(output.shape, (batch_size,))
 
+        tf.logging.info("++++++")
+
 
 def read_lists(list_of_lists_file):
     listfile_labels = np.loadtxt(list_of_lists_file, dtype=str).tolist()
