@@ -143,8 +143,6 @@ def make_grouping_module(inputs,
     """
 
     input_views = []
-    raw_view_descriptors = []  # Raw View Descriptors
-
     # FC layer to obtain the discrimination scores from raw view descriptors
     view_discrimination_scores = []
 
@@ -177,7 +175,7 @@ def make_grouping_module(inputs,
                                               scope='AvgPool_1a_{}x{}'.format(*kernel_size))
                         end_points['AvgPool_1a'] = net
 
-                    # 1 x 1 x 1024
+                    # ? X 1 x 1 x 1024
                     net = slim.dropout(net, dropout_keep_prob, scope='Dropout_1b')
                     net = slim.flatten(net)
                     # net = slim.fully_connected(net, 512)
@@ -205,6 +203,7 @@ def gvcnn(inputs,
           group_scheme,
           is_training=True,
           dropout_keep_prob=0.8,
+          spatial_squeeze=True,
           reuse=tf.AUTO_REUSE,
           scope='InceptionV2',
           global_pool=True):
@@ -229,7 +228,6 @@ def gvcnn(inputs,
                     inception_v2.inception_v2_base(batch_view, scope=scope)
 
                 input_views.append(batch_view)
-
                 with tf.variable_scope('Logits'):
                     if global_pool:
                         # Global average pooling.
@@ -242,12 +240,15 @@ def gvcnn(inputs,
                                               scope='AvgPool_1a_{}x{}'.format(*kernel_size))
                         end_points['AvgPool_1a'] = net
 
-                    # 1 x 1 x 1024
+                    # ? x 1 x 1 x 1024
                     net = slim.dropout(net, keep_prob=dropout_keep_prob, scope='Dropout_1b')
                     # logits = slim.conv2d(net, num_classes, [1, 1], activation_fn=None,
                     #                      normalizer_fn=None, scope='Conv2d_1c_1x1')
                     # if spatial_squeeze:
                     #     logits = tf.squeeze(logits, [1, 2], name='SpatialSqueeze')
-                end_points['Logits'] = net
+                    end_points['Logits'] = net
 
-                # TODO: Final View Descriptors + group_scheme <= View Pooling
+                    # TODO: Final View Descriptors + group_scheme <= View Pooling
+                    final_view_descriptors.append(net)
+
+    return net, end_points

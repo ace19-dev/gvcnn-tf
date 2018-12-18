@@ -126,14 +126,11 @@ def test():
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
 
-        # sess.run([logits], feed_dict={train_inputs: inputs.eval(),
-        #                               dropout_keep_prob: 0.8,
-        #                               is_training: True})
-
+        sess.run([logits], feed_dict={train_inputs: inputs.eval(),
+                                      dropout_keep_prob: 0.8,
+                                      is_training: True})
 
     tf.logging.info("++++++")
-
-
 
 
 def read_lists(list_of_lists_file):
