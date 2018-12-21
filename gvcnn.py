@@ -12,48 +12,6 @@ from nets import googLeNet
 slim = tf.contrib.slim
 
 
-'''
-CNN is the same as GoogLeNet.
-Inception. v1. (a.k.a GoogLeNet)
-'''
-# def CNN(inputs, scope):
-#     """
-#         Final View Descriptors Generation
-#
-#         Extract the raw view descriptors. Compared with deeper CNN,
-#         shallow FCN could have more position information, which is needed for
-#         the followed grouping module and the deeper CNN will have the content information
-#         which could represent the view feature better.
-#
-#         Args:
-#         inputs: N x V x H x W x C tensor
-#         scope:
-#
-#         Returns:
-#         tensor_outs: output tensor corresponding to the final_endpoint.
-#         end_points: a set of activations for external use, for example summaries or
-#                     losses.
-#
-#         """
-#
-#     n_views = inputs.get_shape().as_list()[1]
-#
-#     # transpose views: (NxVxHxWxC) -> (VxNxHxWxC)
-#     views = tf.transpose(inputs, perm=[1, 0, 2, 3, 4])
-#
-#     final_view_descriptors = []  # Final View Descriptors
-#     for i in range(n_views):
-#         batch_view = tf.gather(views, i)  # N x H x W x C
-#
-#         net, end_points = inception_v2.inception_v2_base(batch_view,
-#                                                          scope=scope,
-#                                                          use_separable_conv=True)
-#
-#         final_view_descriptors.append(net)
-#
-#     return final_view_descriptors, end_points
-
-
 def refine_scheme(scheme):
     new_scheme = {}
     for key, value in scheme.items():
