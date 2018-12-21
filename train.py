@@ -3,7 +3,10 @@ import numpy as np
 
 import tensorflow as tf
 import gvcnn
-from utils import train_utils
+import model
+
+from nets import googLeNet
+
 
 from slim.deployment import model_deploy
 
@@ -101,7 +104,7 @@ def test():
     is_training = tf.placeholder(tf.bool)
 
     # Make grouping module
-    d_scores, g_scheme, g_weight = \
+    d_scores, g_scheme = \
         gvcnn.make_grouping_module(train_inputs,
                                    num_group,
                                    is_training,
@@ -111,26 +114,50 @@ def test():
         sess.run(tf.global_variables_initializer())
 
         inputs = tf.random_uniform((train_batch_size, num_views, height, width, 3))
-        scores, scheme, weight = sess.run([d_scores, g_scheme, g_weight],
-                                          feed_dict={train_inputs: inputs.eval(),
-                                                     dropout_keep_prob: 0.8,
-                                                     is_training: True})
+        scores, scheme = \
+            sess.run([d_scores, g_scheme],
+                     feed_dict={train_inputs: inputs.eval(),
+                     dropout_keep_prob: 0.8,
+                     is_training: True})
         sess.close()
 
-    group_scheme = train_utils.refine_dict(scheme)
-    logits, end_points = gvcnn.gvcnn(train_inputs,
-                                     group_scheme,
-                                     is_training,
-                                     dropout_keep_prob=dropout_keep_prob)
+    group_scheme = gvcnn.refine_scheme(scheme)
+    group_weight = gvcnn.group_weight(scores, group_scheme)
+    predictions = gvcnn.gvcnn(train_inputs,
+                                group_scheme,
+                                group_weight,
+                                num_classes,
+                                is_training,
+                                dropout_keep_prob=dropout_keep_prob)
 
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
 
-        sess.run([logits], feed_dict={train_inputs: inputs.eval(),
-                                      dropout_keep_prob: 0.8,
-                                      is_training: True})
+        pred = sess.run([predictions], feed_dict={train_inputs: inputs.eval(),
+                                                  dropout_keep_prob: 0.8,
+                                                  is_training: True})
 
-    tf.logging.info("++++++")
+        tf.logging.info("pred...%s", pred)
+
+
+
+def test2():
+    train_batch_size = 8
+    height, width = 224, 224
+
+    inputs = tf.random_uniform((train_batch_size, height, width, 3))
+
+    googLeNet.googLeNet(inputs)
+
+
+def test3():
+    train_batch_size = 1
+    num_views = 8
+    height, width = 224, 224
+
+    inputs = tf.random_uniform((train_batch_size, num_views, height, width, 3))
+
+    model.inference_multiview(inputs, 10, 0.8)
 
 
 def read_lists(list_of_lists_file):
@@ -143,6 +170,8 @@ def main(unused_argv):
     tf.logging.set_verbosity(tf.logging.INFO)
 
     test()
+    # test2()
+    # test3()
 
     # # Set up deployment (i.e. multi-GPUs and/or multi-replicas).
     # config = model_deploy.DeploymentConfig(
