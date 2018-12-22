@@ -8,4 +8,5 @@ http://openaccess.thecvf.com/content_cvpr_2018/papers/Feng_GVCNN_Group-View_Conv
 
 
 # Reference from
+- https://github.com/WeiTang114/MVCNN-TensorFlow
 - https://github.com/pclausen/obj2png
