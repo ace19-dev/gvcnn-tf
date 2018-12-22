@@ -68,7 +68,7 @@ if __name__ == '__main__':
     parser.add_argument("-e", "--elevation",
               dest='elevation',
               type=float,
-              # default=100,
+              # default=-5,
               help="Elevation angle of view in degrees.")
 
     parser.add_argument("-q", "--quality",
@@ -79,7 +79,7 @@ if __name__ == '__main__':
     parser.add_argument("-s", "--scale",
               dest='scale',
               type=float,
-              default=0.7,
+              default=0.9,
               help="Scale picture by descreasing boundaries. Lower than 1. gives a larger object.")
 
     parser.add_argument("-v", "--view",
