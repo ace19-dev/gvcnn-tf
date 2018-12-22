@@ -62,7 +62,7 @@ if __name__ == '__main__':
     parser.add_argument("-a", "--azimuth",
               dest='azim',
               type=float,
-              default=45,
+              default=45,   # 360 / nviews 
               help="Azimuth angle of view in degrees.")
 
     parser.add_argument("-e", "--elevation",
