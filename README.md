@@ -3,7 +3,7 @@ http://openaccess.thecvf.com/content_cvpr_2018/papers/Feng_GVCNN_Group-View_Conv
 
 
 # Reference from
-https://github.com/pclausen/obj2png
+- https://github.com/pclausen/obj2png
 
 
 ### in progress...
