@@ -9,10 +9,10 @@ FLAGS = flags.FLAGS
 
 
 
-flags.DEFINE_string('input_dir', '/home/ace19/dl_data/ModelNet40/airplane',
+flags.DEFINE_string('input_dir', '/home/ace19/dl_data/ModelNet40/xbox',
                     'input dir')
 
-flags.DEFINE_string('output_dir', '/home/ace19/dl_data/ModelNet40/airplane',
+flags.DEFINE_string('output_dir', '/home/ace19/dl_data/ModelNet40/xbox',
                     'output dir')
 
 flags.DEFINE_string('output_file_ext', '.obj',
