@@ -2,7 +2,7 @@
 http://openaccess.thecvf.com/content_cvpr_2018/papers/Feng_GVCNN_Group-View_Convolutional_CVPR_2018_paper.pdf
 
 
-### In progress...
+### It is under development.
 
 
 
