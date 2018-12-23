@@ -8,7 +8,6 @@ flags = tf.app.flags
 FLAGS = flags.FLAGS
 
 
-
 flags.DEFINE_string('input_dir', '/home/ace19/dl_data/ModelNet40/xbox',
                     'input dir')
 
@@ -35,11 +34,6 @@ def main(unused_argv):
               + output_file_path
         os.system(cmd)
         # subprocess.call(cmd, shell=True)
-
-
-
-
-
 
 
 if __name__ == '__main__':

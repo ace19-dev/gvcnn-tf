@@ -97,8 +97,10 @@ def test():
     num_classes = 3
     num_group = 5
 
-    # TODO: Use Princeton ModelNet dataset
-    # TODO: TFRecord
+    '''
+    아래 참고할 것.
+    https://medium.com/trackin-datalabs/input-data-tf-data-%EC%9C%BC%EB%A1%9C-batch-%EB%A7%8C%EB%93%A4%EA%B8%B0-1c96f17c3696
+    '''
     train_inputs = tf.placeholder(tf.float32, [None, num_views, height, width, 3])
     dropout_keep_prob = tf.placeholder(tf.float32)
     is_training = tf.placeholder(tf.bool)
@@ -110,15 +112,28 @@ def test():
                                    is_training,
                                    dropout_keep_prob=dropout_keep_prob)
 
+    # dataset = tf.data.Dataset.from_tensor_slices(({"image": train_x}, train_y))
+    # dataset = dataset.shuffle(100000).repeat().batch(10)
+    dataset = tf.data.Dataset.from_tensor_slices(train_inputs)
+    iterator = dataset.make_one_shot_iterator()
+    next_batch = iterator.get_next()
+
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
 
         inputs = tf.random_uniform((train_batch_size, num_views, height, width, 3))
+
+        # placeholder를 이용하여 Dataset을 생성하였을 경우,
+        # 초기화 할 때에 feed_dict으로 데이터를 전달해야 합니다.
+        sess.run(iterator.initializer, feed_dict={train_inputs: inputs})
+
+        train_batch_xs, train_batch_ys = sess.run(next_batch)
+
+
         scores, scheme = \
-            sess.run([d_scores, g_scheme],
-                     feed_dict={train_inputs: inputs.eval(),
-                     dropout_keep_prob: 0.8,
-                     is_training: True})
+            sess.run([d_scores, g_scheme], feed_dict={train_inputs: inputs.eval(),
+                                                      dropout_keep_prob: 0.8,
+                                                      is_training: True})
         sess.close()
 
     group_scheme = gvcnn.refine_scheme(scheme)

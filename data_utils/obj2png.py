@@ -29,7 +29,7 @@ SOFTWARE.
 """
 
 import argparse
-import src.ObjFile
+import data_utils.ObjFile
 import sys
 import os
 import glob
@@ -41,7 +41,7 @@ if __name__ == '__main__':
     parser.add_argument("-i", "--infiles",
               dest='objfiles',
               # nargs='+',
-              default='/home/ace19/dl_data/ModelNet40/airplane/train',
+              default='/home/ace19/dl_data/ModelNet40/toilet/train',
               help="File or files to be converted to png")
 
     parser.add_argument("-o", "--outfile",
@@ -50,7 +50,7 @@ if __name__ == '__main__':
 
     parser.add_argument("-od", "--outdir",
               dest='outdir',
-              default='/home/ace19/dl_data/modelnet5_low/airplane/train',
+              default='/home/ace19/dl_data/modelnet5_low/toilet/train',
               help="Output directory.")
 
     parser.add_argument("-n", "--nviews",
@@ -137,7 +137,7 @@ if __name__ == '__main__':
             # else:
             #     print('Converting %s to %s'%(objfile, outfile))
 
-            ob = src.ObjFile.ObjFile(objfilepath)
+            ob = data_utils.ObjFile.ObjFile(objfilepath)
 
             for i in range(args.nviews):
                 new_output = objfile[:-4] + '.' + str(i) + '.png'
