@@ -1,18 +1,20 @@
 import time
 import numpy as np
+import cv2
+
+from six.moves import xrange
 
 import tensorflow as tf
 import gvcnn
 import model
+import data
 
 from nets import googLeNet
 
 
-from slim.deployment import model_deploy
-
 slim = tf.contrib.slim
 
-prefetch_queue = slim.prefetch_queue
+# prefetch_queue = slim.prefetch_queue
 
 flags = tf.app.flags
 
@@ -26,8 +28,6 @@ HEIGHT = 'height'
 WIDTH = 'width'
 IMAGE_NAME = 'image_name'
 LABEL = 'label'
-NUM_VIEWS = 12
-NUM_GROUP = 5
 
 
 flags.DEFINE_integer('num_clones', 1, 'Number of clones to deploy.')
@@ -65,8 +65,8 @@ flags.DEFINE_float('training_number_of_steps', 30000,
 flags.DEFINE_float('momentum', 0.9, 'The momentum value to use')
 
 
-flags.DEFINE_integer('train_batch_size', 8,
-                     'The value of the weight decay for training.')
+# flags.DEFINE_integer('train_batch_size', 8,
+#                      'The value of the weight decay for training.')
 
 
 # Settings for fine-tuning the network.
@@ -75,80 +75,80 @@ flags.DEFINE_string('tf_initial_checkpoint', './checkpoint',
 
 
 # Dataset settings.
-flags.DEFINE_string('dataset', 'pascal_voc_seg',
-                    'Name of the segmentation dataset.')
-
-flags.DEFINE_string('train_split', 'train',
-                    'Which split of the dataset to be used for training')
-
-flags.DEFINE_string('dataset_dir', './datasets/pascal_voc_seg/tfrecord',
+flags.DEFINE_string('dataset_dir', '/home/ace19/dl_data/modelnet',
                     'Where the dataset reside.')
 
 
-flags.DEFINE_integer('num_views', 4, 'Number of views')
+flags.DEFINE_integer('how_many_training_epochs', 10, 'How many training loops to run')
+
+flags.DEFINE_integer('train_batch_size', 16, 'batch size')
+flags.DEFINE_integer('num_views', 8, 'number of views')
+flags.DEFINE_string('height_weight', '224,224', 'height and weight')
+flags.DEFINE_integer('num_classes', 7, 'number of classes')
 
 
 
 def test():
-    train_batch_size = 1
-    num_views = 8       # set of views
-    # eval_batch_size = 2
-    height, width = 224, 224
-    num_classes = 3
-    num_group = 5
+    h_w = list(map(int, FLAGS.height_weight.split(',')))
 
-    '''
-    아래 참고할 것.
-    https://medium.com/trackin-datalabs/input-data-tf-data-%EC%9C%BC%EB%A1%9C-batch-%EB%A7%8C%EB%93%A4%EA%B8%B0-1c96f17c3696
-    '''
-    train_inputs = tf.placeholder(tf.float32, [None, num_views, height, width, 3])
-    dropout_keep_prob = tf.placeholder(tf.float32)
+    # TODO: remove comment soon
+    # dataset = data.Data(FLAGS.dataset_dir, h_w)
+    # images, labels = d.next_batch(0, FLAGS.train_batch_size)
+
+    x = tf.placeholder(tf.float32, [None, FLAGS.num_views, h_w[0], h_w[1], 3])
+    gt = tf.placeholder(tf.int32, [None])
     is_training = tf.placeholder(tf.bool)
+    dropout_keep_prob = tf.placeholder(tf.float32)
+
+
+        # # Create a saver object which will save all the variables
+        # saver = tf.train.Saver()
+        #
+        # start_epoch = 1
+        # start_checkpoint_epoch = 0
+        # if FLAGS.start_checkpoint:
+        #     # model.load_variables_from_checkpoint(sess, FLAGS.start_checkpoint)
+        #     saver.restore(sess, FLAGS.start_checkpoint)
+        #     tmp = FLAGS.start_checkpoint
+        #     tmp = tmp.split('-')
+        #     tmp.reverse()
+        #     start_checkpoint_epoch = int(tmp[0])
+        #     start_epoch = start_checkpoint_epoch + 1
+        #
+        # ############################
+        # # Training loop.
+        # ############################
+        # for training_epoch in xrange(start_epoch, training_epochs_max + 1):
 
     # Make grouping module
     d_scores, g_scheme = \
-        gvcnn.make_grouping_module(train_inputs,
-                                   num_group,
+        gvcnn.make_grouping_module(x,
                                    is_training,
                                    dropout_keep_prob=dropout_keep_prob)
-
-    # dataset = tf.data.Dataset.from_tensor_slices(({"image": train_x}, train_y))
-    # dataset = dataset.shuffle(100000).repeat().batch(10)
-    dataset = tf.data.Dataset.from_tensor_slices(train_inputs)
-    iterator = dataset.make_one_shot_iterator()
-    next_batch = iterator.get_next()
 
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
 
-        inputs = tf.random_uniform((train_batch_size, num_views, height, width, 3))
-
-        # placeholder를 이용하여 Dataset을 생성하였을 경우,
-        # 초기화 할 때에 feed_dict으로 데이터를 전달해야 합니다.
-        sess.run(iterator.initializer, feed_dict={train_inputs: inputs})
-
-        train_batch_xs, train_batch_ys = sess.run(next_batch)
-
-
+        inputs = tf.random_uniform((FLAGS.train_batch_size, FLAGS.num_views, h_w[0], h_w[1], 3))
         scores, scheme = \
-            sess.run([d_scores, g_scheme], feed_dict={train_inputs: inputs.eval(),
+            sess.run([d_scores, g_scheme], feed_dict={x: inputs.eval(),
                                                       dropout_keep_prob: 0.8,
                                                       is_training: True})
         sess.close()
 
     group_scheme = gvcnn.refine_scheme(scheme)
     group_weight = gvcnn.group_weight(scores, group_scheme)
-    predictions = gvcnn.gvcnn(train_inputs,
-                                group_scheme,
-                                group_weight,
-                                num_classes,
-                                is_training,
-                                dropout_keep_prob=dropout_keep_prob)
+    predictions = gvcnn.gvcnn(x,
+                              group_scheme,
+                              group_weight,
+                              FLAGS.num_classes,
+                              is_training,
+                              dropout_keep_prob=dropout_keep_prob)
 
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
 
-        pred = sess.run([predictions], feed_dict={train_inputs: inputs.eval(),
+        pred = sess.run([predictions], feed_dict={x: inputs.eval(),
                                                   dropout_keep_prob: 0.8,
                                                   is_training: True})
 
@@ -187,6 +187,7 @@ def main(unused_argv):
     test()
     # test2()
     # test3()
+
 
     # # Set up deployment (i.e. multi-GPUs and/or multi-replicas).
     # config = model_deploy.DeploymentConfig(

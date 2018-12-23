@@ -6,10 +6,10 @@ flags = tf.app.flags
 
 FLAGS = flags.FLAGS
 
-flags.DEFINE_string('target_dir', '/home/ace19/dl_data/modelnet5_low/vase/test',
+flags.DEFINE_string('target_dir', '/home/ace19/dl_data/modelnet/cone/test',
                     'target_dir')
 
-flags.DEFINE_string('source', '/home/ace19/dl_data/ModelNet40/vase/test',
+flags.DEFINE_string('source', '/home/ace19/dl_data/ModelNet40/cone/test',
                     'source')
 
 

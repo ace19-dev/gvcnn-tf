@@ -12,6 +12,9 @@ from nets import googLeNet
 slim = tf.contrib.slim
 
 
+NUM_GROUP = 5
+
+
 def refine_scheme(scheme):
     new_scheme = {}
     for key, value in scheme.items():
@@ -40,15 +43,15 @@ def group_weight(scores, group_scheme):
     return weight
 
 
-def grouping_scheme(num_group, view_discrimination_scores):
+def grouping_scheme(view_discrimination_scores):
     group = {}
 
     g0 = tf.constant(0, dtype=tf.float32)
-    g1 = tf.constant(1/num_group, dtype=tf.float32)
-    g2 = tf.constant(2/num_group, dtype=tf.float32)
-    g3 = tf.constant(3/num_group, dtype=tf.float32)
-    g4 = tf.constant(4/num_group, dtype=tf.float32)
-    g5 = tf.constant(5/num_group, dtype=tf.float32)
+    g1 = tf.constant(1/NUM_GROUP, dtype=tf.float32)
+    g2 = tf.constant(2/NUM_GROUP, dtype=tf.float32)
+    g3 = tf.constant(3/NUM_GROUP, dtype=tf.float32)
+    g4 = tf.constant(4/NUM_GROUP, dtype=tf.float32)
+    g5 = tf.constant(5/NUM_GROUP, dtype=tf.float32)
 
     for view_idx, score in enumerate(view_discrimination_scores):
         group_idx = tf.case(
@@ -114,7 +117,6 @@ def _weighted_fusion(group_descriptors, group_weight):
 
 
 def make_grouping_module(inputs,
-                         num_group,
                          is_training=True,
                          dropout_keep_prob=0.8,
                          reuse=tf.AUTO_REUSE,
@@ -187,7 +189,7 @@ def make_grouping_module(inputs,
                     view_discrimination_scores.append(score)
 
     # grouping weight/scheme
-    group_scheme = grouping_scheme(num_group, view_discrimination_scores)
+    group_scheme = grouping_scheme(view_discrimination_scores)
 
     # TODO: how to get grouping weight ?
     # group_weight = tf.zeros([2,2])

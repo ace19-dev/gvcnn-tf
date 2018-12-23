@@ -41,7 +41,7 @@ if __name__ == '__main__':
     parser.add_argument("-i", "--infiles",
               dest='objfiles',
               # nargs='+',
-              default='/home/ace19/dl_data/ModelNet40/toilet/train',
+              default='/home/ace19/dl_data/ModelNet40/cone/train',
               help="File or files to be converted to png")
 
     parser.add_argument("-o", "--outfile",
@@ -50,7 +50,7 @@ if __name__ == '__main__':
 
     parser.add_argument("-od", "--outdir",
               dest='outdir',
-              default='/home/ace19/dl_data/modelnet5_low/toilet/train',
+              default='/home/ace19/dl_data/modelnet/cone/train',
               help="Output directory.")
 
     parser.add_argument("-n", "--nviews",
