@@ -15,15 +15,14 @@ slim = tf.contrib.slim
 NUM_GROUP = 5
 
 
-
+# TODO: Error!!!
 def refine_scheme(scheme):
     new_scheme = {}
-
-    # for i, g in enumerate(scheme):
-    try:
-        new_scheme[g].append(i)
-    except KeyError:
-        new_scheme[g] = [i]
+    for i, g in enumerate(scheme):
+        try:
+            new_scheme[g].append(i)
+        except KeyError:
+            new_scheme[g] = [i]
 
     return new_scheme
 
@@ -257,9 +256,7 @@ def gvcnn(inputs,
 
                     final_view_descriptors.append(net)
 
-    # g_scheme = refine_scheme(group_scheme)
-    g_scheme = tf.map_fn(refine_scheme, group_scheme)
-
+    g_scheme = refine_scheme(group_scheme)
     g_weight = group_weight(view_discrimination_scores, group_scheme)
 
     group_descriptors = _view_pooling(final_view_descriptors, g_scheme)

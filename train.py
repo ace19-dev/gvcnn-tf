@@ -145,8 +145,8 @@ def test():
                                                       is_training: True,
                                                       dropout_keep_prob: 0.8})
 
-    # group_scheme = gvcnn.refine_scheme(scheme)
-    # group_weight = gvcnn.group_weight(scores, group_scheme)
+        # group_scheme = gvcnn.refine_scheme(scheme)
+        # group_weight = gvcnn.group_weight(scores, group_scheme)
     # predictions = gvcnn.gvcnn(x,
     #                           group_scheme,
     #                           group_weight,
