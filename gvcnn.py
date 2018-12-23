@@ -15,13 +15,15 @@ slim = tf.contrib.slim
 NUM_GROUP = 5
 
 
+
 def refine_scheme(scheme):
     new_scheme = {}
-    for key, value in scheme.items():
-        try:
-            new_scheme[value].append(key)
-        except KeyError:
-            new_scheme[value] = [key]
+
+    # for i, g in enumerate(scheme):
+    try:
+        new_scheme[g].append(i)
+    except KeyError:
+        new_scheme[g] = [i]
 
     return new_scheme
 
@@ -44,7 +46,7 @@ def group_weight(scores, group_scheme):
 
 
 def grouping_scheme(view_discrimination_scores):
-    group = {}
+    group = []
 
     g0 = tf.constant(0, dtype=tf.float32)
     g1 = tf.constant(1/NUM_GROUP, dtype=tf.float32)
@@ -64,7 +66,7 @@ def grouping_scheme(view_discrimination_scores):
             default=lambda: tf.constant(-1),
             exclusive=False)
 
-        group[view_idx] = group_idx
+        group.append(group_idx)
 
     return group
 
@@ -145,6 +147,7 @@ def make_grouping_module(inputs,
     view_discrimination_scores = []
 
     n_views = inputs.get_shape().as_list()[1]
+
     # transpose views: (NxVxHxWxC) -> (VxNxHxWxC)
     views = tf.transpose(inputs, perm=[1, 0, 2, 3, 4])
 
@@ -189,18 +192,21 @@ def make_grouping_module(inputs,
                     view_discrimination_scores.append(score)
 
     # grouping weight/scheme
-    group_scheme = grouping_scheme(view_discrimination_scores)
+    g_scheme = grouping_scheme(view_discrimination_scores)
 
     # TODO: how to get grouping weight ?
     # group_weight = tf.zeros([2,2])
     # group_weight = grouping_weight(view_discrimination_scores, group_scheme)
 
-    return view_discrimination_scores, group_scheme
+    # d_score = tf.convert_to_tensor(view_discrimination_scores, dtype=tf.float32)
+    # g_scheme = tf.convert_to_tensor(group_scheme)
+
+    return view_discrimination_scores, g_scheme
 
 
 def gvcnn(inputs,
+          view_discrimination_scores,
           group_scheme,
-          group_weight,
           num_classes,
           is_training=True,
           dropout_keep_prob=0.8,
@@ -249,15 +255,19 @@ def gvcnn(inputs,
                     #     logits = tf.squeeze(logits, [1, 2], name='SpatialSqueeze')
                     end_points['Logits'] = net
 
-                    # TODO: Final View Descriptors + group_scheme <= View Pooling
                     final_view_descriptors.append(net)
 
-    group_descriptors = _view_pooling(final_view_descriptors, group_scheme)
-    shape_description = _weighted_fusion(group_descriptors, group_weight)
+    # g_scheme = refine_scheme(group_scheme)
+    g_scheme = tf.map_fn(refine_scheme, group_scheme)
+
+    g_weight = group_weight(view_discrimination_scores, group_scheme)
+
+    group_descriptors = _view_pooling(final_view_descriptors, g_scheme)
+    shape_description = _weighted_fusion(group_descriptors, g_weight)
 
     # net = slim.flatten(shape_description)
     # logits = slim.fully_connected(net, num_classes, activation_fn=None)
-    logits = slim.conv2d(net, num_classes, [1, 1], activation_fn=None,
+    logits = slim.conv2d(shape_description, num_classes, [1, 1], activation_fn=None,
                          normalizer_fn=None, scope='Conv2d')
     logits = tf.squeeze(logits, [1, 2], name='SpatialSqueeze')
 

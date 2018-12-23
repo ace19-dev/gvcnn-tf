@@ -100,6 +100,8 @@ def test():
     is_training = tf.placeholder(tf.bool)
     dropout_keep_prob = tf.placeholder(tf.float32)
 
+    view_discrimination_scores = tf.placeholder(tf.float32, [FLAGS.num_views])
+    group_scheme = tf.placeholder(tf.int32, [FLAGS.num_views])
 
         # # Create a saver object which will save all the variables
         # saver = tf.train.Saver()
@@ -126,29 +128,35 @@ def test():
                                    is_training,
                                    dropout_keep_prob=dropout_keep_prob)
 
+    predictions = gvcnn.gvcnn(x,
+                              view_discrimination_scores,
+                              group_scheme,
+                              FLAGS.num_classes,
+                              is_training,
+                              dropout_keep_prob=dropout_keep_prob)
+
+
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
 
         inputs = tf.random_uniform((FLAGS.train_batch_size, FLAGS.num_views, h_w[0], h_w[1], 3))
         scores, scheme = \
             sess.run([d_scores, g_scheme], feed_dict={x: inputs.eval(),
-                                                      dropout_keep_prob: 0.8,
-                                                      is_training: True})
-        sess.close()
+                                                      is_training: True,
+                                                      dropout_keep_prob: 0.8})
 
-    group_scheme = gvcnn.refine_scheme(scheme)
-    group_weight = gvcnn.group_weight(scores, group_scheme)
-    predictions = gvcnn.gvcnn(x,
-                              group_scheme,
-                              group_weight,
-                              FLAGS.num_classes,
-                              is_training,
-                              dropout_keep_prob=dropout_keep_prob)
-
-    with tf.Session() as sess:
-        sess.run(tf.global_variables_initializer())
+    # group_scheme = gvcnn.refine_scheme(scheme)
+    # group_weight = gvcnn.group_weight(scores, group_scheme)
+    # predictions = gvcnn.gvcnn(x,
+    #                           group_scheme,
+    #                           group_weight,
+    #                           FLAGS.num_classes,
+    #                           is_training,
+    #                           dropout_keep_prob=dropout_keep_prob)
 
         pred = sess.run([predictions], feed_dict={x: inputs.eval(),
+                                                  view_discrimination_scores: scores,
+                                                  group_scheme: scheme,
                                                   dropout_keep_prob: 0.8,
                                                   is_training: True})
 
