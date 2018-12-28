@@ -12,47 +12,115 @@ from nets import googLeNet
 slim = tf.contrib.slim
 
 
-NUM_GROUP = 5
+# NUM_GROUP = 5
 
 
-# TODO: Error!!!
-def refine_scheme(scheme):
+def _scheme_group(group_scheme):
+    ret_val = np.full((5, 8), False)
+
+    for key, value in group_scheme.items():
+        for v in group_scheme[key]:
+            ret_val[key-1,v] = True
+
+    return ret_val
+
+
+def refine_group(group_scheme):
     new_scheme = {}
-    for i, g in enumerate(scheme):
+    for i, g in enumerate(group_scheme):
         try:
             new_scheme[g].append(i)
         except KeyError:
             new_scheme[g] = [i]
 
-    return new_scheme
+    return _scheme_group(new_scheme)
 
 
+# TODO: weight will be modified according to equation2 in paper correctly
 # average value per group
-# TODO: weight will be modified according to equation2 correctly
 def group_weight(scores, group_scheme):
-    weight = {}
+    num_group = group_scheme.shape[0]
+    num_views = group_scheme.shape[1]
 
-    for key, value in group_scheme.items():
+    weight = np.zeros((num_group, 1), dtype=np.float32)
+
+    for i in range(num_group):
+        n = 0
         sum = 0
-        n = len(group_scheme[key])
-        for value in group_scheme[key]:
-            sum += scores[value]
+        for j in range(num_views):
+            if group_scheme[i][j]:
+                sum += scores[j]
+                n += 1
 
-        # weight[key] = sum / n
-        weight[key] = tf.cast(tf.div(sum, n), dtype=tf.float32)
+        if n != 0:
+            weight[i][0] = sum / n
+            # weight[i][0] = tf.cast(tf.div(sum, n), dtype=tf.float32)
 
     return weight
 
 
-def grouping_scheme(view_discrimination_scores):
+def _view_pooling(final_view_descriptors, group_scheme):
+
+    '''
+    Final view descriptors are source of view pooling by grouping scheme.
+
+    Use the average pooling (TODO: check max pooling later)
+
+    :param group_scheme:
+    :param final_view_descriptors:
+    :return:
+    '''
+
+    group_descriptors = {}
+
+    g_schemes = tf.unstack(group_scheme)
+    indices_list = [tf.squeeze(tf.where(elem)) for elem in g_schemes]
+    for i, indices in enumerate(indices_list):
+        view_desc = tf.gather(final_view_descriptors, indices)
+        # tf.reduce_max()
+        group_descriptors[i] = tf.reduce_mean(view_desc, 0)
+
+    return group_descriptors
+
+
+def _weighted_fusion(group_descriptors, group_weight):
+    '''
+    To generate the shape level description, all these group
+    level descriptors should be further combined.
+
+    Get the final 3D shape descriptor D(S)
+
+    :param
+    group_descriptors: dic (average pooling per group - tensor)
+    group_weight: tensor. shape=(5,1)
+
+    :return:
+    '''
+    '''
+    '''
+    numerator = []  # 분자
+    denominator = []  # 분모
+    # for key, value in group_descriptors.items():
+
+    g_weight = tf.unstack(group_weight)
+    for i in range(len(g_weight)):
+        numerator.append(tf.multiply(group_weight[i], group_descriptors[i]))
+
+    denominator = tf.reduce_sum(group_weight)
+
+    return tf.div(tf.add_n(numerator), denominator)
+
+
+# TODO: modify func dynamically
+def grouping_scheme(num_group, view_discrimination_scores):
     group = []
 
     g0 = tf.constant(0, dtype=tf.float32)
-    g1 = tf.constant(1/NUM_GROUP, dtype=tf.float32)
-    g2 = tf.constant(2/NUM_GROUP, dtype=tf.float32)
-    g3 = tf.constant(3/NUM_GROUP, dtype=tf.float32)
-    g4 = tf.constant(4/NUM_GROUP, dtype=tf.float32)
-    g5 = tf.constant(5/NUM_GROUP, dtype=tf.float32)
+    g1 = tf.constant(1/num_group, dtype=tf.float32)
+    g2 = tf.constant(2/num_group, dtype=tf.float32)
+    g3 = tf.constant(3/num_group, dtype=tf.float32)
+    g4 = tf.constant(4/num_group, dtype=tf.float32)
+    g5 = tf.constant(5/num_group, dtype=tf.float32)
 
     for view_idx, score in enumerate(view_discrimination_scores):
         group_idx = tf.case(
@@ -69,55 +137,9 @@ def grouping_scheme(view_discrimination_scores):
 
     return group
 
-
-def _view_pooling(final_view_descriptors, group_scheme):
-
-    '''
-    Using the average pooling
-
-    1. 같은 그룹에 속하는 net 를 tf.div(tf.add(a, b), num_same_group) ?
-    2. 2d pooling ?
-
-    :param group_scheme:
-    :param final_view_descriptors:
-    :return:
-    '''
-
-    group_descriptors = {}
-    for key, value in group_scheme.items():
-        view_desc = []
-        for i in group_scheme[key]:
-            view_desc.append(final_view_descriptors[i])
-
-        n = len(group_scheme[key])
-        group_descriptors[key] = tf.div(tf.add_n(view_desc), n)
-
-    return group_descriptors
-
-
-def _weighted_fusion(group_descriptors, group_weight):
-    '''
-
-    To generate the shape level description, all these group
-    level descriptors should be further combined.
-
-    :param group_descriptors:
-    :return:
-    '''
-
-    up_list = []
-    down_list = []
-    for key, value in group_descriptors.items():
-        up_list.append(tf.multiply(group_weight[key], group_descriptors[key]))
-        down_list.append(group_descriptors[key])
-
-    return tf.div(tf.add_n(up_list), tf.add_n(down_list))
-
-
-
-
-
+# TODO: modify FCN soon
 def make_grouping_module(inputs,
+                         num_group,
                          is_training=True,
                          dropout_keep_prob=0.8,
                          reuse=tf.AUTO_REUSE,
@@ -129,7 +151,7 @@ def make_grouping_module(inputs,
 
     first part of the network (FCN) to get the raw descriptor in the view level.
 
-    TODO: The “FCN” part is the top five convolutional layers of GoogLeNet. (mid-level representation ??)
+    The “FCN” part is the top five convolutional layers of GoogLeNet. (mid-level representation ??)
 
     Extract the raw view descriptors. Compared with deeper CNN,
     shallow FCN could have more position information, which is needed for
@@ -182,30 +204,22 @@ def make_grouping_module(inputs,
                     logits = slim.fully_connected(net, 1, activation_fn=None)
                     end_points['Logits'] = logits
 
-                    # 각각의 point of view 에 해당하는 batch size input 에 대해서
-                    # 평균 score 로 표시한다.
+                    # The average score is shown for the batch size input
+                    # corresponding to each point of view.
                     score = tf.nn.sigmoid(tf.log(tf.abs(logits)))
                     score = tf.reduce_mean(score, axis=0)
                     score = tf.reshape(score, [])
 
                     view_discrimination_scores.append(score)
 
-    # grouping weight/scheme
-    g_scheme = grouping_scheme(view_discrimination_scores)
-
-    # TODO: how to get grouping weight ?
-    # group_weight = tf.zeros([2,2])
-    # group_weight = grouping_weight(view_discrimination_scores, group_scheme)
-
-    # d_score = tf.convert_to_tensor(view_discrimination_scores, dtype=tf.float32)
-    # g_scheme = tf.convert_to_tensor(group_scheme)
+    g_scheme = grouping_scheme(num_group, view_discrimination_scores)
 
     return view_discrimination_scores, g_scheme
 
 
 def gvcnn(inputs,
-          view_discrimination_scores,
           group_scheme,
+          group_weight,
           num_classes,
           is_training=True,
           dropout_keep_prob=0.8,
@@ -256,17 +270,14 @@ def gvcnn(inputs,
 
                     final_view_descriptors.append(net)
 
-    g_scheme = refine_scheme(group_scheme)
-    g_weight = group_weight(view_discrimination_scores, group_scheme)
+    group_descriptors = _view_pooling(final_view_descriptors, group_scheme)
+    shape_description = _weighted_fusion(group_descriptors, group_weight)
 
-    group_descriptors = _view_pooling(final_view_descriptors, g_scheme)
-    shape_description = _weighted_fusion(group_descriptors, g_weight)
-
-    # net = slim.flatten(shape_description)
-    # logits = slim.fully_connected(net, num_classes, activation_fn=None)
-    logits = slim.conv2d(shape_description, num_classes, [1, 1], activation_fn=None,
-                         normalizer_fn=None, scope='Conv2d')
-    logits = tf.squeeze(logits, [1, 2], name='SpatialSqueeze')
+    net = slim.flatten(shape_description)
+    logits = slim.fully_connected(net, num_classes, activation_fn=None)
+    # logits = slim.conv2d(shape_description, num_classes, [1, 1], activation_fn=None,
+    #                      normalizer_fn=None, scope='Conv2d')
+    # logits = tf.squeeze(logits, [1, 2], name='SpatialSqueeze')
 
     pred = prediction_fn(logits, scope='Predictions')
 

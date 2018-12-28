@@ -2,11 +2,10 @@ import time
 import numpy as np
 import cv2
 
-from six.moves import xrange
 
 import tensorflow as tf
 import gvcnn
-import model
+import _model
 import data
 
 from nets import googLeNet
@@ -21,13 +20,12 @@ flags = tf.app.flags
 FLAGS = flags.FLAGS
 
 
-
-LABELS_CLASS = 'labels_class'
-IMAGE = 'image'
-HEIGHT = 'height'
-WIDTH = 'width'
-IMAGE_NAME = 'image_name'
-LABEL = 'label'
+# LABELS_CLASS = 'labels_class'
+# IMAGE = 'image'
+# HEIGHT = 'height'
+# WIDTH = 'width'
+# IMAGE_NAME = 'image_name'
+# LABEL = 'label'
 
 
 flags.DEFINE_integer('num_clones', 1, 'Number of clones to deploy.')
@@ -85,6 +83,8 @@ flags.DEFINE_integer('train_batch_size', 16, 'batch size')
 flags.DEFINE_integer('num_views', 8, 'number of views')
 flags.DEFINE_string('height_weight', '224,224', 'height and weight')
 flags.DEFINE_integer('num_classes', 7, 'number of classes')
+flags.DEFINE_integer('num_group', 5, 'number of grouping')
+
 
 
 
@@ -100,8 +100,8 @@ def test():
     is_training = tf.placeholder(tf.bool)
     dropout_keep_prob = tf.placeholder(tf.float32)
 
-    view_discrimination_scores = tf.placeholder(tf.float32, [FLAGS.num_views])
-    group_scheme = tf.placeholder(tf.int32, [FLAGS.num_views])
+    group_weight = tf.placeholder(tf.float32, [FLAGS.num_group, 1])
+    group_scheme = tf.placeholder(tf.bool, [FLAGS.num_group, FLAGS.num_views])
 
         # # Create a saver object which will save all the variables
         # saver = tf.train.Saver()
@@ -122,15 +122,17 @@ def test():
         # ############################
         # for training_epoch in xrange(start_epoch, training_epochs_max + 1):
 
-    # Make grouping module
+    # Making grouping module
     d_scores, g_scheme = \
         gvcnn.make_grouping_module(x,
+                                   FLAGS.num_group,
                                    is_training,
                                    dropout_keep_prob=dropout_keep_prob)
 
+    # GVCNN
     predictions = gvcnn.gvcnn(x,
-                              view_discrimination_scores,
                               group_scheme,
+                              group_weight,
                               FLAGS.num_classes,
                               is_training,
                               dropout_keep_prob=dropout_keep_prob)
@@ -139,26 +141,20 @@ def test():
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
 
-        inputs = tf.random_uniform((FLAGS.train_batch_size, FLAGS.num_views, h_w[0], h_w[1], 3))
+        # temporary data for test
+        inputs = tf.random_normal((FLAGS.train_batch_size, FLAGS.num_views, h_w[0], h_w[1], 3))
         scores, scheme = \
             sess.run([d_scores, g_scheme], feed_dict={x: inputs.eval(),
                                                       is_training: True,
                                                       dropout_keep_prob: 0.8})
 
-        # group_scheme = gvcnn.refine_scheme(scheme)
-        # group_weight = gvcnn.group_weight(scores, group_scheme)
-    # predictions = gvcnn.gvcnn(x,
-    #                           group_scheme,
-    #                           group_weight,
-    #                           FLAGS.num_classes,
-    #                           is_training,
-    #                           dropout_keep_prob=dropout_keep_prob)
-
+        g_scheme = gvcnn.refine_group(scheme)
+        g_weight = gvcnn.group_weight(scores, g_scheme)
         pred = sess.run([predictions], feed_dict={x: inputs.eval(),
-                                                  view_discrimination_scores: scores,
-                                                  group_scheme: scheme,
-                                                  dropout_keep_prob: 0.8,
-                                                  is_training: True})
+                                                  group_scheme: g_scheme,
+                                                  group_weight: g_weight,
+                                                  is_training: True,
+                                                  dropout_keep_prob: 0.8})
 
         tf.logging.info("pred...%s", pred)
 
@@ -180,13 +176,20 @@ def test3():
 
     inputs = tf.random_uniform((train_batch_size, num_views, height, width, 3))
 
-    model.inference_multiview(inputs, 10, 0.8)
+    _model.inference_multiview(inputs, 10, 0.8)
 
 
-def read_lists(list_of_lists_file):
-    listfile_labels = np.loadtxt(list_of_lists_file, dtype=str).tolist()
-    listfiles, labels  = zip(*[(l[0], int(l[1])) for l in listfile_labels])
-    return listfiles, labels
+def test4():
+    b = tf.constant([[True, False, True, False], [False, False, True, False]])
+    x = tf.unstack(b)
+    c = [tf.squeeze(tf.where(e)) for e in x]
+
+    init_op = tf.global_variables_initializer()
+
+    with tf.Session() as sess:
+        sess.run(init_op)
+        result = sess.run([c])
+        print(result)
 
 
 def main(unused_argv):
@@ -195,6 +198,7 @@ def main(unused_argv):
     test()
     # test2()
     # test3()
+    # test4()
 
 
     # # Set up deployment (i.e. multi-GPUs and/or multi-replicas).
