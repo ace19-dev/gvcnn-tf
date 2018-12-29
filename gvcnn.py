@@ -275,7 +275,6 @@ def gvcnn(inputs,
     # logits = slim.conv2d(shape_description, num_classes, [1, 1], activation_fn=None,
     #                      normalizer_fn=None, scope='Conv2d')
     # logits = tf.squeeze(logits, [1, 2], name='SpatialSqueeze')
-
     pred = prediction_fn(logits, scope='Predictions')
 
     return pred
