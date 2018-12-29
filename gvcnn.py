@@ -36,7 +36,7 @@ def refine_group(group_scheme):
     return _scheme_group(new_scheme)
 
 
-# TODO: weight will be modified according to equation2 in paper correctly
+# TODO: modified according to equation2 in paper correctly when totally understand.
 # average value per group
 def group_weight(scores, group_scheme):
     num_group = group_scheme.shape[0]
@@ -64,21 +64,20 @@ def _view_pooling(final_view_descriptors, group_scheme):
     '''
     Final view descriptors are source of view pooling by grouping scheme.
 
-    Use the average pooling (TODO: check max pooling later)
+    Use the average pooling (TODO: try max pooling later)
 
     :param group_scheme:
     :param final_view_descriptors:
-    :return:
+    :return: group_descriptors
     '''
 
     group_descriptors = {}
 
     g_schemes = tf.unstack(group_scheme)
-    indices_list = [tf.squeeze(tf.where(elem)) for elem in g_schemes]
-    for i, indices in enumerate(indices_list):
-        view_desc = tf.gather(final_view_descriptors, indices)
-        # tf.reduce_max()
-        group_descriptors[i] = tf.reduce_mean(view_desc, 0)
+    indices = [tf.squeeze(tf.where(elem), axis=1) for elem in g_schemes]
+    for i, ind in enumerate(indices):
+        view_desc = tf.gather(final_view_descriptors, ind)
+        group_descriptors[i] = tf.squeeze(tf.reduce_mean(view_desc, axis=0, keepdims=True), [0])
 
     return group_descriptors
 
@@ -96,17 +95,15 @@ def _weighted_fusion(group_descriptors, group_weight):
 
     :return:
     '''
-    '''
-    '''
+
     numerator = []  # 분자
-    denominator = []  # 분모
-    # for key, value in group_descriptors.items():
 
     g_weight = tf.unstack(group_weight)
-    for i in range(len(g_weight)):
+    n = len(g_weight)
+    for i in range(n):
         numerator.append(tf.multiply(group_weight[i], group_descriptors[i]))
 
-    denominator = tf.reduce_sum(group_weight)
+    denominator = tf.reduce_sum(group_weight)   # 분자
 
     return tf.div(tf.add_n(numerator), denominator)
 
@@ -188,7 +185,7 @@ def make_grouping_module(inputs,
                 with tf.variable_scope('Logits'):
                     if global_pool:
                         # Global average pooling.
-                        net = tf.reduce_mean(net, [1, 2], keep_dims=True, name='global_pool')
+                        net = tf.reduce_mean(net, [1, 2], keepdims=True, name='global_pool')
                         end_points['global_pool'] = net
                     else:
                         # Pooling with a fixed kernel size.
@@ -251,7 +248,7 @@ def gvcnn(inputs,
                 with tf.variable_scope('Logits'):
                     if global_pool:
                         # Global average pooling.
-                        net = tf.reduce_mean(net, [1, 2], keep_dims=True, name='global_pool')
+                        net = tf.reduce_mean(net, [1, 2], keepdims=True, name='global_pool')
                         end_points['global_pool'] = net
                     else:
                         # Pooling with a fixed kernel size.

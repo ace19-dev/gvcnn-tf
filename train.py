@@ -180,16 +180,31 @@ def test3():
 
 
 def test4():
-    b = tf.constant([[True, False, True, False], [False, False, True, False]])
-    x = tf.unstack(b)
-    c = [tf.squeeze(tf.where(e)) for e in x]
+    group_descriptors = {}
+    final_view_descriptors = []
+    for i in range(5):
+        input = tf.random_uniform((8, 1, 1, 1024))
+        final_view_descriptors.append(input)
 
-    init_op = tf.global_variables_initializer()
+    b = tf.constant([[True, False, True, False],
+                     [False, False, False, True],
+                     [False, False, False, False],
+                     [False, True, False, False],
+                     [False, False, False, False]])
+    x = tf.unstack(b)
+    indices = [tf.squeeze(tf.where(e), axis=1) for e in x]
+    # fvd = tf.convert_to_tensor(final_view_descriptors)
+    for i, ind in enumerate(indices):
+        view_desc = tf.gather(final_view_descriptors, ind)
+        group_descriptors[i] = tf.squeeze(tf.reduce_mean(view_desc, axis=0, keepdims=True), [0])
 
     with tf.Session() as sess:
-        sess.run(init_op)
-        result = sess.run([c])
+        sess.run(tf.global_variables_initializer())
+        # result, result2 = sess.run([indices, indices2])
+        result = sess.run([indices])
         print(result)
+        print("...")
+        # print(result2)
 
 
 def main(unused_argv):
