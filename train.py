@@ -1,6 +1,7 @@
 import time
 import numpy as np
 import cv2
+import math
 
 
 import tensorflow as tf
@@ -96,31 +97,11 @@ def test():
     # images, labels = d.next_batch(0, FLAGS.train_batch_size)
 
     x = tf.placeholder(tf.float32, [None, FLAGS.num_views, h_w[0], h_w[1], 3])
-    gt = tf.placeholder(tf.int32, [None])
+    # gt = tf.placeholder(tf.int32, [None])
     is_training = tf.placeholder(tf.bool)
     dropout_keep_prob = tf.placeholder(tf.float32)
-
-    group_weight = tf.placeholder(tf.float32, [FLAGS.num_group, 1])
     group_scheme = tf.placeholder(tf.bool, [FLAGS.num_group, FLAGS.num_views])
-
-        # # Create a saver object which will save all the variables
-        # saver = tf.train.Saver()
-        #
-        # start_epoch = 1
-        # start_checkpoint_epoch = 0
-        # if FLAGS.start_checkpoint:
-        #     # model.load_variables_from_checkpoint(sess, FLAGS.start_checkpoint)
-        #     saver.restore(sess, FLAGS.start_checkpoint)
-        #     tmp = FLAGS.start_checkpoint
-        #     tmp = tmp.split('-')
-        #     tmp.reverse()
-        #     start_checkpoint_epoch = int(tmp[0])
-        #     start_epoch = start_checkpoint_epoch + 1
-        #
-        # ############################
-        # # Training loop.
-        # ############################
-        # for training_epoch in xrange(start_epoch, training_epochs_max + 1):
+    group_weight = tf.placeholder(tf.float32, [FLAGS.num_group, 1])
 
     # Making grouping module
     d_scores, g_scheme = \
@@ -137,18 +118,18 @@ def test():
                               is_training,
                               dropout_keep_prob=dropout_keep_prob)
 
-
     with tf.Session() as sess:
+    # sess = tf.Session()
         sess.run(tf.global_variables_initializer())
 
         # temporary data for test
-        inputs = tf.random_normal((FLAGS.train_batch_size, FLAGS.num_views, h_w[0], h_w[1], 3))
+        inputs = tf.random_uniform((FLAGS.train_batch_size, FLAGS.num_views, h_w[0], h_w[1], 3))
         scores, scheme = \
             sess.run([d_scores, g_scheme], feed_dict={x: inputs.eval(),
                                                       is_training: True,
                                                       dropout_keep_prob: 0.8})
 
-        g_scheme = gvcnn.refine_group(scheme)
+        g_scheme = gvcnn.refine_group(scheme, FLAGS.num_group, FLAGS.num_views)
         g_weight = gvcnn.group_weight(scores, g_scheme)
         pred = sess.run([predictions], feed_dict={x: inputs.eval(),
                                                   group_scheme: g_scheme,
@@ -180,11 +161,14 @@ def test3():
 
 
 def test4():
+
     group_descriptors = {}
     final_view_descriptors = []
     for i in range(5):
         input = tf.random_uniform((8, 1, 1, 1024))
         final_view_descriptors.append(input)
+
+    empty = tf.zeros_like(final_view_descriptors[0])
 
     b = tf.constant([[True, False, True, False],
                      [False, False, False, True],
@@ -193,18 +177,18 @@ def test4():
                      [False, False, False, False]])
     x = tf.unstack(b)
     indices = [tf.squeeze(tf.where(e), axis=1) for e in x]
-    # fvd = tf.convert_to_tensor(final_view_descriptors)
     for i, ind in enumerate(indices):
-        view_desc = tf.gather(final_view_descriptors, ind)
+        view_desc = tf.cond(tf.not_equal(tf.size(ind), 0),
+                            lambda: tf.gather(final_view_descriptors, ind),
+                            lambda: tf.expand_dims(empty, 0))
         group_descriptors[i] = tf.squeeze(tf.reduce_mean(view_desc, axis=0, keepdims=True), [0])
 
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
-        # result, result2 = sess.run([indices, indices2])
-        result = sess.run([indices])
+        result, result2 = sess.run([indices, group_descriptors])
         print(result)
         print("...")
-        # print(result2)
+        print(result2)
 
 
 def main(unused_argv):

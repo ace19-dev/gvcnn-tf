@@ -15,17 +15,17 @@ slim = tf.contrib.slim
 # NUM_GROUP = 5
 
 
-def _scheme_group(group_scheme):
-    ret_val = np.full((5, 8), False)
+def _mask_group_scheme(group_scheme, num_group, num_views):
+    g = np.full((num_group, num_views), False)
 
-    for key, value in group_scheme.items():
-        for v in group_scheme[key]:
-            ret_val[key-1,v] = True
+    for key, _ in group_scheme.items():
+        for view in group_scheme[key]:
+            g[key-1, view] = True
 
-    return ret_val
+    return g
 
 
-def refine_group(group_scheme):
+def refine_group(group_scheme, num_group, num_views):
     new_scheme = {}
     for i, g in enumerate(group_scheme):
         try:
@@ -33,7 +33,7 @@ def refine_group(group_scheme):
         except KeyError:
             new_scheme[g] = [i]
 
-    return _scheme_group(new_scheme)
+    return _mask_group_scheme(new_scheme, num_group, num_views)
 
 
 # TODO: modified according to equation2 in paper correctly when totally understand.
@@ -44,6 +44,7 @@ def group_weight(scores, group_scheme):
 
     weight = np.zeros((num_group, 1), dtype=np.float32)
 
+    nans = []
     for i in range(num_group):
         n = 0
         sum = 0
@@ -72,11 +73,14 @@ def _view_pooling(final_view_descriptors, group_scheme):
     '''
 
     group_descriptors = {}
+    z_tensor = tf.zeros_like(final_view_descriptors[0])
 
-    g_schemes = tf.unstack(group_scheme)
+    g_schemes = tf.unstack(group_scheme, axis=0)
     indices = [tf.squeeze(tf.where(elem), axis=1) for elem in g_schemes]
     for i, ind in enumerate(indices):
-        view_desc = tf.gather(final_view_descriptors, ind)
+        view_desc = tf.cond(tf.not_equal(tf.size(ind), 0),
+                            lambda : tf.gather(final_view_descriptors, ind),
+                            lambda : tf.expand_dims(z_tensor, 0))
         group_descriptors[i] = tf.squeeze(tf.reduce_mean(view_desc, axis=0, keepdims=True), [0])
 
     return group_descriptors
