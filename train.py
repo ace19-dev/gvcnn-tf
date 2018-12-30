@@ -78,9 +78,9 @@ flags.DEFINE_string('dataset_dir', '/home/ace19/dl_data/modelnet',
                     'Where the dataset reside.')
 
 
-flags.DEFINE_integer('how_many_training_epochs', 10, 'How many training loops to run')
+flags.DEFINE_integer('how_many_training_epochs', 3, 'How many training loops to run')
 
-flags.DEFINE_integer('train_batch_size', 16, 'batch size')
+flags.DEFINE_integer('batch_size', 16, 'batch size')
 flags.DEFINE_integer('num_views', 8, 'number of views')
 flags.DEFINE_string('height_weight', '224,224', 'height and weight')
 flags.DEFINE_integer('num_classes', 7, 'number of classes')
@@ -92,12 +92,8 @@ flags.DEFINE_integer('num_group', 5, 'number of grouping')
 def test():
     h_w = list(map(int, FLAGS.height_weight.split(',')))
 
-    # TODO: remove comment soon
-    # dataset = data.Data(FLAGS.dataset_dir, h_w)
-    # images, labels = d.next_batch(0, FLAGS.train_batch_size)
-
     x = tf.placeholder(tf.float32, [None, FLAGS.num_views, h_w[0], h_w[1], 3])
-    # gt = tf.placeholder(tf.int32, [None])
+    ground_truth = tf.placeholder(tf.int32, [None])
     is_training = tf.placeholder(tf.bool)
     dropout_keep_prob = tf.placeholder(tf.float32)
     group_scheme = tf.placeholder(tf.bool, [FLAGS.num_group, FLAGS.num_views])
@@ -119,9 +115,6 @@ def test():
                               dropout_keep_prob=dropout_keep_prob)
 
     with tf.Session() as sess:
-    # sess = tf.Session()
-        sess.run(tf.global_variables_initializer())
-
         # temporary data for test
         inputs = tf.random_uniform((FLAGS.train_batch_size, FLAGS.num_views, h_w[0], h_w[1], 3))
         scores, scheme = \
@@ -194,191 +187,155 @@ def test4():
 def main(unused_argv):
     tf.logging.set_verbosity(tf.logging.INFO)
 
-    test()
+    # test()
     # test2()
     # test3()
     # test4()
 
+    h_w = list(map(int, FLAGS.height_weight.split(',')))
 
-    # # Set up deployment (i.e. multi-GPUs and/or multi-replicas).
-    # config = model_deploy.DeploymentConfig(
-    #     num_clones=FLAGS.num_clones,
-    #     clone_on_cpu=FLAGS.clones_on_cpu,
-    #     replica_id=FLAGS.task,
-    #     num_replicas=FLAGS.num_replicas,
-    #     num_ps_tasks=FLAGS.num_ps_tasks)
-    #
-    # # Split the batch across GPUs.
-    # assert FLAGS.train_batch_size % config.num_clones == 0, (
-    #     'Training batch size not divisible by number of clones (GPUs).')
-    #
-    # clone_batch_size = FLAGS.train_batch_size // config.num_clones
-    #
-    # # Get dataset infomation
-    # st = time.time()
-    # print('start loading data')
-    #
-    # # listfiles_train, labels_train = read_lists(g_.TRAIN_LOL)
-    # # listfiles_val, labels_val = read_lists(g_.VAL_LOL)
-    # # dataset_train = Dataset(listfiles_train, labels_train, subtract_mean=False, V=g_.NUM_VIEWS)
-    # # dataset_val = Dataset(listfiles_val, labels_val, subtract_mean=False, V=g_.NUM_VIEWS)
-    #
-    # print('done loading data, time=', time.time() - st)
-    #
-    #
-    # tf.gfile.MakeDirs(FLAGS.train_logdir)
-    # tf.logging.info('Training on %s set', FLAGS.train_split)
-    #
-    # with tf.Graph().as_default() as graph:
-    #     # placeholders for graph input
-    #     view_ = tf.placeholder('float32', shape=(None, FLAGS.num_views, 224, 224, 3), name='views')
-    #     y_ = tf.placeholder('int64', shape=(None), name='y')
-    #     keep_prob_ = tf.placeholder('float32')
+    x = tf.placeholder(tf.float32, [None, FLAGS.num_views, h_w[0], h_w[1], 3])
+    ground_truth = tf.placeholder(tf.int32, [None])
+    is_training = tf.placeholder(tf.bool)
+    dropout_keep_prob = tf.placeholder(tf.float32)
+    group_scheme = tf.placeholder(tf.bool, [FLAGS.num_group, FLAGS.num_views])
+    group_weight = tf.placeholder(tf.float32, [FLAGS.num_group, 1])
 
-    # with tf.Graph().as_default() as graph:
-    #     with tf.device(config.inputs_device()):
-    #         samples = input_generator.get(
-    #             dataset,
-    #             FLAGS.train_crop_size,
-    #             clone_batch_size,
-    #             min_resize_value=FLAGS.min_resize_value,
-    #             max_resize_value=FLAGS.max_resize_value,
-    #             resize_factor=FLAGS.resize_factor,
-    #             min_scale_factor=FLAGS.min_scale_factor,
-    #             max_scale_factor=FLAGS.max_scale_factor,
-    #             scale_factor_step_size=FLAGS.scale_factor_step_size,
-    #             dataset_split=FLAGS.train_split,
-    #             is_training=True,
-    #             model_variant=FLAGS.model_variant)
-    #         inputs_queue = prefetch_queue.prefetch_queue(
-    #             samples, capacity=128 * config.num_clones)
-    #
-    #     # Create the global step on the device storing the variables.
-    #     with tf.device(config.variables_device()):
-    #         global_step = tf.train.get_or_create_global_step()
-    #
-    #         # graph outputs
-    #         # fc8 = model.inference_multiview(view_, g_.NUM_CLASSES, keep_prob_)
-    #         # loss = model.loss(fc8, y_)
-    #         # train_op = model.train(loss, global_step, data_size)
-    #         # prediction = model.classify(fc8)
-    #
-    #         # Define the model and create clones.
-    #         model_fn = model.FCN
-    #         model_args = (inputs_queue, {
-    #             common.OUTPUT_TYPE: dataset.num_classes
-    #         }, dataset.ignore_label)
-    #         clones = model_deploy.create_clones(config, model_fn, args=model_args)
-    #
-    #         # Gather update_ops from the first clone. These contain, for example,
-    #         # the updates for the batch_norm variables created by model_fn.
-    #         first_clone_scope = config.clone_scope(0)
-    #         update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS, first_clone_scope)
-    #
-    #     # Gather initial summaries.
-    #     summaries = set(tf.get_collection(tf.GraphKeys.SUMMARIES))
-    #
-    #     # Add summaries for model variables.
-    #     for model_var in slim.get_model_variables():
-    #         summaries.add(tf.summary.histogram(model_var.op.name, model_var))
-    #
-    #     # Add summaries for images, labels, semantic predictions
-    #     if FLAGS.save_summaries_images:
-    #         summary_image = graph.get_tensor_by_name(
-    #             ('%s/%s:0' % (first_clone_scope, IMAGE)).strip('/'))
-    #         summaries.add(
-    #             tf.summary.image('samples/%s' % IMAGE, summary_image))
-    #
-    #         first_clone_label = graph.get_tensor_by_name(
-    #             ('%s/%s:0' % (first_clone_scope, LABEL)).strip('/'))
-    #         # Scale up summary image pixel values for better visualization.
-    #         pixel_scaling = max(1, 255 // dataset.num_classes)
-    #         summary_label = tf.cast(first_clone_label * pixel_scaling, tf.uint8)
-    #         summaries.add(
-    #             tf.summary.image('samples/%s' % LABEL, summary_label))
-    #
-    #         first_clone_output = graph.get_tensor_by_name(
-    #             ('%s/%s:0' % (first_clone_scope, common.OUTPUT_TYPE)).strip('/'))
-    #         predictions = tf.expand_dims(tf.argmax(first_clone_output, 3), -1)
-    #
-    #         summary_predictions = tf.cast(predictions * pixel_scaling, tf.uint8)
-    #         summaries.add(
-    #             tf.summary.image(
-    #                 'samples/%s' % common.OUTPUT_TYPE, summary_predictions))
-    #
-    #     # Add summaries for losses.
-    #     for loss in tf.get_collection(tf.GraphKeys.LOSSES, first_clone_scope):
-    #         summaries.add(tf.summary.scalar('losses/%s' % loss.op.name, loss))
-    #
-    #     # Build the optimizer based on the device specification.
-    #     with tf.device(config.optimizer_device()):
-    #         learning_rate = train_utils.get_model_learning_rate(
-    #             FLAGS.learning_policy, FLAGS.base_learning_rate,
-    #             FLAGS.learning_rate_decay_step, FLAGS.learning_rate_decay_factor,
-    #             FLAGS.training_number_of_steps, FLAGS.learning_power,
-    #             FLAGS.slow_start_step, FLAGS.slow_start_learning_rate)
-    #         optimizer = tf.train.MomentumOptimizer(learning_rate, FLAGS.momentum)
-    #         summaries.add(tf.summary.scalar('learning_rate', learning_rate))
-    #
-    #     startup_delay_steps = FLAGS.task * FLAGS.startup_delay_steps
-    #     for variable in slim.get_model_variables():
-    #         summaries.add(tf.summary.histogram(variable.op.name, variable))
-    #
-    #     with tf.device(config.variables_device()):
-    #         total_loss, grads_and_vars = model_deploy.optimize_clones(
-    #             clones, optimizer)
-    #         total_loss = tf.check_numerics(total_loss, 'Loss is inf or nan.')
-    #         summaries.add(tf.summary.scalar('total_loss', total_loss))
-    #
-    #         # Modify the gradients for biases and last layer variables.
-    #         last_layers = model.get_extra_layer_scopes(
-    #             FLAGS.last_layers_contain_logits_only)
-    #         grad_mult = train_utils.get_model_gradient_multipliers(
-    #             last_layers, FLAGS.last_layer_gradient_multiplier)
-    #         if grad_mult:
-    #             grads_and_vars = slim.learning.multiply_gradients(
-    #                 grads_and_vars, grad_mult)
-    #
-    #         # Create gradient update op.
-    #         grad_updates = optimizer.apply_gradients(
-    #             grads_and_vars, global_step=global_step)
-    #         update_ops.append(grad_updates)
-    #         update_op = tf.group(*update_ops)
-    #         with tf.control_dependencies([update_op]):
-    #             train_tensor = tf.identity(total_loss, name='train_op')
-    #
-    #     # Add the summaries from the first clone. These contain the summaries
-    #     # created by model_fn and either optimize_clones() or _gather_clone_loss().
-    #     summaries |= set(
-    #         tf.get_collection(tf.GraphKeys.SUMMARIES, first_clone_scope))
-    #
-    #     # Merge all summaries together.
-    #     summary_op = tf.summary.merge(list(summaries))
-    #
-    #     # Soft placement allows placing on CPU ops without GPU implementation.
-    #     session_config = tf.ConfigProto(
-    #         allow_soft_placement=True, log_device_placement=False)
-    #
-    #     # Start the training.
-    #     slim.learning.train(
-    #         train_tensor,
-    #         logdir=FLAGS.train_logdir,
-    #         log_every_n_steps=FLAGS.log_steps,
-    #         master=FLAGS.master,
-    #         number_of_steps=FLAGS.training_number_of_steps,
-    #         is_chief=(FLAGS.task == 0),
-    #         session_config=session_config,
-    #         startup_delay_steps=startup_delay_steps,
-    #         init_fn=train_utils.get_model_init_fn(
-    #             FLAGS.train_logdir,
-    #             FLAGS.tf_initial_checkpoint,
-    #             FLAGS.initialize_last_layer,
-    #             last_layers,
-    #             ignore_missing_vars=True),
-    #         summary_op=summary_op,
-    #         save_summaries_secs=FLAGS.save_summaries_secs,
-    #         save_interval_secs=FLAGS.save_interval_secs)
+    # Making grouping module
+    d_scores, g_scheme = \
+        gvcnn.make_grouping_module(x,
+                                   FLAGS.num_group,
+                                   is_training,
+                                   dropout_keep_prob=dropout_keep_prob)
 
+    # GVCNN
+    predictions = gvcnn.gvcnn(x,
+                              group_scheme,
+                              group_weight,
+                              FLAGS.num_classes,
+                              is_training,
+                              dropout_keep_prob=dropout_keep_prob)
+
+
+    '''
+    TODO: accuracy, loss, summary, read/save checkpoint  ...
+    '''
+
+
+    dataset = data.Data(FLAGS.dataset_dir, h_w)
+
+    start_epoch = 0
+    # Get the number of training/validation steps per epoch
+    t_batches = int(dataset.data_size() / FLAGS.batch_size)
+    if dataset.data_size() % FLAGS.batch_size > 0:
+        t_batches += 1
+    # v_batches = int(dataset.data_size() / FLAGS.batch_size)
+    # if val_data.data_size() % FLAGS.batch_size > 0:
+    #     v_batches += 1
+
+    with tf.Session() as sess:
+        sess.run(tf.global_variables_initializer())
+
+        ############################
+        # Training loop.
+        ############################
+        for training_epoch in range(start_epoch, FLAGS.how_many_training_epochs):
+            print("------------------------")
+            print(" Epoch:{} >> ".format(training_epoch + 1))
+            print("------------------------")
+
+            dataset.shuffle()
+            for step in range(t_batches):
+                # Pull the image samples we'll use for training.
+                train_batch_xs, train_batch_ys = dataset.next_batch(step, FLAGS.batch_size)
+
+                # For debugging
+                # img = train_batch_xs[0]
+                # plt.hist(img.ravel())
+                # plt.show()
+
+                # Run the graph with this batch of training data.
+                # train_summary, train_accuracy, cross_entropy_value, _, _ = \
+                #     sess.run(
+                #         [
+                #             merged_summaries, accuracy, cross_entropy_mean, train_step,
+                #             increment_global_step
+                #         ],
+                #         feed_dict={
+                #             X: train_batch_xs,
+                #             ground_truth: train_batch_ys,
+                #             learning_rate_input: learning_rate_value,
+                #             phase_train: True,
+                #             # momentum: 0.95,
+                #             # dropout_prob: 0.5
+                #         }
+                #     )
+                # ====================================================================
+                scores, scheme = \
+                    sess.run([d_scores, g_scheme], feed_dict={x: train_batch_xs,
+                                                              is_training: True,
+                                                              dropout_keep_prob: 0.8})
+
+                g_scheme = gvcnn.refine_group(scheme, FLAGS.num_group, FLAGS.num_views)
+                g_weight = gvcnn.group_weight(scores, g_scheme)
+                pred = sess.run([predictions], feed_dict={x: train_batch_xs,
+                                                          ground_truth: train_batch_ys,
+                                                          group_scheme: g_scheme,
+                                                          group_weight: g_weight,
+                                                          is_training: True,
+                                                          dropout_keep_prob: 0.8})
+
+                tf.logging.info("pred...%s", pred)
+
+                # train_writer.add_summary(train_summary, training_epoch)
+                # tf.logging.info('Epoch #%d, Step #%d, rate %f, accuracy %.1f%%, cross entropy %f' %
+                #                 (training_epoch, step, learning_rate_value, train_accuracy * 100,
+                #                  cross_entropy_value))
+
+            ##############################################
+            # Validate the model on the validation set
+            ##############################################
+            # print("------------------------")
+            # print(" Start validation >>> ")
+            # print("------------------------")
+            # # Reinitialize iterator with the validation dataset
+            #
+            # total_val_accuracy = 0
+            # validation_count = 0
+            # total_conf_matrix = None
+            # for i in range(val_batches_per_epoch):
+            #     validation_batch_xs, validation_batch_ys = sess.run(next_batch)
+            #     # Run a validation step and capture training summaries for TensorBoard
+            #     # with the `merged` op.
+            #     validation_summary, validation_accuracy, conf_matrix = sess.run(
+            #         [merged_summaries, accuracy, confusion_matrix],
+            #         feed_dict={
+            #             X: validation_batch_xs,
+            #             ground_truth: validation_batch_ys,
+            #             phase_train: False,
+            #             # dropout_prob: 1.0
+            #         })
+            #
+            #     validation_writer.add_summary(validation_summary, training_epoch)
+            #
+            #     total_val_accuracy += validation_accuracy
+            #     validation_count += 1
+            #     if total_conf_matrix is None:
+            #         total_conf_matrix = conf_matrix
+            #     else:
+            #         total_conf_matrix += conf_matrix
+            #
+            # total_val_accuracy /= validation_count
+            #
+            # tf.logging.info('Confusion Matrix:\n %s' % (total_conf_matrix))
+            # tf.logging.info('Validation accuracy = %.1f%% (N=%d)' %
+            #                 (total_val_accuracy * 100, raw_data.get_size('validation')))
+            #
+            # # Save the model checkpoint periodically.
+            # if (training_epoch % FLAGS.save_step_interval == 0 or training_epoch == training_epochs_max):
+            #     checkpoint_path = os.path.join(FLAGS.train_dir, FLAGS.model_architecture + '.ckpt')
+            #     tf.logging.info('Saving to "%s-%d"', checkpoint_path, training_epoch)
+            #     saver.save(sess, checkpoint_path, global_step=training_epoch)
 
 
 if __name__ == '__main__':

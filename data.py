@@ -16,6 +16,8 @@ class Data(object):
         self.images, self.labels = self._prepare_data()
         self.shuffle()
 
+        self.step = 0
+
 
     def _prepare_data(self):
         classes = os.listdir(self.dataset_dir)
@@ -27,7 +29,7 @@ class Data(object):
         for cls in classes:
             l_train_path = os.path.join(self.dataset_dir, cls, 'train')
             imgs = os.listdir(l_train_path)
-
+            # imgs.sort()
             for img in imgs:
                 views_path = os.path.join(l_train_path, img)
                 views = os.listdir(views_path)
@@ -53,8 +55,8 @@ class Data(object):
         images = []
         batch_img = self.images[start:end]
         for views_path in batch_img:
-            views = []
             views_path.sort()
+            views = []
             for view in views_path:
                 image_string = tf.read_file(view)
                 # image_decoded = tf.image.decode_png(image_string, channels=3)
@@ -70,12 +72,19 @@ class Data(object):
                 views.append(resized_image)
 
             images.append(views)
+            labels = tf.convert_to_tensor(self.labels[start:end], dtype=tf.string)
 
-            labels = tf.convert_to_tensor(self.labels, dtype=tf.string)
-
-        return tf.parallel_stack(images), labels
+        return tf.stack(images, 0), labels
 
 
-    def next_batch(self, start, end):
+    def next_batch(self, step, batch_size):
+        start = step * batch_size
+        end = start + batch_size
+        if end > self.data_size():
+            end = self.data_size() + 1
+
         return self._parse_function(start, end)
 
+
+    def data_size(self):
+        return len(self.images)

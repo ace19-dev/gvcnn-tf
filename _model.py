@@ -8,7 +8,7 @@ import numpy as np
 
 FLAGS = tf.app.flags.FLAGS
 # Basic model parameters.
-tf.app.flags.DEFINE_integer('batch_size', 8,
+tf.app.flags.DEFINE_integer('train_batch_size', 8,
                             """Number of images to process in a batch.""")
 tf.app.flags.DEFINE_float('learning_rate', 0.0001,
                           """Initial learning rate.""")
@@ -241,7 +241,7 @@ def _add_loss_summaries(total_loss):
 
 
 def train(total_loss, global_step, data_size):
-    num_batches_per_epoch = data_size / FLAGS.batch_size
+    num_batches_per_epoch = data_size / FLAGS.train_batch_size
     decay_steps = int(num_batches_per_epoch * NUM_EPOCHS_PER_DECAY)
 
     lr = tf.train.exponential_decay(FLAGS.learning_rate,
