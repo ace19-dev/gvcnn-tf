@@ -122,100 +122,97 @@ def main(unused_argv):
         # make a trainable variable not trainable
         train_utils.edit_trainable_variables('FCN')
 
+        # Gather update_ops. These contain, for example,
+        # the updates for the batch_norm variables created by model.
+        update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS, SCOPE)
+        # update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+
+        # Gather initial summaries.
+        summaries = set(tf.get_collection(tf.GraphKeys.SUMMARIES))
+
+        # Add summaries for model variables.
+        for model_var in slim.get_model_variables():
+            summaries.add(tf.summary.histogram(model_var.op.name, model_var))
+
+        # TODO: need to be edited
+        # Add summaries for images, labels, predictions
+        # if FLAGS.save_summaries_images:
+        #     summary_image = graph.get_tensor_by_name('%s:0' % (IMAGE))
+        #     summaries.add(
+        #         tf.summary.image('samples/%s' % IMAGE, summary_image))
+        #
+        #     label = graph.get_tensor_by_name('%s:0' % (LABEL))
+        #     # Scale up summary image pixel values for better visualization.
+        #     pixel_scaling = max(1, 255 // FLAGS.num_classes)
+        #     summary_label = tf.cast(label * pixel_scaling, tf.uint8)
+        #     summaries.add(
+        #         tf.summary.image('samples/%s' % LABEL, summary_label))
+        #     output = graph.get_tensor_by_name(
+        #         ('%s/%s:0' % (OUTPUT_TYPE)).strip('/'))
+        #     predictions = tf.expand_dims(tf.argmax(output, 3), -1)
+        #
+        #     summary_predictions = tf.cast(predictions * pixel_scaling, tf.uint8)
+        #     summaries.add(
+        #         tf.summary.image(
+        #             'samples/%s' % OUTPUT_TYPE, summary_predictions))
+
+        # Add summaries for losses.
+        for loss in tf.get_collection(tf.GraphKeys.LOSSES, SCOPE):
+        # for loss in tf.get_collection(tf.GraphKeys.LOSSES):
+            summaries.add(tf.summary.scalar('losses/%s' % loss.op.name, loss))
+
+        # Build the optimizer
+        learning_rate = train_utils.get_model_learning_rate(
+            FLAGS.learning_policy, FLAGS.base_learning_rate,
+            FLAGS.learning_rate_decay_step, FLAGS.learning_rate_decay_factor,
+            None, FLAGS.learning_power,
+            FLAGS.slow_start_step, FLAGS.slow_start_learning_rate)
+        optimizer = tf.train.MomentumOptimizer(learning_rate, FLAGS.momentum)
+        summaries.add(tf.summary.scalar('learning_rate', learning_rate))
+
+        for variable in slim.get_model_variables():
+            summaries.add(tf.summary.histogram(variable.op.name, variable))
+
+        total_loss, grads_and_vars = train_utils.optimize(optimizer, scope=SCOPE)
+        # total_loss, grads_and_vars = train_utils.optimize(optimizer)
+        total_loss = tf.check_numerics(total_loss, 'Loss is inf or nan.')
+        summaries.add(tf.summary.scalar('total_loss', total_loss))
+
+        # Modify the gradients for biases and last layer variables.
+        last_layers = train_utils.get_extra_layer_scopes(
+            FLAGS.last_layers_contain_logits_only)
+        grad_mult = train_utils.get_model_gradient_multipliers(
+            last_layers, FLAGS.last_layer_gradient_multiplier)
+        if grad_mult:
+            grads_and_vars = slim.learning.multiply_gradients(
+                grads_and_vars, grad_mult)
+
+        # Create gradient update op.
+        # grad_updates = optimizer.apply_gradients(
+        #     grads_and_vars, global_step=global_step)
+        # update_ops.append(grad_updates)
+        update_op = tf.group(*update_ops)
+        with tf.control_dependencies([update_op]):
+            train_tensor = tf.identity(total_loss, name='train_op')
+
+        prediction = tf.argmax(logits, 1, name='prediction')
+        correct_prediction = tf.equal(prediction, ground_truth)
+        confusion_matrix = tf.confusion_matrix(
+            ground_truth, prediction, num_classes=FLAGS.num_classes)
+        accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+        summaries.add(tf.summary.scalar('accuracy', accuracy))
+
+        # Add the summaries. These contain the summaries
+        # created by model and either optimize() or _gather_loss().
+        summaries |= set(tf.get_collection(tf.GraphKeys.SUMMARIES, SCOPE))
+        # summaries |= set(tf.get_collection(tf.GraphKeys.SUMMARIES))
+
+        # Merge all summaries together.
+        summary_op = tf.summary.merge(list(summaries))
+        train_writer = tf.summary.FileWriter(FLAGS.summaries_dir, graph)
+
         with tf.Session(graph=graph) as sess:
             sess.run(tf.global_variables_initializer())
-
-            # Gather update_ops. These contain, for example,
-            # the updates for the batch_norm variables created by model.
-            update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS, SCOPE)
-            # update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
-
-            # Gather initial summaries.
-            summaries = set(tf.get_collection(tf.GraphKeys.SUMMARIES))
-
-            # Add summaries for model variables.
-            for model_var in slim.get_model_variables():
-                summaries.add(tf.summary.histogram(model_var.op.name, model_var))
-
-            # TODO: need to be edited
-            # Add summaries for images, labels, predictions
-            # if FLAGS.save_summaries_images:
-            #     summary_image = graph.get_tensor_by_name('%s:0' % (IMAGE))
-            #     summaries.add(
-            #         tf.summary.image('samples/%s' % IMAGE, summary_image))
-            #
-            #     label = graph.get_tensor_by_name('%s:0' % (LABEL))
-            #     # Scale up summary image pixel values for better visualization.
-            #     pixel_scaling = max(1, 255 // FLAGS.num_classes)
-            #     summary_label = tf.cast(label * pixel_scaling, tf.uint8)
-            #     summaries.add(
-            #         tf.summary.image('samples/%s' % LABEL, summary_label))
-            #     output = graph.get_tensor_by_name(
-            #         ('%s/%s:0' % (OUTPUT_TYPE)).strip('/'))
-            #     predictions = tf.expand_dims(tf.argmax(output, 3), -1)
-            #
-            #     summary_predictions = tf.cast(predictions * pixel_scaling, tf.uint8)
-            #     summaries.add(
-            #         tf.summary.image(
-            #             'samples/%s' % OUTPUT_TYPE, summary_predictions))
-
-            # Add summaries for losses.
-            for loss in tf.get_collection(tf.GraphKeys.LOSSES, SCOPE):
-            # for loss in tf.get_collection(tf.GraphKeys.LOSSES):
-                summaries.add(tf.summary.scalar('losses/%s' % loss.op.name, loss))
-
-            # Build the optimizer
-            learning_rate = train_utils.get_model_learning_rate(
-                FLAGS.learning_policy, FLAGS.base_learning_rate,
-                FLAGS.learning_rate_decay_step, FLAGS.learning_rate_decay_factor,
-                None, FLAGS.learning_power,
-                FLAGS.slow_start_step, FLAGS.slow_start_learning_rate)
-            optimizer = tf.train.MomentumOptimizer(learning_rate, FLAGS.momentum)
-            summaries.add(tf.summary.scalar('learning_rate', learning_rate))
-
-            for variable in slim.get_model_variables():
-                summaries.add(tf.summary.histogram(variable.op.name, variable))
-
-            total_loss, grads_and_vars = train_utils.optimize(optimizer, scope=SCOPE)
-            # total_loss, grads_and_vars = train_utils.optimize(optimizer)
-            total_loss = tf.check_numerics(total_loss, 'Loss is inf or nan.')
-            summaries.add(tf.summary.scalar('total_loss', total_loss))
-
-            # Modify the gradients for biases and last layer variables.
-            last_layers = train_utils.get_extra_layer_scopes(
-                FLAGS.last_layers_contain_logits_only)
-            grad_mult = train_utils.get_model_gradient_multipliers(
-                last_layers, FLAGS.last_layer_gradient_multiplier)
-            if grad_mult:
-                grads_and_vars = slim.learning.multiply_gradients(
-                    grads_and_vars, grad_mult)
-
-            # Create gradient update op.
-            # grad_updates = optimizer.apply_gradients(
-            #     grads_and_vars, global_step=global_step)
-            # update_ops.append(grad_updates)
-            update_op = tf.group(*update_ops)
-            with tf.control_dependencies([update_op]):
-                train_tensor = tf.identity(total_loss, name='train_op')
-
-            prediction = tf.argmax(logits, 1, name='prediction')
-            correct_prediction = tf.equal(prediction, ground_truth)
-            confusion_matrix = tf.confusion_matrix(
-                ground_truth, prediction, num_classes=FLAGS.num_classes)
-            accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
-            summaries.add(tf.summary.scalar('accuracy', accuracy))
-
-            # Add the summaries. These contain the summaries
-            # created by model and either optimize() or _gather_loss().
-            summaries |= set(tf.get_collection(tf.GraphKeys.SUMMARIES, SCOPE))
-            # summaries |= set(tf.get_collection(tf.GraphKeys.SUMMARIES))
-
-            # Merge all summaries together.
-            summary_op = tf.summary.merge(list(summaries))
-            train_writer = tf.summary.FileWriter(FLAGS.summaries_dir, graph)
-
-        # with tf.Session(graph=graph) as sess:
-        #     sess.run(tf.global_variables_initializer())
 
             # Create a saver object which will save all the variables
             # TODO:
