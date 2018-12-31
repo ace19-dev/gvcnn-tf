@@ -94,7 +94,7 @@ def main(unused_argv):
         group_scheme = tf.placeholder(tf.bool, [FLAGS.num_group, FLAGS.num_views])
         group_weight = tf.placeholder(tf.float32, [FLAGS.num_group, 1])
 
-        # TODO: use with 2 graphs between grouping module and GVCNN ?
+        # TODO: use with 2 graphs for grouping module and GVCNN ?
         # grouping module
         d_scores, g_scheme = gvcnn.grouping_module(x,
                                                    FLAGS.num_group,
@@ -110,6 +110,7 @@ def main(unused_argv):
                              is_training,
                              scope=SCOPE,
                              dropout_keep_prob=dropout_keep_prob)
+
 
         # Gather update_ops. These contain, for example,
         # the updates for the batch_norm variables created by model.
