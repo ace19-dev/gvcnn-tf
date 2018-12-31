@@ -112,40 +112,55 @@ def _weighted_fusion(group_descriptors, group_weight):
     return tf.div(tf.add_n(numerator), denominator)
 
 
-# TODO: modify func dynamically
-def grouping_scheme(num_group, view_discrimination_scores):
-    group = []
+def _CNN(inputs, is_training, dropout_keep_prob, reuse, scope, global_pool):
+    '''
+       The second part of the network (CNN) and the group module, are used to extract
+       the final view descriptors together with the discrimination scores, separately.
+    '''
+    input_views = []
+    final_view_descriptors = []  # Final View Descriptors
 
-    g0 = tf.constant(0, dtype=tf.float32)
-    g1 = tf.constant(1/num_group, dtype=tf.float32)
-    g2 = tf.constant(2/num_group, dtype=tf.float32)
-    g3 = tf.constant(3/num_group, dtype=tf.float32)
-    g4 = tf.constant(4/num_group, dtype=tf.float32)
-    g5 = tf.constant(5/num_group, dtype=tf.float32)
+    n_views = inputs.get_shape().as_list()[1]
+    # transpose views: (NxVxHxWxC) -> (VxNxHxWxC)
+    views = tf.transpose(inputs, perm=[1, 0, 2, 3, 4])
 
-    for view_idx, score in enumerate(view_discrimination_scores):
-        group_idx = tf.case(
-            pred_fn_pairs=[
-                (tf.logical_and(tf.greater_equal(score, g0), tf.less(score, g1)), lambda: tf.constant(1)),
-                (tf.logical_and(tf.greater_equal(score, g1), tf.less(score, g2)), lambda: tf.constant(2)),
-                (tf.logical_and(tf.greater_equal(score, g2), tf.less(score, g3)), lambda: tf.constant(3)),
-                (tf.logical_and(tf.greater_equal(score, g3), tf.less(score, g4)), lambda: tf.constant(4)),
-                (tf.logical_and(tf.greater_equal(score, g4), tf.less(score, g5)), lambda: tf.constant(5))],
-            default=lambda: tf.constant(-1),
-            exclusive=False)
+    with tf.variable_scope(scope, None, [inputs], reuse=reuse) as scope:
+        with slim.arg_scope([slim.batch_norm, slim.dropout],
+                            is_training=is_training):
+            for i in range(n_views):
+                batch_view = tf.gather(views, i)  # N x H x W x C
 
-        group.append(group_idx)
+                net, end_points = \
+                    inception_v2.inception_v2_base(batch_view, scope=scope)
 
-    return group
+                input_views.append(batch_view)
+                with tf.variable_scope('Logits'):
+                    if global_pool:
+                        # Global average pooling.
+                        net = tf.reduce_mean(net, [1, 2], keepdims=True, name='global_pool')
+                        end_points['global_pool'] = net
+                    else:
+                        # Pooling with a fixed kernel size.
+                        kernel_size = inception_v2._reduced_kernel_size_for_small_input(net, [7, 7])
+                        net = slim.avg_pool2d(net, kernel_size, padding='VALID',
+                                              scope='AvgPool_1a_{}x{}'.format(*kernel_size))
+                        end_points['AvgPool_1a'] = net
+
+                    # ? x 1 x 1 x 1024
+                    net = slim.dropout(net, keep_prob=dropout_keep_prob, scope='Dropout_1b')
+                    # logits = slim.conv2d(net, num_classes, [1, 1], activation_fn=None,
+                    #                      normalizer_fn=None, scope='Conv2d_1c_1x1')
+                    # if spatial_squeeze:
+                    #     logits = tf.squeeze(logits, [1, 2], name='SpatialSqueeze')
+                    end_points['Logits'] = net
+
+                    final_view_descriptors.append(net)
+
+    return final_view_descriptors
+
 
 # TODO: modify FCN soon
-def make_grouping_module(inputs,
-                         num_group,
-                         is_training=True,
-                         dropout_keep_prob=0.8,
-                         reuse=tf.AUTO_REUSE,
-                         scope='InceptionV2',
-                         global_pool=True):
+def _FCN(inputs, is_training, dropout_keep_prob, reuse, scope, global_pool):
 
     """
     Raw View Descriptor Generation
@@ -173,7 +188,7 @@ def make_grouping_module(inputs,
     # transpose views: (NxVxHxWxC) -> (VxNxHxWxC)
     views = tf.transpose(inputs, perm=[1, 0, 2, 3, 4])
 
-    with tf.variable_scope(scope, 'InceptionV2', [inputs], reuse=reuse) as scope:
+    with tf.variable_scope(scope, None, [inputs], reuse=reuse) as scope:
         with slim.arg_scope([slim.batch_norm, slim.dropout],
                             is_training=is_training):
             for i in range(n_views):
@@ -213,9 +228,46 @@ def make_grouping_module(inputs,
 
                     view_discrimination_scores.append(score)
 
-    g_scheme = grouping_scheme(num_group, view_discrimination_scores)
+    return view_discrimination_scores
 
-    return view_discrimination_scores, g_scheme
+
+def grouping_module(inputs,
+                    num_group,
+                    is_training=True,
+                    dropout_keep_prob=0.8,
+                    reuse=tf.AUTO_REUSE,
+                    scope='FCN',
+                    global_pool=True):
+
+    view_discrimination_scores = _FCN(inputs,
+                                      is_training,
+                                      dropout_keep_prob,
+                                      reuse,
+                                      scope,
+                                      global_pool)
+
+    # TODO: modify dynamically
+    group = []
+    g0 = tf.constant(0, dtype=tf.float32)
+    g1 = tf.constant(1 / num_group, dtype=tf.float32)
+    g2 = tf.constant(2 / num_group, dtype=tf.float32)
+    g3 = tf.constant(3 / num_group, dtype=tf.float32)
+    g4 = tf.constant(4 / num_group, dtype=tf.float32)
+    g5 = tf.constant(5 / num_group, dtype=tf.float32)
+
+    for view_idx, score in enumerate(view_discrimination_scores):
+        group_idx = tf.case(
+            pred_fn_pairs=[
+                (tf.logical_and(tf.greater_equal(score, g0), tf.less(score, g1)), lambda: tf.constant(1)),
+                (tf.logical_and(tf.greater_equal(score, g1), tf.less(score, g2)), lambda: tf.constant(2)),
+                (tf.logical_and(tf.greater_equal(score, g2), tf.less(score, g3)), lambda: tf.constant(3)),
+                (tf.logical_and(tf.greater_equal(score, g3), tf.less(score, g4)), lambda: tf.constant(4)),
+                (tf.logical_and(tf.greater_equal(score, g4), tf.less(score, g5)), lambda: tf.constant(5))],
+            default=lambda: tf.constant(-1),
+            exclusive=False)
+        group.append(group_idx)
+
+    return view_discrimination_scores, group
 
 
 def gvcnn(inputs,
@@ -225,62 +277,28 @@ def gvcnn(inputs,
           is_training=True,
           dropout_keep_prob=0.8,
           prediction_fn=slim.softmax,
+          spatial_squeeze = True,
           reuse=tf.AUTO_REUSE,
-          scope='InceptionV2',
+          scope='GoogLeNet',
           global_pool=True):
-    '''
-    The second part of the network (CNN) and the group module, are used to extract
-    the final view descriptors together with the discrimination scores, separately.
-    '''
-    input_views = []
-    final_view_descriptors = []  # Final View Descriptors
 
-    n_views = inputs.get_shape().as_list()[1]
-    # transpose views: (NxVxHxWxC) -> (VxNxHxWxC)
-    views = tf.transpose(inputs, perm=[1, 0, 2, 3, 4])
-
-    with tf.variable_scope(scope, 'InceptionV2', [inputs], reuse=reuse) as scope:
-        with slim.arg_scope([slim.batch_norm, slim.dropout],
-                            is_training=is_training):
-            for i in range(n_views):
-                batch_view = tf.gather(views, i)  # N x H x W x C
-
-                net, end_points = \
-                    inception_v2.inception_v2_base(batch_view, scope=scope)
-
-                input_views.append(batch_view)
-                with tf.variable_scope('Logits'):
-                    if global_pool:
-                        # Global average pooling.
-                        net = tf.reduce_mean(net, [1, 2], keepdims=True, name='global_pool')
-                        end_points['global_pool'] = net
-                    else:
-                        # Pooling with a fixed kernel size.
-                        kernel_size = inception_v2._reduced_kernel_size_for_small_input(net, [7, 7])
-                        net = slim.avg_pool2d(net, kernel_size, padding='VALID',
-                                              scope='AvgPool_1a_{}x{}'.format(*kernel_size))
-                        end_points['AvgPool_1a'] = net
-
-                    # ? x 1 x 1 x 1024
-                    net = slim.dropout(net, keep_prob=dropout_keep_prob, scope='Dropout_1b')
-                    # logits = slim.conv2d(net, num_classes, [1, 1], activation_fn=None,
-                    #                      normalizer_fn=None, scope='Conv2d_1c_1x1')
-                    # if spatial_squeeze:
-                    #     logits = tf.squeeze(logits, [1, 2], name='SpatialSqueeze')
-                    end_points['Logits'] = net
-
-                    final_view_descriptors.append(net)
+    final_view_descriptors = _CNN(inputs,
+                                  is_training,
+                                  dropout_keep_prob,
+                                  reuse,
+                                  scope,
+                                  global_pool)
 
     group_descriptors = _view_pooling(final_view_descriptors, group_scheme)
     shape_description = _weighted_fusion(group_descriptors, group_weight)
 
-    net = slim.flatten(shape_description)
-    logits = slim.fully_connected(net, num_classes, activation_fn=None)
-    # logits = slim.conv2d(shape_description, num_classes, [1, 1], activation_fn=None,
-    #                      normalizer_fn=None, scope='Conv2d')
-    # logits = tf.squeeze(logits, [1, 2], name='SpatialSqueeze')
-    pred = prediction_fn(logits, scope='Predictions')
+    # net = slim.flatten(shape_description)
+    # logits = slim.fully_connected(net, num_classes, activation_fn=None)
+    logits = slim.conv2d(shape_description, num_classes, [1, 1], activation_fn=None,
+                         normalizer_fn=None, scope='Conv2d')
+    if spatial_squeeze:
+        logits = tf.squeeze(logits, [1, 2], name='SpatialSqueeze')
 
-    return pred
+    return logits
 
 
