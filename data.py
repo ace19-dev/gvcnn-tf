@@ -13,6 +13,7 @@ class Data(object):
         self.resize_h = h_w[0]
         self.resize_w = h_w[1]
 
+        self.label_to_index = {}
         self.images, self.labels = self._prepare_data()
         self.shuffle()
 
@@ -24,6 +25,11 @@ class Data(object):
         classes.sort()
         tf.logging.info("classes: %s", classes)
 
+        labels_index = {}
+        for index, cls in enumerate(classes):
+            labels_index[cls] = index
+            self.label_to_index[index] = cls
+
         images = []
         labels = []
         for cls in classes:
@@ -34,12 +40,14 @@ class Data(object):
                 views_path = os.path.join(l_train_path, img)
                 views = os.listdir(views_path)
                 vs = []
+                # ls = []
                 for v in views:
                     v_path = os.path.join(views_path, v)
                     vs.append(v_path)
+                    # ls.append(cls)
 
                 images.append(vs)
-                labels.append(cls)
+                labels.append(labels_index[cls])
 
         return images, labels
 
@@ -53,8 +61,9 @@ class Data(object):
     def _parse_function(self, start, end):
 
         images = []
+        labels = []
         batch_img = self.images[start:end]
-        for views_path in batch_img:
+        for idx, views_path in enumerate(batch_img):
             views_path.sort()
             views = []
             for view in views_path:
@@ -72,7 +81,9 @@ class Data(object):
                 views.append(resized_image)
 
             images.append(views)
-            labels = tf.convert_to_tensor(self.labels[start:end], dtype=tf.string)
+
+        # labels = tf.convert_to_tensor(self.labels[start:end], dtype=tf.string)
+        labels.extend(self.labels[start:end])
 
         return tf.stack(images, 0), labels
 
@@ -88,3 +99,7 @@ class Data(object):
 
     def data_size(self):
         return len(self.images)
+
+
+    def get_label_to_index(self):
+        return self.label_to_index

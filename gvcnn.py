@@ -159,7 +159,7 @@ def _CNN(inputs, is_training, dropout_keep_prob, reuse, scope, global_pool):
     return final_view_descriptors
 
 
-# TODO: modify FCN soon
+# TODO: modify FCN
 def _FCN(inputs, is_training, dropout_keep_prob, reuse, scope, global_pool):
 
     """
