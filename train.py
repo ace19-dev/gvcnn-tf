@@ -94,7 +94,7 @@ def main(unused_argv):
         group_scheme = tf.placeholder(tf.bool, [FLAGS.num_group, FLAGS.num_views])
         group_weight = tf.placeholder(tf.float32, [FLAGS.num_group, 1])
 
-        # TODO: use with 2 graphs for grouping module and GVCNN ?
+        # TODO: use each graphs for grouping module and GVCNN ??
         # grouping module
         d_scores, g_scheme = gvcnn.grouping_module(x,
                                                    FLAGS.num_group,
@@ -196,8 +196,6 @@ def main(unused_argv):
         # Merge all summaries together.
         summary_op = tf.summary.merge(list(summaries))
         train_writer = tf.summary.FileWriter(FLAGS.summaries_dir, graph)
-
-        # TODO: accuracy, loss, read/save checkpoint  ...
 
 
         # make a trainable variable not trainable
