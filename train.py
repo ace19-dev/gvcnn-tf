@@ -94,7 +94,7 @@ def main(unused_argv):
         group_scheme = tf.placeholder(tf.bool, [FLAGS.num_group, FLAGS.num_views])
         group_weight = tf.placeholder(tf.float32, [FLAGS.num_group, 1])
 
-        # TODO: might need to use with multiple graphs...
+        # TODO: might need to use with multiple graphs between grouping module and GVCNN ...
         # grouping module
         d_scores, g_scheme = gvcnn.grouping_module(x,
                                                    FLAGS.num_group,
