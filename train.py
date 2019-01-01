@@ -104,8 +104,8 @@ def main(unused_argv):
         ground_truth = tf.placeholder(tf.int64, [None], name=LABEL)
         is_training = tf.placeholder(tf.bool)
         dropout_keep_prob = tf.placeholder(tf.float32)
-        group_scheme = tf.placeholder(tf.bool, [FLAGS.num_group, FLAGS.num_views])
-        group_weight = tf.placeholder(tf.float32, [FLAGS.num_group, 1])
+        grouping_scheme = tf.placeholder(tf.bool, [FLAGS.num_group, FLAGS.num_views])
+        grouping_weight = tf.placeholder(tf.float32, [FLAGS.num_group, 1])
 
         # TODO: use each graphs for grouping module and GVCNN ??
         # grouping module
@@ -115,8 +115,8 @@ def main(unused_argv):
                                                    dropout_keep_prob=dropout_keep_prob)
         # GVCNN
         logits = gvcnn.gvcnn(x,
-                             group_scheme,
-                             group_weight,
+                             grouping_scheme,
+                             grouping_weight,
                              FLAGS.num_classes,
                              is_training,
                              scope=SCOPE,
@@ -259,16 +259,16 @@ def main(unused_argv):
                         sess.run([d_scores, g_scheme], feed_dict={x: train_batch_xs.eval(),
                                                                   is_training: True,
                                                                   dropout_keep_prob: 0.8})
-                    g_scheme = gvcnn.refine_group(scheme, FLAGS.num_group, FLAGS.num_views)
-                    g_weight = gvcnn.group_weight(scores, g_scheme)
+                    s = gvcnn.refine_group(scheme, FLAGS.num_group, FLAGS.num_views)
+                    w = gvcnn.group_weight(scores, s)
 
                     # Run the graph with this batch of training data.
                     lr, train_summary, train_accuracy, train_loss, _ = \
                         sess.run([learning_rate, summary_op, accuracy, total_loss, train_op],
                                  feed_dict={x: train_batch_xs.eval(),
                                             ground_truth: train_batch_ys,
-                                            group_scheme: g_scheme,
-                                            group_weight: g_weight,
+                                            grouping_scheme: s,
+                                            grouping_weight: w,
                                             is_training: True,
                                             dropout_keep_prob: 0.8})
 

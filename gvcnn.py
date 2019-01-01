@@ -271,8 +271,8 @@ def grouping_module(inputs,
 
 
 def gvcnn(inputs,
-          group_scheme,
-          group_weight,
+          grouping_scheme,
+          grouping_weight,
           num_classes,
           is_training=True,
           dropout_keep_prob=0.8,
@@ -289,8 +289,8 @@ def gvcnn(inputs,
                                   scope,
                                   global_pool)
 
-    group_descriptors = _view_pooling(final_view_descriptors, group_scheme)
-    shape_description = _weighted_fusion(group_descriptors, group_weight)
+    group_descriptors = _view_pooling(final_view_descriptors, grouping_scheme)
+    shape_description = _weighted_fusion(group_descriptors, grouping_weight)
 
     # net = slim.flatten(shape_description)
     # logits = slim.fully_connected(net, num_classes, activation_fn=None)
