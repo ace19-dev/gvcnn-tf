@@ -276,7 +276,6 @@ def main(unused_argv):
                     tf.logging.info('Epoch #%d, Step #%d, rate %f, accuracy %.1f%%, loss %f' %
                                     (training_epoch, step, lr, train_accuracy * 100, train_loss))
 
-
                 ###################################################
                 # TODO: Validate the model on the validation set
                 ###################################################
