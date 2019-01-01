@@ -125,6 +125,9 @@ def main(unused_argv):
         # make a trainable variable not trainable
         train_utils.edit_trainable_variables('FCN')
 
+        # Define loss
+        tf.losses.sparse_softmax_cross_entropy(labels=ground_truth, logits=logits)
+
         # Gather update_ops. These contain, for example,
         # the updates for the batch_norm variables created by model.
         update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS, SCOPE)

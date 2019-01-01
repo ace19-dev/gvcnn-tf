@@ -219,7 +219,7 @@ def get_model_learning_rate(
                     learning_rate)
 
 
-def _gather_loss(regularization_losses, scope=None):
+def _gather_loss(regularization_losses):
     """Gather the loss.
 
     Args:
@@ -262,7 +262,7 @@ def _gather_loss(regularization_losses, scope=None):
     return sum_loss
 
 
-def _optimize(optimizer, regularization_losses, scope=None, **kwargs):
+def _optimize(optimizer, regularization_losses, **kwargs):
     """Compute losses and gradients.
 
     Args:
@@ -276,7 +276,7 @@ def _optimize(optimizer, regularization_losses, scope=None, **kwargs):
         - loss: A tensor for the total loss.  Can be None.
         - grads_and_vars: List of (gradient, variable). Can be empty.
     """
-    sum_loss = _gather_loss(regularization_losses, scope=scope)
+    sum_loss = _gather_loss(regularization_losses)
     grad = None
     if sum_loss is not None:
         grad = optimizer.compute_gradients(sum_loss, **kwargs)
@@ -344,7 +344,7 @@ def optimize(optimizer, scope=None, regularization_losses=None, **kwargs):
     with tf.name_scope(scope):
         loss, grad = _optimize(optimizer,
                                regularization_losses,
-                               scope,
+                               # scope,
                                **kwargs)
         if loss is not None:
             losses.append(loss)
