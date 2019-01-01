@@ -167,7 +167,6 @@ def main(unused_argv):
         # for loss in tf.get_collection(tf.GraphKeys.LOSSES):
             summaries.add(tf.summary.scalar('losses/%s' % loss.op.name, loss))
 
-        # Build the optimizer
         learning_rate = train_utils.get_model_learning_rate(
             FLAGS.learning_policy, FLAGS.base_learning_rate,
             FLAGS.learning_rate_decay_step, FLAGS.learning_rate_decay_factor,
@@ -273,7 +272,7 @@ def main(unused_argv):
                                             dropout_keep_prob: 0.8})
 
                     train_writer.add_summary(train_summary)
-                    tf.logging.info('Epoch #%d, Step #%d, rate %f, accuracy %.1f%%, loss %f' %
+                    tf.logging.info('Epoch #%d, Step #%d, rate %.10f, accuracy %.1f%%, loss %.10f' %
                                     (training_epoch, step, lr, train_accuracy * 100, train_loss))
 
                 ###################################################
