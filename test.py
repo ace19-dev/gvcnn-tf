@@ -1,6 +1,6 @@
 import tensorflow as tf
 import gvcnn
-import _model
+from _ref import _model
 from nets import googLeNet
 
 

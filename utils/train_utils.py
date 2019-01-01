@@ -237,9 +237,8 @@ def _gather_loss(regularization_losses, scope=None):
     regularization_loss = None
 
     # Compute and aggregate losses on the clone device.
-    # with tf.device(clone.device):
     all_losses = []
-    losses = tf.get_collection(tf.GraphKeys.LOSSES, scope=scope)
+    losses = tf.get_collection(tf.GraphKeys.LOSSES)
     if losses:
         loss = tf.add_n(losses, name='losses')
         # if num_clones > 1:
@@ -252,6 +251,7 @@ def _gather_loss(regularization_losses, scope=None):
         all_losses.append(regularization_loss)
     if all_losses:
         sum_loss = tf.add_n(all_losses)
+
     # Add the summaries out of the clone device block.
     if loss is not None:
         tf.summary.scalar('/'.join(filter(None,
@@ -297,8 +297,8 @@ def _gradients(grad):
     """
     sum_grads = []
     for grad_and_vars in zip(*grad):
-    # Note that each grad_and_vars looks like the following:
-    #   ((grad_var0_clone0, var0), ... (grad_varN_cloneN, varN))
+        # Note that each grad_and_vars looks like the following:
+        #   ((grad_var0_clone0, var0), ... (grad_varN_cloneN, varN))
         grads = []
         var = grad_and_vars[0][1]
         for g, v in grad_and_vars:
@@ -341,21 +341,19 @@ def optimize(optimizer, scope=None, regularization_losses=None, **kwargs):
     if regularization_losses is None:
         regularization_losses = tf.get_collection(
             tf.GraphKeys.REGULARIZATION_LOSSES, scope)
-
-    loss, grad = _optimize(optimizer,
-                           regularization_losses,
-                           scope,
-                           **kwargs)
-    if loss is not None:
-        losses.append(loss)
-        grads_and_vars.append(grad)
-    # Only use regularization_losses for the first clone
-    regularization_losses = None
+    with tf.name_scope(scope):
+        loss, grad = _optimize(optimizer,
+                               regularization_losses,
+                               scope,
+                               **kwargs)
+        if loss is not None:
+            losses.append(loss)
+            grads_and_vars.append(grad)
+        # Only use regularization_losses for the first clone
+        regularization_losses = None
 
     # Compute the total_loss summing all the losses.
-    total_loss = []
-    if losses:
-        total_loss = tf.add_n(losses, name='total_loss')
+    total_loss = tf.add_n(losses, name='total_loss')
     # Sum the gradients across clones.
     grads_and_vars = _gradients(grads_and_vars)
 
