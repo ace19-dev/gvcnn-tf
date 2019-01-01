@@ -3,9 +3,6 @@
 
 
 # It is under development.
-- verify train data
-- augment ??
-- 
 
 
 # Reference from
