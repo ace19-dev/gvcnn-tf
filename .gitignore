@@ -27,5 +27,6 @@ env.bak/
 venv.bak/
 
 *.pyc
-checkpoints/*
+
+.checkpoints/*
 
