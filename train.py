@@ -69,14 +69,12 @@ flags.DEFINE_string('dataset_dir', '/home/ace19/dl_data/modelnet',
                     'Where the dataset reside.')
 
 flags.DEFINE_integer('how_many_training_epochs', 3, 'How many training loops to run')
-flags.DEFINE_integer('batch_size', 16, 'batch size')
+flags.DEFINE_integer('batch_size', 8, 'batch size')
 flags.DEFINE_integer('num_views', 8, 'number of views')
 flags.DEFINE_string('height_weight', '224,224', 'height and weight')
 flags.DEFINE_integer('num_classes', 7, 'number of classes')
 flags.DEFINE_integer('num_group', 5, 'number of grouping')
 
-
-SCOPE = "GoogLeNet"
 
 def main(unused_argv):
     tf.logging.set_verbosity(tf.logging.INFO)
@@ -90,6 +88,8 @@ def main(unused_argv):
     # test2()
     # test3()
     # test4()
+
+    SCOPE = "GoogLeNet"
 
     tf.gfile.MakeDirs(FLAGS.train_logdir)
     tf.logging.info('Creating train logdir: %s', FLAGS.train_logdir)
@@ -123,10 +123,12 @@ def main(unused_argv):
                              dropout_keep_prob=dropout_keep_prob)
 
         # make a trainable variable not trainable
-        train_utils.edit_trainable_variables('FCN')
+        # train_utils.edit_trainable_variables('FCN')
 
         # Define loss
-        tf.losses.sparse_softmax_cross_entropy(labels=ground_truth, logits=logits)
+        tf.losses.sparse_softmax_cross_entropy(labels=ground_truth,
+                                               logits=logits,
+                                               scope=SCOPE)
 
         # Gather update_ops. These contain, for example,
         # the updates for the batch_norm variables created by model.
@@ -200,6 +202,7 @@ def main(unused_argv):
         with tf.control_dependencies([update_op]):
             train_op = tf.identity(total_loss, name='train_op')
 
+        # TODO:
         prediction = tf.argmax(logits, 1, name='prediction')
         correct_prediction = tf.equal(prediction, ground_truth)
         confusion_matrix = tf.confusion_matrix(
