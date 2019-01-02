@@ -1,4 +1,6 @@
 import tensorflow as tf
+import numpy as np
+import scipy.misc
 
 import os
 import cv2
@@ -259,9 +261,8 @@ def main(unused_argv):
                     #     v_list = tf.unstack(batch_x, axis=0)
                     #     for v in v_list:
                     #         img = v.eval()
-                    #         cv2.imshow('image', img)
-                    #         cv2.waitKey(0)
-                    #         cv2.destroyAllWindows()
+                    #         # TODO: cv2 ?
+                    #         scipy.misc.toimage(img).show()
 
                     scores, scheme = \
                         sess.run([d_scores, g_scheme], feed_dict={x: train_batch_xs,
