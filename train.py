@@ -1,6 +1,7 @@
 import tensorflow as tf
 
 import os
+import cv2
 
 import data
 import gvcnn
@@ -253,12 +254,17 @@ def main(unused_argv):
                     train_batch_xs, train_batch_ys = dataset.next_batch(step, FLAGS.batch_size)
 
                     # For debugging
-                    # img = train_batch_xs[0]
-                    # plt.hist(img.ravel())
-                    # plt.show()
+                    # batch_xs = tf.unstack(train_batch_xs, axis=0)
+                    # for batch_x in batch_xs:
+                    #     v_list = tf.unstack(batch_x, axis=0)
+                    #     for v in v_list:
+                    #         img = v.eval()
+                    #         cv2.imshow('image', img)
+                    #         cv2.waitKey(0)
+                    #         cv2.destroyAllWindows()
 
                     scores, scheme = \
-                        sess.run([d_scores, g_scheme], feed_dict={x: train_batch_xs.eval(),
+                        sess.run([d_scores, g_scheme], feed_dict={x: train_batch_xs,
                                                                   is_training: True,
                                                                   dropout_keep_prob: 0.8})
                     s = gvcnn.refine_group(scheme, FLAGS.num_group, FLAGS.num_views)
@@ -267,7 +273,7 @@ def main(unused_argv):
                     # Run the graph with this batch of training data.
                     lr, train_summary, train_accuracy, train_loss, _ = \
                         sess.run([learning_rate, summary_op, accuracy, total_loss, train_op],
-                                 feed_dict={x: train_batch_xs.eval(),
+                                 feed_dict={x: train_batch_xs,
                                             ground_truth: train_batch_ys,
                                             grouping_scheme: s,
                                             grouping_weight: w,
