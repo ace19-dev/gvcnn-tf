@@ -25,9 +25,70 @@ def _mask_group_scheme(group_scheme, num_group, num_views):
     return g
 
 
-def refine_group(group_scheme, num_group, num_views):
+def _search(lst, target):
+  min = 0
+  max = len(lst)-1
+  avg = (min+max)//2
+  # uncomment next line for traces
+  # print lst, target, avg
+  while (min < max):
+    if (lst[avg] == target):
+      return avg
+    elif (lst[avg] < target):
+      return avg + 1 + _search(lst[avg+1:], target)
+    else:
+      return _search(lst[:avg], target)
+
+  # avg may be a partial offset so no need to print it here
+  # print "The location of the number in the array is", avg
+  return len(lst) - avg
+
+
+def refine_group(scores, num_group, num_views):
+    max_range = []
+    for i in range(num_group):
+        max_range.append(i / num_group)
+    max_range.append(1.0)
+
     new_scheme = {}
-    for i, g in enumerate(group_scheme):
+    for idx, s in enumerate(scores):
+        _search(max_range, s)
+        # if s >= 0 and s < 2.5:
+        #     try:
+        #         new_scheme[0].append(idx)
+        #     except KeyError:
+        #         new_scheme[0] = [idx]
+        # elif s >= 2.5 and s < 5:
+        #     try:
+        #         new_scheme[1].append(idx)
+        #     except KeyError:
+        #         new_scheme[1] = [idx]
+        # elif s >= 5 and s < 6.5:
+        #     try:
+        #         new_scheme[2].append(idx)
+        #     except KeyError:
+        #         new_scheme[2] = [idx]
+        # elif s >= 0.7 and s < 0.8:
+        #     try:
+        #         new_scheme[3].append(idx)
+        #     except KeyError:
+        #         new_scheme[3] = [idx]
+        # elif s > 0.8 and s <= 0.9:
+        #     try:
+        #         new_scheme[4].append(idx)
+        #     except KeyError:
+        #         new_scheme[4] = [idx]
+        # elif s > 0.9 and s <= 1:
+        #     try:
+        #         new_scheme[5].append(idx)
+        #     except KeyError:
+        #         new_scheme[5] = [idx]
+
+
+
+
+    new_scheme = {}
+    for i, g in enumerate(scores):
         try:
             new_scheme[g].append(i)
         except KeyError:
@@ -117,7 +178,6 @@ def _CNN(inputs, is_training, dropout_keep_prob, reuse, scope, global_pool):
        The second part of the network (CNN) and the group module, are used to extract
        the final view descriptors together with the discrimination scores, separately.
     '''
-    input_views = []
     final_view_descriptors = []  # Final View Descriptors
 
     n_views = inputs.get_shape().as_list()[1]
@@ -133,7 +193,6 @@ def _CNN(inputs, is_training, dropout_keep_prob, reuse, scope, global_pool):
                 net, end_points = \
                     inception_v2.inception_v2_base(batch_view, scope=scope)
 
-                input_views.append(batch_view)
                 with tf.variable_scope('Logits'):
                     if global_pool:
                         # Global average pooling.
@@ -160,7 +219,7 @@ def _CNN(inputs, is_training, dropout_keep_prob, reuse, scope, global_pool):
 
 
 # TODO: modify FCN
-def _FCN(inputs, is_training, dropout_keep_prob, reuse, scope, global_pool):
+def _FCN(inputs, num_classes, reuse, scope):
 
     """
     Raw View Descriptor Generation
@@ -179,7 +238,6 @@ def _FCN(inputs, is_training, dropout_keep_prob, reuse, scope, global_pool):
     scope:
     """
 
-    input_views = []
     # FC layer to obtain the discrimination scores from raw view descriptors
     view_discrimination_scores = []
 
@@ -189,85 +247,57 @@ def _FCN(inputs, is_training, dropout_keep_prob, reuse, scope, global_pool):
     views = tf.transpose(inputs, perm=[1, 0, 2, 3, 4])
 
     with tf.variable_scope(scope, None, [inputs], reuse=reuse) as scope:
-        with slim.arg_scope([slim.batch_norm, slim.dropout],
-                            is_training=is_training):
-            for i in range(n_views):
-                batch_view = tf.gather(views, i)  # N x H x W x C
-                # FCN
-                net, end_points = \
-                    inception_v2.inception_v2_base(batch_view, scope=scope)
+        for i in range(n_views):
+            batch_view = tf.gather(views, i)  # N x H x W x C
+            # FCN
+            logits = googLeNet.googLeNet(batch_view, num_classes, scope=scope)
 
-                input_views.append(batch_view)
+            # The average score is shown for the batch size input
+            # corresponding to each point of view.
+            score = tf.nn.sigmoid(tf.log(tf.abs(logits)))
+            # TODO: reduce_max ??
+            score = tf.reduce_mean(score)
+            # score = tf.reshape(score, [])
 
-                # The grouping module aims to learn the group information
-                # to assist in mining the relationship among views.
-                with tf.variable_scope('Logits'):
-                    if global_pool:
-                        # Global average pooling.
-                        net = tf.reduce_mean(net, [1, 2], keepdims=True, name='global_pool')
-                        end_points['global_pool'] = net
-                    else:
-                        # Pooling with a fixed kernel size.
-                        kernel_size = inception_v2._reduced_kernel_size_for_small_input(net, [7, 7])
-                        net = slim.avg_pool2d(net, kernel_size, padding='VALID',
-                                              scope='AvgPool_1a_{}x{}'.format(*kernel_size))
-                        end_points['AvgPool_1a'] = net
-
-                    # ? X 1 x 1 x 1024
-                    net = slim.dropout(net, dropout_keep_prob, scope='Dropout_1b')
-                    net = slim.flatten(net)
-                    # net = slim.fully_connected(net, 512)
-                    logits = slim.fully_connected(net, 1, activation_fn=None)
-                    end_points['Logits'] = logits
-
-                    # The average score is shown for the batch size input
-                    # corresponding to each point of view.
-                    score = tf.nn.sigmoid(tf.log(tf.abs(logits)))
-                    score = tf.reduce_mean(score, axis=0)
-                    score = tf.reshape(score, [])
-
-                    view_discrimination_scores.append(score)
+            view_discrimination_scores.append(score)
 
     return view_discrimination_scores
 
 
 def grouping_module(inputs,
-                    num_group,
-                    is_training=True,
-                    dropout_keep_prob=0.8,
+                    num_classes,
                     reuse=tf.AUTO_REUSE,
-                    scope='FCN',
-                    global_pool=True):
+                    scope='FCN'):
 
     view_discrimination_scores = _FCN(inputs,
-                                      is_training,
-                                      dropout_keep_prob,
+                                      num_classes,
                                       reuse,
-                                      scope,
-                                      global_pool)
+                                      scope)
+
+    return view_discrimination_scores
 
     # TODO: modify dynamically
-    group = []
-    g0 = tf.constant(0, dtype=tf.float32)
-    g1 = tf.constant(1 / num_group, dtype=tf.float32)
-    g2 = tf.constant(2 / num_group, dtype=tf.float32)
-    g3 = tf.constant(3 / num_group, dtype=tf.float32)
-    g4 = tf.constant(4 / num_group, dtype=tf.float32)
-    g5 = tf.constant(5 / num_group, dtype=tf.float32)
-
-    for view_idx, score in enumerate(view_discrimination_scores):
-        group_idx = tf.case(
-            pred_fn_pairs=[
-                (tf.logical_and(tf.greater_equal(score, g0), tf.less(score, g1)), lambda: tf.constant(1)),
-                (tf.logical_and(tf.greater_equal(score, g1), tf.less(score, g2)), lambda: tf.constant(2)),
-                (tf.logical_and(tf.greater_equal(score, g2), tf.less(score, g3)), lambda: tf.constant(3)),
-                (tf.logical_and(tf.greater_equal(score, g3), tf.less(score, g4)), lambda: tf.constant(4)),
-                (tf.logical_and(tf.greater_equal(score, g4), tf.less(score, g5)), lambda: tf.constant(5))],
-            default=lambda: tf.constant(-1),
-            exclusive=False)
-        group.append(group_idx)
-
-    return view_discrimination_scores, group
+    # group = []
+    # g0 = tf.constant(0, dtype=tf.float32)
+    # g1 = tf.constant(1 / num_group, dtype=tf.float32)
+    # g2 = tf.constant(2 / num_group, dtype=tf.float32)
+    # g3 = tf.constant(3 / num_group, dtype=tf.float32)
+    # g4 = tf.constant(4 / num_group, dtype=tf.float32)
+    # g5 = tf.constant(5 / num_group, dtype=tf.float32)
+    #
+    # for view_idx, score in enumerate(view_discrimination_scores):
+    #     group_idx = tf.case(
+    #         pred_fn_pairs=[
+    #             (tf.logical_and(tf.greater_equal(score, g0), tf.less(score, g1)), lambda: tf.constant(1)),
+    #             (tf.logical_and(tf.greater_equal(score, g1), tf.less(score, g2)), lambda: tf.constant(2)),
+    #             (tf.logical_and(tf.greater_equal(score, g2), tf.less(score, g3)), lambda: tf.constant(3)),
+    #             (tf.logical_and(tf.greater_equal(score, g3), tf.less(score, g4)), lambda: tf.constant(4)),
+    #             (tf.logical_and(tf.greater_equal(score, g4), tf.less(score, g5)), lambda: tf.constant(5))],
+    #         default=lambda: tf.constant(-1),
+    #         exclusive=False)
+    #     group.append(group_idx)
+    #
+    # return view_discrimination_scores, group
 
 
 def gvcnn(inputs,

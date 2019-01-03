@@ -1,4 +1,6 @@
 import tensorflow as tf
+import numpy as np
+
 import gvcnn
 from _ref import _model
 from nets import googLeNet
@@ -93,3 +95,4 @@ def test4():
         print(result)
         print("...")
         print(result2)
+

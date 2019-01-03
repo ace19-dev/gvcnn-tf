@@ -7,6 +7,7 @@ import cv2
 
 import data
 import gvcnn
+import test
 from utils import train_utils
 
 from slim.nets import inception_v2
@@ -72,11 +73,11 @@ flags.DEFINE_string('dataset_dir', '/home/ace19/dl_data/modelnet',
                     'Where the dataset reside.')
 
 flags.DEFINE_integer('how_many_training_epochs', 3, 'How many training loops to run')
-flags.DEFINE_integer('batch_size', 8, 'batch size')
+flags.DEFINE_integer('batch_size', 16, 'batch size')
 flags.DEFINE_integer('num_views', 8, 'number of views')
 flags.DEFINE_string('height_weight', '224,224', 'height and weight')
 flags.DEFINE_integer('num_classes', 7, 'number of classes')
-flags.DEFINE_integer('num_group', 5, 'number of grouping')
+flags.DEFINE_integer('num_group', 10, 'number of grouping')
 
 
 def main(unused_argv):
@@ -91,6 +92,7 @@ def main(unused_argv):
     # test2()
     # test3()
     # test4()
+    test.test5()
 
     SCOPE = "GoogLeNet"
 
@@ -112,10 +114,8 @@ def main(unused_argv):
 
         # TODO: use each graphs for grouping module and GVCNN ??
         # grouping module
-        d_scores, g_scheme = gvcnn.grouping_module(x,
-                                                   FLAGS.num_group,
-                                                   is_training,
-                                                   dropout_keep_prob=dropout_keep_prob)
+        d_scores = gvcnn.grouping_module(x, FLAGS.num_classes)
+
         # GVCNN
         logits = gvcnn.gvcnn(x,
                              grouping_scheme,
@@ -254,35 +254,34 @@ def main(unused_argv):
                 for step in range(t_batches):
                     # Pull the image batch we'll use for training.
                     train_batch_xs, train_batch_ys = dataset.next_batch(step, FLAGS.batch_size)
-
-                    # For debugging
+                    # Verify image
                     # batch_xs = tf.unstack(train_batch_xs, axis=0)
-                    # for batch_x in batch_xs:
+                    # for idx, batch_x in enumerate(batch_xs):
                     #     v_list = tf.unstack(batch_x, axis=0)
                     #     for v in v_list:
                     #         img = v.eval()
-                    #         # TODO: cv2 ?
-                    #         scipy.misc.toimage(img).show()
+                    #         # scipy.misc.toimage(img).show() Or
+                    #         img = cv2.cvtColor(img.astype(np.uint8), cv2.COLOR_BGR2RGB)
+                    #         cv2.imshow(str(train_batch_ys[idx]), img)
+                    #         cv2.waitKey(500)
+                    #         cv2.destroyAllWindows()
 
-                    scores, scheme = \
-                        sess.run([d_scores, g_scheme], feed_dict={x: train_batch_xs,
-                                                                  is_training: True,
-                                                                  dropout_keep_prob: 0.8})
-                    s = gvcnn.refine_group(scheme, FLAGS.num_group, FLAGS.num_views)
+                    scores = sess.run(d_scores,feed_dict={x: train_batch_xs.eval()})
+                    s = gvcnn.refine_group(scores, FLAGS.num_group, FLAGS.num_views)
                     w = gvcnn.group_weight(scores, s)
 
                     # Run the graph with this batch of training data.
                     lr, train_summary, train_accuracy, train_loss, _ = \
                         sess.run([learning_rate, summary_op, accuracy, total_loss, train_op],
-                                 feed_dict={x: train_batch_xs,
+                                 feed_dict={x: train_batch_xs.eval(),
                                             ground_truth: train_batch_ys,
                                             grouping_scheme: s,
                                             grouping_weight: w,
                                             is_training: True,
-                                            dropout_keep_prob: 0.8})
+                                            dropout_keep_prob: 0.5})
 
                     train_writer.add_summary(train_summary)
-                    tf.logging.info('Epoch #%d, Step #%d, rate %.10f, accuracy %.1f%%, loss %.10f' %
+                    tf.logging.info('Epoch #%d, Step #%d, rate %.10f, accuracy %.1f%%, loss %f' %
                                     (training_epoch, step, lr, train_accuracy * 100, train_loss))
 
                 ###################################################
