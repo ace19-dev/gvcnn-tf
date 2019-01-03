@@ -23,6 +23,8 @@ IMAGE = 'image'
 LABEL = 'label'
 OUTPUT_TYPE = 'classification'
 
+NUM_GROUP = 8
+
 
 # Settings for logging.
 flags.DEFINE_string('train_logdir', './checkpoint',
@@ -73,11 +75,10 @@ flags.DEFINE_string('dataset_dir', '/home/ace19/dl_data/modelnet',
                     'Where the dataset reside.')
 
 flags.DEFINE_integer('how_many_training_epochs', 3, 'How many training loops to run')
-flags.DEFINE_integer('batch_size', 16, 'batch size')
+flags.DEFINE_integer('batch_size', 8, 'batch size')
 flags.DEFINE_integer('num_views', 8, 'number of views')
 flags.DEFINE_string('height_weight', '224,224', 'height and weight')
 flags.DEFINE_integer('num_classes', 7, 'number of classes')
-flags.DEFINE_integer('num_group', 10, 'number of grouping')
 
 
 def main(unused_argv):
@@ -86,13 +87,12 @@ def main(unused_argv):
     h_w = list(map(int, FLAGS.height_weight.split(',')))
     # test.test(h_w,
     #           FLAGS.num_views,
-    #           FLAGS.num_group,
+    #           NUM_GROUP,
     #           FLAGS.num_classes,
     #           FLAGS.batch_size)
     # test2()
     # test3()
     # test4()
-    test.test5()
 
     SCOPE = "GoogLeNet"
 
@@ -109,8 +109,8 @@ def main(unused_argv):
         ground_truth = tf.placeholder(tf.int64, [None], name=LABEL)
         is_training = tf.placeholder(tf.bool)
         dropout_keep_prob = tf.placeholder(tf.float32)
-        grouping_scheme = tf.placeholder(tf.bool, [FLAGS.num_group, FLAGS.num_views])
-        grouping_weight = tf.placeholder(tf.float32, [FLAGS.num_group, 1])
+        grouping_scheme = tf.placeholder(tf.bool, [NUM_GROUP, FLAGS.num_views])
+        grouping_weight = tf.placeholder(tf.float32, [NUM_GROUP, 1])
 
         # TODO: use each graphs for grouping module and GVCNN ??
         # grouping module
@@ -254,20 +254,22 @@ def main(unused_argv):
                 for step in range(t_batches):
                     # Pull the image batch we'll use for training.
                     train_batch_xs, train_batch_ys = dataset.next_batch(step, FLAGS.batch_size)
+
                     # Verify image
                     # batch_xs = tf.unstack(train_batch_xs, axis=0)
                     # for idx, batch_x in enumerate(batch_xs):
                     #     v_list = tf.unstack(batch_x, axis=0)
-                    #     for v in v_list:
+                    #     for i, v in enumerate(v_list):
                     #         img = v.eval()
                     #         # scipy.misc.toimage(img).show() Or
                     #         img = cv2.cvtColor(img.astype(np.uint8), cv2.COLOR_BGR2RGB)
+                    #         # cv2.imwrite('/home/ace19/temp/' + str(idx) + "_" + str(i) + '.png', img)
                     #         cv2.imshow(str(train_batch_ys[idx]), img)
-                    #         cv2.waitKey(500)
+                    #         cv2.waitKey(200)
                     #         cv2.destroyAllWindows()
 
                     scores = sess.run(d_scores,feed_dict={x: train_batch_xs.eval()})
-                    s = gvcnn.refine_group(scores, FLAGS.num_group, FLAGS.num_views)
+                    s = gvcnn.grouping(scores, NUM_GROUP, FLAGS.num_views)
                     w = gvcnn.group_weight(scores, s)
 
                     # Run the graph with this batch of training data.

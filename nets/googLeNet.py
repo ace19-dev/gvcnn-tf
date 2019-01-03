@@ -47,9 +47,10 @@ def googLeNet(image, num_classes, scope='GoogLeNet'):
         net = tf.layers.max_pooling2d(net, 3, 2, padding='same', name="maxpool1")
         net = _inception(net, p1=256, p2=(32, 256), p3=(32, 128), p4=128, scope='incpt2')
         net = tf.layers.average_pooling2d(net, 7, 1, name="avgpool")
-        # net = tf.layers.flatten(net, name='flat')
-        # logits = tf.layers.dense(net, num_classes, name='fc4')
-        logits = slim.conv2d(net, num_classes, [3, 3], stride=1, activation_fn=None,
-                             normalizer_fn=None, scope='Conv2d_1c_1x1')
+        net = tf.layers.flatten(net, name='flat')
+        logits = tf.layers.dense(net, num_classes, name='fc4')
+        # TODO
+        # logits = slim.conv2d(net, num_classes, [3, 3], stride=1, activation_fn=None,
+        #                      normalizer_fn=None, scope='Conv2d_1c_1x1')
 
         return logits

@@ -37,7 +37,7 @@ def test(h_w, n_views, n_group, n_classes, n_batch):
                                                       is_training: True,
                                                       dropout_keep_prob: 0.8})
 
-        g_scheme = gvcnn.refine_group(scheme, n_group, n_views)
+        g_scheme = gvcnn.define_group(scheme, n_group, n_views)
         g_weight = gvcnn.group_weight(scores, g_scheme)
         pred = sess.run([predictions], feed_dict={x: inputs.eval(),
                                                   group_scheme: g_scheme,

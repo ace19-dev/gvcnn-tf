@@ -12,89 +12,28 @@ from nets import googLeNet
 slim = tf.contrib.slim
 
 
-# NUM_GROUP = 5
-
-
-def _mask_group_scheme(group_scheme, num_group, num_views):
+def grouping(scores, num_group, num_views):
     g = np.full((num_group, num_views), False)
 
-    for key, _ in group_scheme.items():
-        for view in group_scheme[key]:
-            g[key-1, view] = True
+    for idx, s in enumerate(scores):
+        if 0.0 <= s < 0.2:      # 0 group
+            g[0, idx] = True
+        elif 0.2 <= s < 0.4:    # 1
+            g[1, idx] = True
+        elif 0.4 <= s < 0.5:    # 2
+            g[2, idx] = True
+        elif 0.5 <= s < 0.6:    # 3
+            g[3, idx] = True
+        elif 0.6 <= s < 0.7:    # 4
+            g[4, idx] = True
+        elif 0.7 <= s < 0.8:    # 5
+            g[5, idx] = True
+        elif 0.8 <= s < 0.9:    # 6
+            g[6, idx] = True
+        elif 0.9 <= s < 1.0:    # 7 group
+            g[7, idx] = True
 
     return g
-
-
-def _search(lst, target):
-  min = 0
-  max = len(lst)-1
-  avg = (min+max)//2
-  # uncomment next line for traces
-  # print lst, target, avg
-  while (min < max):
-    if (lst[avg] == target):
-      return avg
-    elif (lst[avg] < target):
-      return avg + 1 + _search(lst[avg+1:], target)
-    else:
-      return _search(lst[:avg], target)
-
-  # avg may be a partial offset so no need to print it here
-  # print "The location of the number in the array is", avg
-  return len(lst) - avg
-
-
-def refine_group(scores, num_group, num_views):
-    max_range = []
-    for i in range(num_group):
-        max_range.append(i / num_group)
-    max_range.append(1.0)
-
-    new_scheme = {}
-    for idx, s in enumerate(scores):
-        _search(max_range, s)
-        # if s >= 0 and s < 2.5:
-        #     try:
-        #         new_scheme[0].append(idx)
-        #     except KeyError:
-        #         new_scheme[0] = [idx]
-        # elif s >= 2.5 and s < 5:
-        #     try:
-        #         new_scheme[1].append(idx)
-        #     except KeyError:
-        #         new_scheme[1] = [idx]
-        # elif s >= 5 and s < 6.5:
-        #     try:
-        #         new_scheme[2].append(idx)
-        #     except KeyError:
-        #         new_scheme[2] = [idx]
-        # elif s >= 0.7 and s < 0.8:
-        #     try:
-        #         new_scheme[3].append(idx)
-        #     except KeyError:
-        #         new_scheme[3] = [idx]
-        # elif s > 0.8 and s <= 0.9:
-        #     try:
-        #         new_scheme[4].append(idx)
-        #     except KeyError:
-        #         new_scheme[4] = [idx]
-        # elif s > 0.9 and s <= 1:
-        #     try:
-        #         new_scheme[5].append(idx)
-        #     except KeyError:
-        #         new_scheme[5] = [idx]
-
-
-
-
-    new_scheme = {}
-    for i, g in enumerate(scores):
-        try:
-            new_scheme[g].append(i)
-        except KeyError:
-            new_scheme[g] = [i]
-
-    return _mask_group_scheme(new_scheme, num_group, num_views)
 
 
 # TODO: modified according to equation2 in paper correctly when totally understand.
@@ -218,14 +157,12 @@ def _CNN(inputs, is_training, dropout_keep_prob, reuse, scope, global_pool):
     return final_view_descriptors
 
 
-# TODO: modify FCN
 def _FCN(inputs, num_classes, reuse, scope):
 
     """
     Raw View Descriptor Generation
 
     first part of the network (FCN) to get the raw descriptor in the view level.
-
     The “FCN” part is the top five convolutional layers of GoogLeNet. (mid-level representation ??)
 
     Extract the raw view descriptors. Compared with deeper CNN,
@@ -255,8 +192,7 @@ def _FCN(inputs, num_classes, reuse, scope):
             # The average score is shown for the batch size input
             # corresponding to each point of view.
             score = tf.nn.sigmoid(tf.log(tf.abs(logits)))
-            # TODO: reduce_max ??
-            score = tf.reduce_mean(score)
+            score = tf.reduce_mean(tf.reduce_max(score, axis=1), axis=0)
             # score = tf.reshape(score, [])
 
             view_discrimination_scores.append(score)
@@ -275,29 +211,6 @@ def grouping_module(inputs,
                                       scope)
 
     return view_discrimination_scores
-
-    # TODO: modify dynamically
-    # group = []
-    # g0 = tf.constant(0, dtype=tf.float32)
-    # g1 = tf.constant(1 / num_group, dtype=tf.float32)
-    # g2 = tf.constant(2 / num_group, dtype=tf.float32)
-    # g3 = tf.constant(3 / num_group, dtype=tf.float32)
-    # g4 = tf.constant(4 / num_group, dtype=tf.float32)
-    # g5 = tf.constant(5 / num_group, dtype=tf.float32)
-    #
-    # for view_idx, score in enumerate(view_discrimination_scores):
-    #     group_idx = tf.case(
-    #         pred_fn_pairs=[
-    #             (tf.logical_and(tf.greater_equal(score, g0), tf.less(score, g1)), lambda: tf.constant(1)),
-    #             (tf.logical_and(tf.greater_equal(score, g1), tf.less(score, g2)), lambda: tf.constant(2)),
-    #             (tf.logical_and(tf.greater_equal(score, g2), tf.less(score, g3)), lambda: tf.constant(3)),
-    #             (tf.logical_and(tf.greater_equal(score, g3), tf.less(score, g4)), lambda: tf.constant(4)),
-    #             (tf.logical_and(tf.greater_equal(score, g4), tf.less(score, g5)), lambda: tf.constant(5))],
-    #         default=lambda: tf.constant(-1),
-    #         exclusive=False)
-    #     group.append(group_idx)
-    #
-    # return view_discrimination_scores, group
 
 
 def gvcnn(inputs,
