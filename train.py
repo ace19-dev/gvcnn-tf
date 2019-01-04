@@ -75,7 +75,7 @@ flags.DEFINE_string('dataset_dir', '/home/ace19/dl_data/modelnet',
                     'Where the dataset reside.')
 
 flags.DEFINE_integer('how_many_training_epochs', 3, 'How many training loops to run')
-flags.DEFINE_integer('batch_size', 8, 'batch size')
+flags.DEFINE_integer('batch_size_per_class', 5, 'batch size')
 flags.DEFINE_integer('num_views', 8, 'number of views')
 flags.DEFINE_string('height_weight', '224,224', 'height and weight')
 flags.DEFINE_integer('num_classes', 7, 'number of classes')
@@ -89,7 +89,7 @@ def main(unused_argv):
     #           FLAGS.num_views,
     #           NUM_GROUP,
     #           FLAGS.num_classes,
-    #           FLAGS.batch_size)
+    #           FLAGS.batch_size_per_class)
     # test2()
     # test3()
     # test4()
@@ -105,7 +105,8 @@ def main(unused_argv):
         global_step = tf.train.get_or_create_global_step()
 
         # Define the model
-        x = tf.placeholder(tf.float32, [None, FLAGS.num_views, h_w[0], h_w[1], 3], name=IMAGE)
+        x = tf.placeholder(tf.float32,
+                           [FLAGS.num_classes, None, FLAGS.num_views, h_w[0], h_w[1], 3], name=IMAGE)
         ground_truth = tf.placeholder(tf.int64, [None], name=LABEL)
         is_training = tf.placeholder(tf.bool)
         dropout_keep_prob = tf.placeholder(tf.float32)
@@ -235,8 +236,8 @@ def main(unused_argv):
 
             start_epoch = 0
             # Get the number of training/validation steps per epoch
-            t_batches = int(dataset.data_size() / FLAGS.batch_size)
-            if dataset.data_size() % FLAGS.batch_size > 0:
+            t_batches = int(dataset.size() / (FLAGS.batch_size_per_class * FLAGS.num_classes))
+            if dataset.size() % (FLAGS.batch_size_per_class * FLAGS.num_classes) > 0:
                 t_batches += 1
             # v_batches = int(dataset.data_size() / FLAGS.batch_size)
             # if val_data.data_size() % FLAGS.batch_size > 0:
@@ -250,23 +251,26 @@ def main(unused_argv):
                 print(" Epoch {} ".format(training_epoch + 1))
                 print("------------------------")
 
-                dataset.shuffle()
+                dataset.shuffle_all()
                 for step in range(t_batches):
                     # Pull the image batch we'll use for training.
-                    train_batch_xs, train_batch_ys = dataset.next_batch(step, FLAGS.batch_size)
+                    train_batch_xs, train_batch_ys = dataset.next_batch(FLAGS.batch_size_per_class)
 
                     # Verify image
-                    # batch_xs = tf.unstack(train_batch_xs, axis=0)
-                    # for idx, batch_x in enumerate(batch_xs):
-                    #     v_list = tf.unstack(batch_x, axis=0)
-                    #     for i, v in enumerate(v_list):
-                    #         img = v.eval()
-                    #         # scipy.misc.toimage(img).show() Or
-                    #         img = cv2.cvtColor(img.astype(np.uint8), cv2.COLOR_BGR2RGB)
-                    #         # cv2.imwrite('/home/ace19/temp/' + str(idx) + "_" + str(i) + '.png', img)
-                    #         cv2.imshow(str(train_batch_ys[idx]), img)
-                    #         cv2.waitKey(200)
-                    #         cv2.destroyAllWindows()
+                    # for idx, cls_batch_x in enumerate(train_batch_xs):
+                    #     batches_x = tf.unstack(cls_batch_x, axis=0)
+                    #     for num_batch, vs in enumerate(batches_x):
+                    #         v_list = tf.unstack(vs, axis=0)
+                    #         for i, v in enumerate(v_list):
+                    #             img = v.eval()
+                    #             # scipy.misc.toimage(img).show()
+                    #             # Or
+                    #             img = cv2.cvtColor(img.astype(np.uint8), cv2.COLOR_BGR2RGB)
+                    #             cv2.imwrite('/home/ace19/Pictures/' + str(idx) + "_" +
+                    #                         str(num_batch) + '_' + str(i) + '.png', img)
+                    #             # cv2.imshow(str(train_batch_ys[idx]), img)
+                    #             cv2.waitKey(200)
+                    #             cv2.destroyAllWindows()
 
                     scores = sess.run(d_scores,feed_dict={x: train_batch_xs.eval()})
                     s = gvcnn.grouping(scores, NUM_GROUP, FLAGS.num_views)
