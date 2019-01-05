@@ -23,11 +23,11 @@ IMAGE = 'image'
 LABEL = 'label'
 OUTPUT_TYPE = 'classification'
 
-NUM_GROUP = 8
+NUM_GROUP = 10
 
 
 # Settings for logging.
-flags.DEFINE_string('train_logdir', './checkpoint',
+flags.DEFINE_string('train_logdir', './models',
                     'Where the checkpoint and logs are stored.')
 flags.DEFINE_integer('log_steps', 10,
                      'Display logging information at every log_steps.')
@@ -36,7 +36,7 @@ flags.DEFINE_integer('save_interval_secs', 1200,
 flags.DEFINE_boolean('save_summaries_images', False,
                      'Save sample inputs, labels, and semantic predictions as '
                      'images to summary.')
-flags.DEFINE_string('summaries_dir', './checkpoint/models/train_logs',
+flags.DEFINE_string('summaries_dir', './models/train_logs',
                      'Where to save summary logs for TensorBoard.')
 
 flags.DEFINE_enum('learning_policy', 'step', ['step'],
@@ -58,7 +58,7 @@ flags.DEFINE_float('last_layer_gradient_multiplier', 1.0,
                    'boost the gradient of last layers if the value > 1.')
 
 # Settings for fine-tuning the network.
-flags.DEFINE_string('tf_initial_checkpoint', None,    # ./checkpoint/mobile.ckpt-20
+flags.DEFINE_string('tf_initial_checkpoint', None,    # ./models/mobile.ckpt-20
                     'The initial checkpoint in tensorflow format.')
 # Set to False if one does not want to re-use the trained classifier weights.
 flags.DEFINE_boolean('initialize_last_layer', True,
@@ -75,7 +75,7 @@ flags.DEFINE_string('dataset_dir', '/home/ace19/dl_data/modelnet',
                     'Where the dataset reside.')
 
 flags.DEFINE_integer('how_many_training_epochs', 3, 'How many training loops to run')
-flags.DEFINE_integer('batch_size_per_class', 5, 'batch size')
+flags.DEFINE_integer('batch_size', 1, 'batch size')
 flags.DEFINE_integer('num_views', 8, 'number of views')
 flags.DEFINE_string('height_weight', '224,224', 'height and weight')
 flags.DEFINE_integer('num_classes', 7, 'number of classes')
@@ -89,10 +89,10 @@ def main(unused_argv):
     #           FLAGS.num_views,
     #           NUM_GROUP,
     #           FLAGS.num_classes,
-    #           FLAGS.batch_size_per_class)
+    #           FLAGS.batch_size)
     # test2()
     # test3()
-    # test4()
+    # test.test4()
 
     SCOPE = "GoogLeNet"
 
@@ -105,20 +105,20 @@ def main(unused_argv):
         global_step = tf.train.get_or_create_global_step()
 
         # Define the model
-        x = tf.placeholder(tf.float32,
+        X = tf.placeholder(tf.float32,
                            [FLAGS.num_classes, None, FLAGS.num_views, h_w[0], h_w[1], 3], name=IMAGE)
         ground_truth = tf.placeholder(tf.int64, [None], name=LABEL)
         is_training = tf.placeholder(tf.bool)
         dropout_keep_prob = tf.placeholder(tf.float32)
-        grouping_scheme = tf.placeholder(tf.bool, [NUM_GROUP, FLAGS.num_views])
-        grouping_weight = tf.placeholder(tf.float32, [NUM_GROUP, 1])
+        grouping_scheme = tf.placeholder(tf.bool, [FLAGS.num_classes, NUM_GROUP, FLAGS.num_views])
+        grouping_weight = tf.placeholder(tf.float32, [FLAGS.num_classes, NUM_GROUP, 1])
 
         # TODO: use each graphs for grouping module and GVCNN ??
         # grouping module
-        d_scores = gvcnn.grouping_module(x, FLAGS.num_classes)
+        d_scores = gvcnn.discrimination_score(X, FLAGS.num_classes)
 
         # GVCNN
-        logits = gvcnn.gvcnn(x,
+        logits = gvcnn.gvcnn(X,
                              grouping_scheme,
                              grouping_weight,
                              FLAGS.num_classes,
@@ -236,8 +236,8 @@ def main(unused_argv):
 
             start_epoch = 0
             # Get the number of training/validation steps per epoch
-            t_batches = int(dataset.size() / (FLAGS.batch_size_per_class * FLAGS.num_classes))
-            if dataset.size() % (FLAGS.batch_size_per_class * FLAGS.num_classes) > 0:
+            t_batches = int(dataset.size() / (FLAGS.batch_size * FLAGS.num_classes))
+            if dataset.size() % (FLAGS.batch_size * FLAGS.num_classes) > 0:
                 t_batches += 1
             # v_batches = int(dataset.data_size() / FLAGS.batch_size)
             # if val_data.data_size() % FLAGS.batch_size > 0:
@@ -254,10 +254,11 @@ def main(unused_argv):
                 dataset.shuffle_all()
                 for step in range(t_batches):
                     # Pull the image batch we'll use for training.
-                    train_batch_xs, train_batch_ys = dataset.next_batch(FLAGS.batch_size_per_class)
+                    train_batch_xs, train_batch_ys = dataset.next_batch(FLAGS.batch_size)
 
                     # Verify image
-                    # for idx, cls_batch_x in enumerate(train_batch_xs):
+                    # cls_batch_x_lst = tf.unstack(train_batch_xs, axis=0)
+                    # for idx, cls_batch_x in enumerate(cls_batch_x_lst):
                     #     batches_x = tf.unstack(cls_batch_x, axis=0)
                     #     for num_batch, vs in enumerate(batches_x):
                     #         v_list = tf.unstack(vs, axis=0)
@@ -272,17 +273,17 @@ def main(unused_argv):
                     #             cv2.waitKey(200)
                     #             cv2.destroyAllWindows()
 
-                    scores = sess.run(d_scores,feed_dict={x: train_batch_xs.eval()})
-                    s = gvcnn.grouping(scores, NUM_GROUP, FLAGS.num_views)
-                    w = gvcnn.group_weight(scores, s)
+                    scores = sess.run(d_scores, feed_dict={X: train_batch_xs.eval()})
+                    schemes = gvcnn.grouping_scheme(scores, NUM_GROUP, FLAGS.num_views)
+                    weights = gvcnn.grouping_weight(scores, schemes)
 
                     # Run the graph with this batch of training data.
                     lr, train_summary, train_accuracy, train_loss, _ = \
                         sess.run([learning_rate, summary_op, accuracy, total_loss, train_op],
-                                 feed_dict={x: train_batch_xs.eval(),
-                                            ground_truth: train_batch_ys,
-                                            grouping_scheme: s,
-                                            grouping_weight: w,
+                                 feed_dict={X: train_batch_xs.eval(),
+                                            ground_truth: train_batch_ys.eval(),
+                                            grouping_scheme: schemes,
+                                            grouping_weight: weights,
                                             is_training: True,
                                             dropout_keep_prob: 0.5})
 

@@ -33,7 +33,7 @@ def _inception(x, p1, p2, p3, p4, scope):
 '''
     (batch, height, width, channel)
 '''
-def googLeNet(image, scope='GoogLeNet'):
+def googLeNet(image, num_classes=1, scope='FCN'):
     with tf.variable_scope(scope):
         net = tf.layers.conv2d(
             inputs=image,
@@ -48,7 +48,7 @@ def googLeNet(image, scope='GoogLeNet'):
         net = _inception(net, p1=256, p2=(32, 256), p3=(32, 128), p4=128, scope='incpt2')
         net = tf.layers.average_pooling2d(net, 7, 1, name="avgpool")
         net = tf.layers.flatten(net, name='flat')
-        logits = tf.layers.dense(net, 1, name='fc4')
+        logits = tf.layers.dense(net, num_classes, name='fc4')
         # TODO
         # logits = slim.conv2d(net, num_classes, [3, 3], stride=1, activation_fn=None,
         #                      normalizer_fn=None, scope='Conv2d_1c_1x1')

@@ -120,7 +120,7 @@ class Data(object):
             batches_x.append(batch_x)
             batches_y.append(batch_y)
 
-        return batches_x, batches_y
+        return tf.convert_to_tensor(batches_x), tf.reduce_mean(batches_y, axis=1)
 
 
     def size(self):
