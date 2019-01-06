@@ -19,10 +19,6 @@ flags = tf.app.flags
 FLAGS = flags.FLAGS
 
 
-IMAGE = 'image'
-LABEL = 'label'
-OUTPUT_TYPE = 'classification'
-
 NUM_GROUP = 10
 
 
@@ -75,7 +71,7 @@ flags.DEFINE_string('dataset_dir', '/home/ace19/dl_data/modelnet',
                     'Where the dataset reside.')
 
 flags.DEFINE_integer('how_many_training_epochs', 3, 'How many training loops to run')
-flags.DEFINE_integer('batch_size', 1, 'batch size')
+flags.DEFINE_integer('batch_size', 5, 'batch size')
 flags.DEFINE_integer('num_views', 8, 'number of views')
 flags.DEFINE_string('height_weight', '224,224', 'height and weight')
 flags.DEFINE_integer('num_classes', 7, 'number of classes')
@@ -99,207 +95,183 @@ def main(unused_argv):
     tf.gfile.MakeDirs(FLAGS.train_logdir)
     tf.logging.info('Creating train logdir: %s', FLAGS.train_logdir)
 
-    with tf.Graph().as_default() as graph:
-        dataset = data.Data(FLAGS.dataset_dir, h_w)
+    dataset = data.Data(FLAGS.dataset_dir, h_w)
 
-        global_step = tf.train.get_or_create_global_step()
+    global_step = tf.train.get_or_create_global_step()
 
-        # Define the model
-        X = tf.placeholder(tf.float32,
-                           [FLAGS.num_classes, None, FLAGS.num_views, h_w[0], h_w[1], 3], name=IMAGE)
-        ground_truth = tf.placeholder(tf.int64, [None], name=LABEL)
-        is_training = tf.placeholder(tf.bool)
-        dropout_keep_prob = tf.placeholder(tf.float32)
-        grouping_scheme = tf.placeholder(tf.bool, [FLAGS.num_classes, NUM_GROUP, FLAGS.num_views])
-        grouping_weight = tf.placeholder(tf.float32, [FLAGS.num_classes, NUM_GROUP, 1])
+    # Define the model
+    X = tf.placeholder(tf.float32,
+                       [FLAGS.num_classes, None, FLAGS.num_views, h_w[0], h_w[1], 3], name='input')
+    ground_truth = tf.placeholder(tf.int64, [None], name='ground_truth')
+    is_training = tf.placeholder(tf.bool)
+    dropout_keep_prob = tf.placeholder(tf.float32)
+    grouping_scheme = tf.placeholder(tf.bool, [FLAGS.num_classes, NUM_GROUP, FLAGS.num_views])
+    grouping_weight = tf.placeholder(tf.float32, [FLAGS.num_classes, NUM_GROUP, 1])
 
-        # TODO: use each graphs for grouping module and GVCNN ??
-        # grouping module
-        d_scores = gvcnn.discrimination_score(X, FLAGS.num_classes)
+    # TODO: use each graphs for grouping module and GVCNN ??
+    # grouping module
+    d_scores = gvcnn.discrimination_score(X, FLAGS.num_classes)
 
-        # GVCNN
-        logits = gvcnn.gvcnn(X,
-                             grouping_scheme,
-                             grouping_weight,
-                             FLAGS.num_classes,
-                             is_training,
-                             scope=SCOPE,
-                             dropout_keep_prob=dropout_keep_prob)
+    # GVCNN
+    logits = gvcnn.gvcnn(X,
+                         grouping_scheme,
+                         grouping_weight,
+                         FLAGS.num_classes,
+                         is_training,
+                         scope=SCOPE,
+                         dropout_keep_prob=dropout_keep_prob)
 
-        # make a trainable variable not trainable
-        # train_utils.edit_trainable_variables('FCN')
+    # make a trainable variable not trainable
+    # train_utils.edit_trainable_variables('FCN')
 
-        # Define loss
-        tf.losses.sparse_softmax_cross_entropy(labels=ground_truth,
-                                               logits=logits,
-                                               scope=SCOPE)
+    # Define loss
+    tf.reduce_mean(tf.losses.sparse_softmax_cross_entropy(labels=ground_truth,
+                                                          logits=logits,
+                                                          scope=SCOPE))
 
-        # Gather update_ops. These contain, for example,
-        # the updates for the batch_norm variables created by model.
-        update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS, SCOPE)
-        # update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+    # Gather update_ops. These contain, for example,
+    # the updates for the batch_norm variables created by model.
+    update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS, SCOPE)
+    # update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
 
-        # Gather initial summaries.
-        summaries = set(tf.get_collection(tf.GraphKeys.SUMMARIES))
+    # Gather initial summaries.
+    summaries = set(tf.get_collection(tf.GraphKeys.SUMMARIES))
 
-        # Add summaries for model variables.
-        for model_var in slim.get_model_variables():
-            summaries.add(tf.summary.histogram(model_var.op.name, model_var))
+    prediction = tf.argmax(logits, 1, name='prediction')
+    correct_prediction = tf.equal(prediction, ground_truth)
+    confusion_matrix = tf.confusion_matrix(
+        ground_truth, prediction, num_classes=FLAGS.num_classes)
+    accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+    summaries.add(tf.summary.scalar('accuracy', accuracy))
 
-        # TODO: need to be edited
-        # Add summaries for images, labels, predictions
-        # if FLAGS.save_summaries_images:
-        #     summary_image = graph.get_tensor_by_name('%s:0' % (IMAGE))
-        #     summaries.add(
-        #         tf.summary.image('samples/%s' % IMAGE, summary_image))
-        #
-        #     label = graph.get_tensor_by_name('%s:0' % (LABEL))
-        #     # Scale up summary image pixel values for better visualization.
-        #     pixel_scaling = max(1, 255 // FLAGS.num_classes)
-        #     summary_label = tf.cast(label * pixel_scaling, tf.uint8)
-        #     summaries.add(
-        #         tf.summary.image('samples/%s' % LABEL, summary_label))
-        #     output = graph.get_tensor_by_name(
-        #         ('%s/%s:0' % (OUTPUT_TYPE)).strip('/'))
-        #     predictions = tf.expand_dims(tf.argmax(output, 3), -1)
-        #
-        #     summary_predictions = tf.cast(predictions * pixel_scaling, tf.uint8)
-        #     summaries.add(
-        #         tf.summary.image(
-        #             'samples/%s' % OUTPUT_TYPE, summary_predictions))
+    # Add summaries for model variables.
+    for model_var in slim.get_model_variables():
+        summaries.add(tf.summary.histogram(model_var.op.name, model_var))
 
-        # Add summaries for losses.
-        for loss in tf.get_collection(tf.GraphKeys.LOSSES, SCOPE):
-        # for loss in tf.get_collection(tf.GraphKeys.LOSSES):
-            summaries.add(tf.summary.scalar('losses/%s' % loss.op.name, loss))
+    # Add summaries for losses.
+    for loss in tf.get_collection(tf.GraphKeys.LOSSES, SCOPE):
+    # for loss in tf.get_collection(tf.GraphKeys.LOSSES):
+        summaries.add(tf.summary.scalar('losses/%s' % loss.op.name, loss))
 
-        learning_rate = train_utils.get_model_learning_rate(
-            FLAGS.learning_policy, FLAGS.base_learning_rate,
-            FLAGS.learning_rate_decay_step, FLAGS.learning_rate_decay_factor,
-            None, FLAGS.learning_power,
-            FLAGS.slow_start_step, FLAGS.slow_start_learning_rate)
-        optimizer = tf.train.MomentumOptimizer(learning_rate, FLAGS.momentum)
-        summaries.add(tf.summary.scalar('learning_rate', learning_rate))
+    learning_rate = train_utils.get_model_learning_rate(
+        FLAGS.learning_policy, FLAGS.base_learning_rate,
+        FLAGS.learning_rate_decay_step, FLAGS.learning_rate_decay_factor,
+        None, FLAGS.learning_power,
+        FLAGS.slow_start_step, FLAGS.slow_start_learning_rate)
+    optimizer = tf.train.MomentumOptimizer(learning_rate, FLAGS.momentum)
+    summaries.add(tf.summary.scalar('learning_rate', learning_rate))
 
-        for variable in slim.get_model_variables():
-            summaries.add(tf.summary.histogram(variable.op.name, variable))
+    for variable in slim.get_model_variables():
+        summaries.add(tf.summary.histogram(variable.op.name, variable))
 
-        total_loss, grads_and_vars = train_utils.optimize(optimizer, scope=SCOPE)
-        # total_loss, grads_and_vars = train_utils.optimize(optimizer)
-        total_loss = tf.check_numerics(total_loss, 'Loss is inf or nan.')
-        summaries.add(tf.summary.scalar('total_loss', total_loss))
+    total_loss, grads_and_vars = train_utils.optimize(optimizer, scope=SCOPE)
+    # total_loss, grads_and_vars = train_utils.optimize(optimizer)
+    total_loss = tf.check_numerics(total_loss, 'Loss is inf or nan.')
+    summaries.add(tf.summary.scalar('total_loss', total_loss))
 
-        # Modify the gradients for biases and last layer variables.
-        last_layers = train_utils.get_extra_layer_scopes(
-            FLAGS.last_layers_contain_logits_only)
-        grad_mult = train_utils.get_model_gradient_multipliers(
-            last_layers, FLAGS.last_layer_gradient_multiplier)
-        if grad_mult:
-            grads_and_vars = slim.learning.multiply_gradients(
-                grads_and_vars, grad_mult)
+    # Modify the gradients for biases and last layer variables.
+    last_layers = train_utils.get_extra_layer_scopes(
+        FLAGS.last_layers_contain_logits_only)
+    grad_mult = train_utils.get_model_gradient_multipliers(
+        last_layers, FLAGS.last_layer_gradient_multiplier)
+    if grad_mult:
+        grads_and_vars = slim.learning.multiply_gradients(
+            grads_and_vars, grad_mult)
 
-        # Create gradient update op.
-        grad_updates = optimizer.apply_gradients(
-            grads_and_vars, global_step=global_step)
-        update_ops.append(grad_updates)
-        update_op = tf.group(*update_ops)
-        with tf.control_dependencies([update_op]):
-            train_op = tf.identity(total_loss, name='train_op')
+    # Create gradient update op.
+    grad_updates = optimizer.apply_gradients(
+        grads_and_vars, global_step=global_step)
+    update_ops.append(grad_updates)
+    update_op = tf.group(*update_ops)
+    with tf.control_dependencies([update_op]):
+        train_op = tf.identity(total_loss, name='train_op')
 
-        # TODO:
-        prediction = tf.argmax(logits, 1, name='prediction')
-        correct_prediction = tf.equal(prediction, ground_truth)
-        confusion_matrix = tf.confusion_matrix(
-            ground_truth, prediction, num_classes=FLAGS.num_classes)
-        accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
-        summaries.add(tf.summary.scalar('accuracy', accuracy))
+    # Add the summaries. These contain the summaries
+    # created by model and either optimize() or _gather_loss().
+    summaries |= set(tf.get_collection(tf.GraphKeys.SUMMARIES, SCOPE))
+    # summaries |= set(tf.get_collection(tf.GraphKeys.SUMMARIES))
 
-        # Add the summaries. These contain the summaries
-        # created by model and either optimize() or _gather_loss().
-        summaries |= set(tf.get_collection(tf.GraphKeys.SUMMARIES, SCOPE))
-        # summaries |= set(tf.get_collection(tf.GraphKeys.SUMMARIES))
+    with tf.Session() as sess:
+        sess.run(tf.global_variables_initializer())
 
         # Merge all summaries together.
         summary_op = tf.summary.merge(list(summaries))
-        train_writer = tf.summary.FileWriter(FLAGS.summaries_dir, graph)
+        train_writer = tf.summary.FileWriter(FLAGS.summaries_dir, sess.graph)
 
-        with tf.Session(graph=graph) as sess:
-            sess.run(tf.global_variables_initializer())
+        # Create a saver object which will save all the variables
+        # TODO:
+        saver = tf.train.Saver()
+        if FLAGS.tf_initial_checkpoint:
+            saver.restore(sess, FLAGS.tf_initial_checkpoint)
+        # saver = tf.train.Saver(
+        #     keep_checkpoint_every_n_hours=keep_checkpoint_every_n_hours)
 
-            # Create a saver object which will save all the variables
-            # TODO:
-            saver = tf.train.Saver()
-            if FLAGS.tf_initial_checkpoint:
-                saver.restore(sess, FLAGS.tf_initial_checkpoint)
-            # saver = tf.train.Saver(
-            #     keep_checkpoint_every_n_hours=keep_checkpoint_every_n_hours)
+        start_epoch = 0
+        # Get the number of training/validation steps per epoch
+        t_batches = int(dataset.size() / (FLAGS.batch_size * FLAGS.num_classes))
+        if dataset.size() % (FLAGS.batch_size * FLAGS.num_classes) > 0:
+            t_batches += 1
+        # v_batches = int(dataset.data_size() / FLAGS.batch_size)
+        # if val_data.data_size() % FLAGS.batch_size > 0:
+        #     v_batches += 1
 
-            start_epoch = 0
-            # Get the number of training/validation steps per epoch
-            t_batches = int(dataset.size() / (FLAGS.batch_size * FLAGS.num_classes))
-            if dataset.size() % (FLAGS.batch_size * FLAGS.num_classes) > 0:
-                t_batches += 1
-            # v_batches = int(dataset.data_size() / FLAGS.batch_size)
-            # if val_data.data_size() % FLAGS.batch_size > 0:
-            #     v_batches += 1
+        ############################
+        # Training loop.
+        ############################
+        for training_epoch in range(start_epoch, FLAGS.how_many_training_epochs):
+            print("------------------------")
+            print(" Epoch {} ".format(training_epoch + 1))
+            print("------------------------")
 
-            ############################
-            # Training loop.
-            ############################
-            for training_epoch in range(start_epoch, FLAGS.how_many_training_epochs):
-                print("------------------------")
-                print(" Epoch {} ".format(training_epoch + 1))
-                print("------------------------")
+            dataset.shuffle_all()
+            for step in range(t_batches):
+                # Pull the image batch we'll use for training.
+                train_batch_xs, train_batch_ys = dataset.next_batch(FLAGS.batch_size)
 
-                dataset.shuffle_all()
-                for step in range(t_batches):
-                    # Pull the image batch we'll use for training.
-                    train_batch_xs, train_batch_ys = dataset.next_batch(FLAGS.batch_size)
+                # Verify image
+                # cls_batch_x_lst = tf.unstack(train_batch_xs, axis=0)
+                # for idx, cls_batch_x in enumerate(cls_batch_x_lst):
+                #     batches_x = tf.unstack(cls_batch_x, axis=0)
+                #     for num_batch, vs in enumerate(batches_x):
+                #         v_list = tf.unstack(vs, axis=0)
+                #         for i, v in enumerate(v_list):
+                #             img = v.eval()
+                #             # scipy.misc.toimage(img).show()
+                #             # Or
+                #             img = cv2.cvtColor(img.astype(np.uint8), cv2.COLOR_BGR2RGB)
+                #             cv2.imwrite('/home/ace19/Pictures/' + str(idx) + "_" +
+                #                         str(num_batch) + '_' + str(i) + '.png', img)
+                #             # cv2.imshow(str(train_batch_ys[idx]), img)
+                #             cv2.waitKey(200)
+                #             cv2.destroyAllWindows()
 
-                    # Verify image
-                    # cls_batch_x_lst = tf.unstack(train_batch_xs, axis=0)
-                    # for idx, cls_batch_x in enumerate(cls_batch_x_lst):
-                    #     batches_x = tf.unstack(cls_batch_x, axis=0)
-                    #     for num_batch, vs in enumerate(batches_x):
-                    #         v_list = tf.unstack(vs, axis=0)
-                    #         for i, v in enumerate(v_list):
-                    #             img = v.eval()
-                    #             # scipy.misc.toimage(img).show()
-                    #             # Or
-                    #             img = cv2.cvtColor(img.astype(np.uint8), cv2.COLOR_BGR2RGB)
-                    #             cv2.imwrite('/home/ace19/Pictures/' + str(idx) + "_" +
-                    #                         str(num_batch) + '_' + str(i) + '.png', img)
-                    #             # cv2.imshow(str(train_batch_ys[idx]), img)
-                    #             cv2.waitKey(200)
-                    #             cv2.destroyAllWindows()
+                scores = sess.run(d_scores, feed_dict={X: train_batch_xs.eval()})
+                schemes = gvcnn.grouping_scheme(scores, NUM_GROUP, FLAGS.num_views)
+                weights = gvcnn.grouping_weight(scores, schemes)
 
-                    scores = sess.run(d_scores, feed_dict={X: train_batch_xs.eval()})
-                    schemes = gvcnn.grouping_scheme(scores, NUM_GROUP, FLAGS.num_views)
-                    weights = gvcnn.grouping_weight(scores, schemes)
+                # Run the graph with this batch of training data.
+                lr, train_summary, train_accuracy, train_loss, _ = \
+                    sess.run([learning_rate, summary_op, accuracy, total_loss, train_op],
+                             feed_dict={X: train_batch_xs.eval(),
+                                        ground_truth: train_batch_ys.eval(),
+                                        grouping_scheme: schemes,
+                                        grouping_weight: weights,
+                                        is_training: True,
+                                        dropout_keep_prob: 0.5})
 
-                    # Run the graph with this batch of training data.
-                    lr, train_summary, train_accuracy, train_loss, _ = \
-                        sess.run([learning_rate, summary_op, accuracy, total_loss, train_op],
-                                 feed_dict={X: train_batch_xs.eval(),
-                                            ground_truth: train_batch_ys.eval(),
-                                            grouping_scheme: schemes,
-                                            grouping_weight: weights,
-                                            is_training: True,
-                                            dropout_keep_prob: 0.5})
+                train_writer.add_summary(train_summary)
+                tf.logging.info('Epoch #%d, Step #%d, rate %.10f, accuracy %.1f%%, loss %f' %
+                                (training_epoch, step, lr, train_accuracy * 100, train_loss))
 
-                    train_writer.add_summary(train_summary)
-                    tf.logging.info('Epoch #%d, Step #%d, rate %.10f, accuracy %.1f%%, loss %f' %
-                                    (training_epoch, step, lr, train_accuracy * 100, train_loss))
+            ###################################################
+            # TODO: Validate the model on the validation set
+            ###################################################
 
-                ###################################################
-                # TODO: Validate the model on the validation set
-                ###################################################
-
-                # Save the model checkpoint periodically.
-                if (training_epoch <= FLAGS.how_many_training_epochs-1):
-                    checkpoint_path = os.path.join(FLAGS.train_logdir, 'GVCNN.ckpt')
-                    tf.logging.info('Saving to "%s-%d"', checkpoint_path, training_epoch)
-                    saver.save(sess, checkpoint_path, global_step=global_step)
+            # Save the model checkpoint periodically.
+            if (training_epoch <= FLAGS.how_many_training_epochs-1):
+                checkpoint_path = os.path.join(FLAGS.train_logdir, 'GVCNN.ckpt')
+                tf.logging.info('Saving to "%s-%d"', checkpoint_path, training_epoch)
+                saver.save(sess, checkpoint_path, global_step=global_step)
 
 
 if __name__ == '__main__':

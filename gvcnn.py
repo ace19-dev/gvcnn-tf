@@ -131,7 +131,7 @@ def _group_fusion(cls_group_descriptors, cls_group_weight):
         shape_descriptor = tf.div(tf.add_n(numerator), denominator)
         cls_shape_descriptor.append(shape_descriptor)
 
-    return tf.stack(cls_shape_descriptor)
+    return tf.concat(cls_shape_descriptor, axis=0)
 
 
 def _CNN(inputs, is_training, dropout_keep_prob, reuse, scope, global_pool):
@@ -258,7 +258,7 @@ def gvcnn(inputs,
     # net = slim.flatten(shape_description)
     # logits = slim.fully_connected(net, num_classes, activation_fn=None)
     logits = slim.conv2d(shape_descriptor, num_classes, [1, 1], activation_fn=None,
-                         normalizer_fn=None, scope='Conv2d')
+                         normalizer_fn=None, scope=scope)
     if spatial_squeeze:
         logits = tf.squeeze(logits, [1, 2], name='SpatialSqueeze')
 
