@@ -13,64 +13,54 @@ slim = tf.contrib.slim
 
 
 # TODO: The more grouping, the better result ??
-def grouping_scheme(view_discrimination_scores, num_group, num_views):
-    grouping_schemes = []
+def grouping_scheme(view_discrimination_score, num_group, num_views):
+    _grouping_scheme = np.full((num_group, num_views), False)
 
-    for _, scores in enumerate(view_discrimination_scores):
-        g = np.full((num_group, num_views), False)
+    for idx, s in enumerate(view_discrimination_score):
+        if 0.0 <= s < 0.1:      # 0 group
+            _grouping_scheme[0, idx] = True
+        elif 0.1 <= s < 0.2:    # 1 group
+            _grouping_scheme[1, idx] = True
+        elif 0.2 <= s < 0.3:    # 2 group
+            _grouping_scheme[2, idx] = True
+        elif 0.3 <= s < 0.4:    # 3 group
+            _grouping_scheme[3, idx] = True
+        elif 0.4 <= s < 0.5:    # 4 group
+            _grouping_scheme[4, idx] = True
+        elif 0.5 <= s < 0.6:    # 5 group
+            _grouping_scheme[5, idx] = True
+        elif 0.6 <= s < 0.7:    # 6 group
+            _grouping_scheme[6, idx] = True
+        elif 0.7 <= s < 0.8:    # 7 group
+            _grouping_scheme[7, idx] = True
+        elif 0.8 <= s < 0.9:    # 8 group
+            _grouping_scheme[8, idx] = True
+        elif 0.9 <= s < 1.0:    # 9 group
+            _grouping_scheme[9, idx] = True
 
-        for idx, s in enumerate(scores):
-            if 0.0 <= s < 0.1:      # 0 group
-                g[0, idx] = True
-            elif 0.1 <= s < 0.2:    # 1 group
-                g[1, idx] = True
-            elif 0.2 <= s < 0.3:    # 2 group
-                g[2, idx] = True
-            elif 0.3 <= s < 0.4:    # 3 group
-                g[3, idx] = True
-            elif 0.4 <= s < 0.5:    # 4 group
-                g[4, idx] = True
-            elif 0.5 <= s < 0.6:    # 5 group
-                g[5, idx] = True
-            elif 0.6 <= s < 0.7:    # 6 group
-                g[6, idx] = True
-            elif 0.7 <= s < 0.8:    # 7 group
-                g[7, idx] = True
-            elif 0.8 <= s < 0.9:    # 8 group
-                g[8, idx] = True
-            elif 0.9 <= s < 1.0:    # 9 group
-                g[9, idx] = True
-
-        grouping_schemes.append(g)
-
-    return grouping_schemes
+    return _grouping_scheme
 
 
 # TODO: modified according to equation2 in paper correctly when totally understand.
 # average value per group
-def grouping_weight(view_discrimination_scores, grouping_schemes):
+def grouping_weight(view_discrimination_score, grouping_scheme):
+    num_group = grouping_scheme.shape[0]    # 10
+    num_views = grouping_scheme.shape[1]    # 8
 
-    grouping_weights = []
-    for idx, grouping_scheme in enumerate(grouping_schemes):
-        num_group = grouping_scheme.shape[0]
-        num_views = grouping_scheme.shape[1]
+    _grouping_weight = np.zeros(shape=(num_group, 1), dtype=np.float32)
+    for i in range(num_group):
+        n = 0
+        sum = 0
+        for j in range(num_views):
+            if grouping_scheme[i][j]:
+                sum += view_discrimination_score[j]
+                n += 1
 
-        weight = np.zeros((num_group, 1), dtype=np.float32)
-        for i in range(num_group):
-            n = 0
-            sum = 0
-            for j in range(num_views):
-                if grouping_scheme[i][j]:
-                    sum += view_discrimination_scores[idx][j]
-                    n += 1
+        if n != 0:
+            _grouping_weight[i][0] = sum / n
+            # weight[i][0] = tf.cast(tf.div(sum, n), dtype=tf.float32)
 
-            if n != 0:
-                weight[i][0] = sum / n
-                # weight[i][0] = tf.cast(tf.div(sum, n), dtype=tf.float32)
-
-        grouping_weights.append(weight)
-
-    return grouping_weights
+    return _grouping_weight
 
 
 def _view_pooling(final_view_descriptors, group_scheme):
@@ -84,28 +74,21 @@ def _view_pooling(final_view_descriptors, group_scheme):
     :param final_view_descriptors:
     :return: group_descriptors
     '''
-
-    cls_group_descriptors = []
-    # for cls_view_descriptors in final_view_descriptors:
     group_descriptors = {}
-    zero_tensor = tf.zeros_like(final_view_descriptors[0][0])
+    zero_tensor = tf.zeros_like(final_view_descriptors[0])
 
-    cls_g_schemes = tf.unstack(group_scheme, axis=0)
-    for idx, g_schemes in enumerate(cls_g_schemes):
-        x = tf.unstack(g_schemes)
-        indices = [tf.squeeze(tf.where(elem), axis=1) for elem in x]
-        for i, ind in enumerate(indices):
-            view_desc = tf.cond(tf.not_equal(tf.size(ind), 0),
-                                lambda : tf.gather(final_view_descriptors[idx], ind),
-                                lambda : tf.expand_dims(zero_tensor, 0))
-            group_descriptors[i] = tf.squeeze(tf.reduce_mean(view_desc, axis=0, keepdims=True), [0])
+    group_scheme_lst = tf.unstack(group_scheme)
+    indices = [tf.squeeze(tf.where(elem), axis=1) for elem in group_scheme_lst]
+    for i, ind in enumerate(indices):
+        view_desc = tf.cond(tf.not_equal(tf.size(ind), 0),
+                            lambda : tf.gather(final_view_descriptors, ind),
+                            lambda : tf.expand_dims(zero_tensor, 0))
+        group_descriptors[i] = tf.squeeze(tf.reduce_mean(view_desc, axis=0, keepdims=True), [0])
 
-        cls_group_descriptors.append(group_descriptors)
-
-    return cls_group_descriptors
+    return group_descriptors
 
 
-def _group_fusion(cls_group_descriptors, cls_group_weight):
+def _group_fusion(group_descriptors, group_weight):
     '''
     To generate the shape level description, all these group
     level descriptors should be further combined.
@@ -118,75 +101,73 @@ def _group_fusion(cls_group_descriptors, cls_group_weight):
 
     :return:
     '''
-    cls_shape_descriptor = []
+    group_weight_lst = tf.unstack(group_weight)
+    numerator = []  # 분자
+    for key, value in group_descriptors.items():
+        numerator.append(tf.multiply(group_weight_lst[key], group_descriptors[key]))
 
-    cls_group_weight_lst = tf.unstack(cls_group_weight)
-    for idx, group_descriptors in enumerate(cls_group_descriptors):
-        group_weight_lst = tf.unstack(cls_group_weight_lst[idx])
-        numerator = []  # 분자
-        for key, value in group_descriptors.items():
-            numerator.append(tf.multiply(group_weight_lst[key], group_descriptors[key]))
+    denominator = tf.reduce_sum(group_weight_lst)   # 분모
+    shape_descriptor = tf.div(tf.add_n(numerator), denominator)
 
-        denominator = tf.reduce_sum(group_weight_lst)   # 분모
-        shape_descriptor = tf.div(tf.add_n(numerator), denominator)
-        cls_shape_descriptor.append(shape_descriptor)
-
-    return tf.concat(cls_shape_descriptor, axis=0)
+    return shape_descriptor
 
 
-def _CNN(inputs, is_training, dropout_keep_prob, reuse, scope, global_pool):
+def _CNN(inputs,
+         is_training=True,
+         dropout_keep_prob=0.8,
+         spatial_squeeze=True,
+         reuse=None,
+         scope='GoogLeNet',
+         global_pool=False):
     '''
        The second part of the network (CNN) and the group module, are used to extract
        the final view descriptors together with the discrimination scores, separately.
     '''
-    final_view_descriptors = []  # Final View Descriptors on cls
+    final_view_descriptors = []
 
-    cls_batch_input = tf.unstack(inputs, axis=0)
-    for inputs in cls_batch_input:
+    n_views = inputs.get_shape().as_list()[1]
+    # transpose views: (NxVxHxWxC) -> (VxNxHxWxC)
+    views = tf.transpose(inputs, perm=[1, 0, 2, 3, 4])
 
-        n_views = inputs.get_shape().as_list()[1]
-        # transpose views: (NxVxHxWxC) -> (VxNxHxWxC)
-        views = tf.transpose(inputs, perm=[1, 0, 2, 3, 4])
+    with tf.variable_scope(scope, None, [inputs], reuse=reuse) as scope:
+        with slim.arg_scope([slim.batch_norm, slim.dropout],
+                            is_training=is_training):
+            for i in range(n_views):
+                batch_view = tf.gather(views, i)  # N x H x W x C
 
-        view_descriptors = []
-        with tf.variable_scope(scope, None, [inputs], reuse=reuse) as scope:
-            with slim.arg_scope([slim.batch_norm, slim.dropout],
-                                is_training=is_training):
-                for i in range(n_views):
-                    batch_view = tf.gather(views, i)  # N x H x W x C
+                net, end_points = \
+                    inception_v2.inception_v2_base(batch_view, scope=scope)
 
-                    net, end_points = \
-                        inception_v2.inception_v2_base(batch_view, scope=scope)
+                with tf.variable_scope('Logits'):
+                    if global_pool:
+                        # Global average pooling.
+                        net = tf.reduce_mean(net, [1, 2], keepdims=True, name='global_pool')
+                        end_points['global_pool'] = net
+                    else:
+                        # Pooling with a fixed kernel size.
+                        kernel_size = inception_v2._reduced_kernel_size_for_small_input(net, [7, 7])
+                        net = slim.avg_pool2d(net, kernel_size, padding='VALID',
+                                              scope='AvgPool_1a_{}x{}'.format(*kernel_size))
+                        end_points['AvgPool_1a'] = net
 
-                    with tf.variable_scope('Logits'):
-                        if global_pool:
-                            # Global average pooling.
-                            net = tf.reduce_mean(net, [1, 2], keepdims=True, name='global_pool')
-                            end_points['global_pool'] = net
-                        else:
-                            # Pooling with a fixed kernel size.
-                            kernel_size = inception_v2._reduced_kernel_size_for_small_input(net, [7, 7])
-                            net = slim.avg_pool2d(net, kernel_size, padding='VALID',
-                                                  scope='AvgPool_1a_{}x{}'.format(*kernel_size))
-                            end_points['AvgPool_1a'] = net
+                    # ? x 1 x 1 x 1024
+                    # net = slim.dropout(net, keep_prob=dropout_keep_prob, scope='Dropout_1b')
+                    # ? x 1 x 1 x 1024
+                    # logits = slim.conv2d(net, num_classes, [1, 1], activation_fn=None,
+                    #                      normalizer_fn=None, scope='Conv2d_1c_1x1')
+                    # if spatial_squeeze:
+                    #     logits = tf.squeeze(logits, [1, 2], name='SpatialSqueeze')
+                    end_points['Logits'] = net
 
-                        # ? x 1 x 1 x 1024
-                        # net = slim.dropout(net, keep_prob=dropout_keep_prob, scope='Dropout_1b')
-                        # ? x 1 x 1 x 1024
-                        # logits = slim.conv2d(net, num_classes, [1, 1], activation_fn=None,
-                        #                      normalizer_fn=None, scope='Conv2d_1c_1x1')
-                        # if spatial_squeeze:
-                        #     logits = tf.squeeze(logits, [1, 2], name='SpatialSqueeze')
-                        end_points['Logits'] = net
-
-                    view_descriptors.append(net)
-
-        final_view_descriptors.append(view_descriptors)
+                final_view_descriptors.append(net)
 
     return final_view_descriptors
 
 
-def discrimination_score(inputs, num_classes, reuse=tf.AUTO_REUSE, scope='FCN'):
+def discrimination_score(inputs,
+                         num_classes,
+                         reuse=tf.AUTO_REUSE,
+                         scope='FCN'):
 
     """
     Raw View Descriptor Generation
@@ -205,33 +186,28 @@ def discrimination_score(inputs, num_classes, reuse=tf.AUTO_REUSE, scope='FCN'):
     """
 
     # FC layer to obtain the discrimination scores from raw view descriptors
-    view_discrimination_scores = []
+    view_discrimination_score = []
 
-    cls_batch_input = tf.unstack(inputs, axis=0)
-    for batch_inputs in cls_batch_input:
+    n_views = inputs.get_shape().as_list()[1]
+    # transpose views: (NxVxHxWxC) -> (VxNxHxWxC)
+    views = tf.transpose(inputs, perm=[1, 0, 2, 3, 4])
 
-        n_views = batch_inputs.get_shape().as_list()[1]
-        # transpose views: (NxVxHxWxC) -> (VxNxHxWxC)
-        views = tf.transpose(batch_inputs, perm=[1, 0, 2, 3, 4])
+    scores = []
+    with tf.variable_scope(scope, None, [inputs], reuse=reuse) as scope:
+        for i in range(n_views):
+            batch_view = tf.gather(views, i)  # N x H x W x C
+            # FCN
+            logits = googLeNet.googLeNet(batch_view, num_classes, scope=scope)
 
-        scores = []
-        with tf.variable_scope(scope, None, [batch_inputs], reuse=reuse) as scope:
-            for i in range(n_views):
-                batch_view = tf.gather(views, i)  # N x H x W x C
-                # FCN
-                logits = googLeNet.googLeNet(batch_view, num_classes, scope=scope)
+            # The average score is shown for the batch size input
+            # corresponding to each point of view.
+            batch_view_score = tf.nn.sigmoid(tf.log(tf.abs(logits)))
+            batch_view_score = tf.reduce_mean(tf.reduce_max(batch_view_score, axis=1), axis=0)
+            # batch_view_score = tf.reshape(batch_view_score, [])
 
-                # The average score is shown for the batch size input
-                # corresponding to each point of view.
-                batch_view_score = tf.nn.sigmoid(tf.log(tf.abs(logits)))
-                batch_view_score = tf.reduce_mean(tf.reduce_max(batch_view_score, axis=1), axis=0)
-                # batch_view_score = tf.reshape(batch_view_score, [])
+            view_discrimination_score.append(batch_view_score)
 
-                scores.append(batch_view_score)
-
-        view_discrimination_scores.append(scores)
-
-    return view_discrimination_scores
+    return view_discrimination_score
 
 
 def gvcnn(inputs,
@@ -241,13 +217,15 @@ def gvcnn(inputs,
           is_training=True,
           dropout_keep_prob=0.8,
           prediction_fn=slim.softmax,
-          spatial_squeeze = True,
+          spatial_squeeze=True,
           reuse=tf.AUTO_REUSE,
           scope='GoogLeNet',
           global_pool=True):
+
     final_view_descriptors = _CNN(inputs,
                                   is_training,
                                   dropout_keep_prob,
+                                  spatial_squeeze,
                                   reuse,
                                   scope,
                                   global_pool)

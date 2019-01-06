@@ -62,9 +62,14 @@ def test3():
     num_views = 8
     height, width = 224, 224
 
+    view_ = tf.placeholder('float32', shape=(None, 8, 227, 227, 3), name='im0')
+    y_ = tf.placeholder('int64', shape=(None), name='y')
+    keep_prob_ = tf.placeholder('float32')
+
+
     inputs = tf.random_uniform((train_batch_size, num_views, height, width, 3))
 
-    _model.inference_multiview(inputs, 10, 0.8)
+    fc8 = _model.inference_multiview(view_, 7, keep_prob_)
 
 
 def test4():

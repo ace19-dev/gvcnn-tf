@@ -2,15 +2,13 @@
 import tensorflow as tf
 import re
 import numpy as np
-
-# import globals as g_
-
+import globals as g_
 
 FLAGS = tf.app.flags.FLAGS
 # Basic model parameters.
-tf.app.flags.DEFINE_integer('train_batch_size', 8,
+tf.app.flags.DEFINE_integer('train_batch_size', g_.BATCH_SIZE,
                             """Number of images to process in a batch.""")
-tf.app.flags.DEFINE_float('learning_rate', 0.0001,
+tf.app.flags.DEFINE_float('learning_rate', g_.INIT_LEARNING_RATE,
                           """Initial learning rate.""")
 
 # Constants describing the training process.
@@ -138,18 +136,23 @@ def inference_multiview(views, n_classes, keep_prob):
         reuse = (i != 0)
         view = tf.gather(views, i)  # NxWxHxC
 
+        # (?, 55, 55, 96)
         conv1 = _conv('conv1', view, [11, 11, 3, 96], [1, 4, 4, 1], 'VALID', reuse=reuse)
         lrn1 = None
+        # (?, 27, 27, 96)
         pool1 = _maxpool('pool1', conv1, ksize=[1, 3, 3, 1], strides=[1, 2, 2, 1], padding='VALID')
-
+        # ?, 27, 27, 256
         conv2 = _conv('conv2', pool1, [5, 5, 96, 256], group=2, reuse=reuse)
         lrn2 = None
+        # ?, 13, 13, 256
         pool2 = _maxpool('pool2', conv2, ksize=[1, 3, 3, 1], strides=[1, 2, 2, 1], padding='VALID')
-
+        # ?, 13, 13, 384
         conv3 = _conv('conv3', pool2, [3, 3, 256, 384], reuse=reuse)
+        # ?, 13, 13, 384
         conv4 = _conv('conv4', conv3, [3, 3, 384, 384], group=2, reuse=reuse)
+        # ?, 13, 13, 256
         conv5 = _conv('conv5', conv4, [3, 3, 384, 256], group=2, reuse=reuse)
-
+        # ?, 6, 6, 256
         pool5 = _maxpool('pool5', conv5, ksize=[1, 3, 3, 1], strides=[1, 2, 2, 1], padding='VALID')
 
         dim = np.prod(pool5.get_shape().as_list()[1:])

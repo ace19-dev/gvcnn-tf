@@ -33,7 +33,10 @@ def _inception(x, p1, p2, p3, p4, scope):
 '''
     (batch, height, width, channel)
 '''
-def googLeNet(image, num_classes=1, scope='FCN'):
+def googLeNet(image,
+              num_classes=1,
+              scope='FCN'):
+
     with tf.variable_scope(scope):
         net = tf.layers.conv2d(
             inputs=image,

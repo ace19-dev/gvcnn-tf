@@ -8,10 +8,10 @@ import tensorflow as tf
 
 class Data(object):
 
-    def __init__(self, dataset_dir, height, weight):
+    def __init__(self, dataset_dir, h_w):
         self.dataset_dir = dataset_dir
-        self.resize_h = height
-        self.resize_w = weight
+        self.resize_h = h_w[0]
+        self.resize_w = h_w[1]
 
         self.cls = []
         self.label_to_index = {}
@@ -97,35 +97,42 @@ class Data(object):
             images.append(views)
 
         # labels = tf.convert_to_tensor(self.labels[start:end], dtype=tf.string)
-        labels = self.labels[selected][start:end]
+        labels = (self.labels[selected][start:end])
 
         return tf.stack(images, 0), labels
 
 
     def next_batch(self, batch_size):
-        selected = random.choice(self.cls)
+        # selected = random.choice(self.cls)
 
-        start = self.cls_start_step[selected]
-        end = start + batch_size
-        if end > self.data_size(selected):
-            self._shuffle(selected)
-            start = 0
+        batches_x = []
+        batches_y = []
+        for selected in self.cls:
+            start = self.cls_start_step[selected]
             end = start + batch_size
-            self.cls_start_step[selected] = end
+            if end > self.data_size(selected):
+                self._shuffle(selected)
+                start = 0
+                end = start + batch_size
+                self.cls_start_step[selected] = end
 
-        batch_x, batch_y = self._parse_function(start, end, selected)
+            batch_x, batch_y = self._parse_function(start, end, selected)
+            batches_x.append(batch_x)
+            batches_y.append(batch_y)
 
-        return batch_x, batch_y
+        x = tf.convert_to_tensor(batches_x)
+        y = tf.reshape(batches_y, [-1])
+
+        return x, y
 
 
     def size(self):
-        max = 0
+        sum = 0
         for idx, _ in enumerate(self.cls):
             num = len(self.images[idx])
-            if max < num:
-                max = num
+            sum += num
 
-        return max
+        return sum / len(self.cls)
 
 
     def data_size(self, selected):
