@@ -60,6 +60,8 @@ flags.DEFINE_integer('slow_start_step', 0,
 flags.DEFINE_float('slow_start_learning_rate', 1e-4,
                    'Learning rate employed during slow start.')
 
+flags.DEFINE_float('learning_rate', 0.0001, 'learning rate')
+
 # Dataset settings.
 flags.DEFINE_string('dataset_dir', '/home/ace19/dl_data/modelnet',
                     'Where the dataset reside.')
@@ -70,7 +72,6 @@ flags.DEFINE_integer('num_views', 8, 'number of views')
 flags.DEFINE_integer('height', 224, 'height')
 flags.DEFINE_integer('weight', 224, 'weight')
 flags.DEFINE_integer('num_classes', 7, 'number of classes')
-flags.DEFINE_float('learning_rate', 0.0001, 'learning rate')
 
 
 def main(unused_argv):

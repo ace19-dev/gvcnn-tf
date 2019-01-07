@@ -248,16 +248,16 @@ def gvcnn(inputs,
                                           scope='AvgPool_1a_{}x{}'.format(*kernel_size))
                     # end_points['AvgPool_1a'] = net
 
-                # # ? x 1 x 1 x 1024
-                # net = slim.dropout(net, keep_prob=dropout_keep_prob, scope='Dropout_1b')
-                # logits = slim.conv2d(net, num_classes, [1, 1], activation_fn=None,
-                #                      normalizer_fn=None, scope='Conv2d_1c_1x1')
-                # if spatial_squeeze:
-                #     logits = tf.squeeze(logits, [1, 2], name='SpatialSqueeze')
+                # ? x 1 x 1 x 1024
+                net = slim.dropout(net, keep_prob=dropout_keep_prob, scope='Dropout_1b')
+                logits = slim.conv2d(net, num_classes, [1, 1], activation_fn=None,
+                                     normalizer_fn=None, scope='Conv2d_1c_1x1')
+                if spatial_squeeze:
+                    logits = tf.squeeze(logits, [1, 2], name='SpatialSqueeze')
 
-                net = slim.flatten(net)
-                net = slim.fully_connected(net, 1024)
-                logits = slim.fully_connected(net, num_classes, activation_fn=None)
+                # net = slim.flatten(net)
+                # net = slim.fully_connected(net, 1024)
+                # logits = slim.fully_connected(net, num_classes, activation_fn=None)
 
     return logits
 
