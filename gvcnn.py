@@ -256,6 +256,7 @@ def gvcnn(inputs,
                 #     logits = tf.squeeze(logits, [1, 2], name='SpatialSqueeze')
 
                 net = slim.flatten(net)
+                net = slim.fully_connected(net, 1024)
                 logits = slim.fully_connected(net, num_classes, activation_fn=None)
 
     return logits

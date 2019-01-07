@@ -70,6 +70,7 @@ flags.DEFINE_integer('num_views', 8, 'number of views')
 flags.DEFINE_integer('height', 224, 'height')
 flags.DEFINE_integer('weight', 224, 'weight')
 flags.DEFINE_integer('num_classes', 7, 'number of classes')
+flags.DEFINE_float('learning_rate', 0.0001, 'learning rate')
 
 
 def main(unused_argv):
@@ -104,6 +105,7 @@ def main(unused_argv):
         dropout_keep_prob = tf.placeholder(tf.float32)
         grouping_scheme = tf.placeholder(tf.bool, [NUM_GROUP, FLAGS.num_views])
         grouping_weight = tf.placeholder(tf.float32, [NUM_GROUP, 1])
+        learning_rate = tf.placeholder(tf.float32, [], name="lr")
 
         # TODO: use each graphs for grouping module and GVCNN ??
         # grouping module
@@ -150,11 +152,11 @@ def main(unused_argv):
         # for loss in tf.get_collection(tf.GraphKeys.LOSSES):
             summaries.add(tf.summary.scalar('losses/%s' % loss.op.name, loss))
 
-        learning_rate = train_utils.get_model_learning_rate(
-            FLAGS.learning_policy, FLAGS.base_learning_rate,
-            FLAGS.learning_rate_decay_step, FLAGS.learning_rate_decay_factor,
-            None, FLAGS.learning_power,
-            FLAGS.slow_start_step, FLAGS.slow_start_learning_rate)
+        # learning_rate = train_utils.get_model_learning_rate(
+        #     FLAGS.learning_policy, FLAGS.base_learning_rate,
+        #     FLAGS.learning_rate_decay_step, FLAGS.learning_rate_decay_factor,
+        #     None, FLAGS.learning_power,
+        #     FLAGS.slow_start_step, FLAGS.slow_start_learning_rate)
         optimizer = tf.train.MomentumOptimizer(learning_rate, FLAGS.momentum)
         summaries.add(tf.summary.scalar('learning_rate', learning_rate))
 
@@ -248,6 +250,7 @@ def main(unused_argv):
                     lr, train_summary, train_accuracy, train_loss, _ = \
                         sess.run([learning_rate, summary_op, accuracy, total_loss, train_op],
                                  feed_dict={X: train_batch_xs.eval(),
+                                            learning_rate:FLAGS.learning_rate,
                                             ground_truth: train_batch_ys,
                                             grouping_scheme: schemes,
                                             grouping_weight: weights,
