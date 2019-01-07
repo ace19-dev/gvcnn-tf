@@ -2,13 +2,12 @@
 import tensorflow as tf
 import re
 import numpy as np
-import globals as g_
 
 FLAGS = tf.app.flags.FLAGS
 # Basic model parameters.
-tf.app.flags.DEFINE_integer('train_batch_size', g_.BATCH_SIZE,
+tf.app.flags.DEFINE_integer('train_batch_size', 8,
                             """Number of images to process in a batch.""")
-tf.app.flags.DEFINE_float('learning_rate', g_.INIT_LEARNING_RATE,
+tf.app.flags.DEFINE_float('learning_rate', 0.0001,
                           """Initial learning rate.""")
 
 # Constants describing the training process.

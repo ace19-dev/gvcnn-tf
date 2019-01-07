@@ -2,7 +2,7 @@ import tensorflow as tf
 import numpy as np
 
 import gvcnn
-from _ref import _model
+from _temp import _model
 from nets import googLeNet
 
 

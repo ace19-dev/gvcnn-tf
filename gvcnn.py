@@ -192,7 +192,6 @@ def discrimination_score(inputs,
     # transpose views: (NxVxHxWxC) -> (VxNxHxWxC)
     views = tf.transpose(inputs, perm=[1, 0, 2, 3, 4])
 
-    scores = []
     with tf.variable_scope(scope, None, [inputs], reuse=reuse) as scope:
         for i in range(n_views):
             batch_view = tf.gather(views, i)  # N x H x W x C
@@ -202,7 +201,7 @@ def discrimination_score(inputs,
             # The average score is shown for the batch size input
             # corresponding to each point of view.
             batch_view_score = tf.nn.sigmoid(tf.log(tf.abs(logits)))
-            batch_view_score = tf.reduce_mean(tf.reduce_max(batch_view_score, axis=1), axis=0)
+            batch_view_score = tf.reduce_mean(batch_view_score)
             # batch_view_score = tf.reshape(batch_view_score, [])
 
             view_discrimination_score.append(batch_view_score)

@@ -1,16 +1,10 @@
-import tensorflow as tf
-import numpy as np
-import scipy.misc
-
 import os
-import cv2
+
+import tensorflow as tf
 
 import data
 import gvcnn
-import test
 from utils import train_utils
-
-from slim.nets import inception_v2
 
 slim = tf.contrib.slim
 
