@@ -68,7 +68,7 @@ flags.DEFINE_string('dataset_dir', '/home/ace19/dl_data/modelnet',
 
 flags.DEFINE_integer('how_many_training_epochs', 10,
                      'How many training loops to run')
-flags.DEFINE_integer('batch_size', 16, 'batch size')
+flags.DEFINE_integer('batch_size', 4, 'batch size')
 flags.DEFINE_integer('num_views', 8, 'number of views')
 flags.DEFINE_integer('height', 224, 'height')
 flags.DEFINE_integer('weight', 224, 'weight')
@@ -108,7 +108,6 @@ def main(unused_argv):
         grouping_weight = tf.placeholder(tf.float32, [NUM_GROUP, 1])
         learning_rate = tf.placeholder(tf.float32, [], name="lr")
 
-        # TODO: use each graphs for grouping module and GVCNN ??
         # grouping module
         d_scores = gvcnn.discrimination_score(X)
 
