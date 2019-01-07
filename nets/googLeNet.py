@@ -2,7 +2,6 @@
 A simple implementation of GoogLeNet
 """
 
-import numpy as np
 import tensorflow as tf
 
 slim = tf.contrib.slim
@@ -30,12 +29,7 @@ def _inception(x, p1, p2, p3, p4, scope):
     return out
 
 
-'''
-    (batch, height, width, channel)
-'''
-def googLeNet(image,
-              num_classes=1,
-              scope='FCN'):
+def googLeNet(image, scope='googlenet'):
 
     with tf.variable_scope(scope):
         net = tf.layers.conv2d(
@@ -49,6 +43,7 @@ def googLeNet(image,
         net = _inception(net, p1=64, p2=(6, 64), p3=(6, 32), p4=32, scope='incpt1')
         net = tf.layers.max_pooling2d(net, 3, 2, padding='same', name="maxpool1")
         net = _inception(net, p1=256, p2=(32, 256), p3=(32, 128), p4=128, scope='incpt2')
+
         # net = tf.layers.average_pooling2d(net, 7, 1, name="avgpool")
         # net = tf.layers.flatten(net, name='flat')
         # logits = tf.layers.dense(net, num_classes, name='fc4')

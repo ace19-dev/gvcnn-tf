@@ -112,13 +112,7 @@ def _group_fusion(group_descriptors, group_weight):
     return shape_descriptor
 
 
-def _CNN(inputs,
-         is_training=True,
-         dropout_keep_prob=0.8,
-         spatial_squeeze=True,
-         reuse=None,
-         scope='GoogLeNet',
-         global_pool=False):
+def _CNN(inputs):
     '''
        The second part of the network (CNN) and the group module, are used to extract
        the final view descriptors together with the discrimination scores, separately.
@@ -129,36 +123,11 @@ def _CNN(inputs,
     # transpose views: (NxVxHxWxC) -> (VxNxHxWxC)
     views = tf.transpose(inputs, perm=[1, 0, 2, 3, 4])
 
-    # with tf.variable_scope(scope, None, [inputs], reuse=reuse) as scope:
-    #     with slim.arg_scope([slim.batch_norm, slim.dropout],
-    #                         is_training=is_training):
     for i in range(n_views):
         batch_view = tf.gather(views, i)  # N x H x W x C
 
         net, end_points = \
             inception_v2.inception_v2_base(batch_view, scope=None)
-        end_points['Logits'] = net
-
-        # with tf.variable_scope('Logits'):
-        #     if global_pool:
-        #         # Global average pooling.
-        #         net = tf.reduce_mean(net, [1, 2], keepdims=True, name='global_pool')
-        #         end_points['global_pool'] = net
-        #     else:
-        #         # Pooling with a fixed kernel size.
-        #         kernel_size = inception_v2._reduced_kernel_size_for_small_input(net, [7, 7])
-        #         net = slim.avg_pool2d(net, kernel_size, padding='VALID',
-        #                               scope='AvgPool_1a_{}x{}'.format(*kernel_size))
-        #         end_points['AvgPool_1a'] = net
-        #
-        #     # ? x 1 x 1 x 1024
-        #     # net = slim.dropout(net, keep_prob=dropout_keep_prob, scope='Dropout_1b')
-        #     # ? x 1 x 1 x 1024
-        #     # logits = slim.conv2d(net, num_classes, [1, 1], activation_fn=None,
-        #     #                      normalizer_fn=None, scope='Conv2d_1c_1x1')
-        #     # if spatial_squeeze:
-        #     #     logits = tf.squeeze(logits, [1, 2], name='SpatialSqueeze')
-        #     end_points['Logits'] = net
 
         final_view_descriptors.append(net)
 
@@ -166,23 +135,23 @@ def _CNN(inputs,
 
 
 def discrimination_score(inputs,
-                         num_classes,
                          reuse=tf.AUTO_REUSE,
-                         scope='FCN'):
+                         scope='fcn'):
 
     """
     Raw View Descriptor Generation
 
     first part of the network (FCN) to get the raw descriptor in the view level.
-    The “FCN” part is the top five convolutional layers of GoogLeNet. (mid-level representation ??)
+    The “FCN” part is the top five convolutional layers of GoogLeNet.
+    (mid-level representation)
 
-    Extract the raw view descriptors. Compared with deeper CNN,
-    shallow FCN could have more position information, which is needed for
-    the followed grouping module and the deeper CNN will have the content information
-    which could represent the view feature better.
+    Extract the raw view descriptors.
+    Compared with deeper CNN, shallow FCN could have more position information,
+    which is needed for the followed grouping module and the deeper CNN will have
+    the content information which could represent the view feature better.
 
     Args:
-    inputs: C X N x V x H x W x C tensor
+    inputs: N x V x H x W x C tensor
     scope:
     """
 
@@ -197,7 +166,7 @@ def discrimination_score(inputs,
         for i in range(n_views):
             batch_view = tf.gather(views, i)  # N x H x W x C
             # FCN
-            logits = googLeNet.googLeNet(batch_view, num_classes, scope=scope)
+            logits = googLeNet.googLeNet(batch_view)
 
             # The average score is shown for the batch size input
             # corresponding to each point of view.
@@ -216,26 +185,20 @@ def gvcnn(inputs,
           num_classes,
           is_training=True,
           dropout_keep_prob=0.8,
-          prediction_fn=slim.softmax,
           spatial_squeeze=True,
           reuse=tf.AUTO_REUSE,
-          scope='GoogLeNet',
+          scope='googlenet',
           global_pool=True):
 
     with tf.variable_scope(scope, None, [inputs], reuse=reuse) as scope:
         with slim.arg_scope([slim.batch_norm, slim.dropout],
                             is_training=is_training):
-            final_view_descriptors = _CNN(inputs,
-                                          is_training,
-                                          dropout_keep_prob,
-                                          spatial_squeeze,
-                                          reuse,
-                                          scope,
-                                          global_pool)
 
+            final_view_descriptors = _CNN(inputs)
             group_descriptors = _view_pooling(final_view_descriptors, grouping_scheme)
             shape_descriptor = _group_fusion(group_descriptors, grouping_weight)
 
+            # (?, 7, 7, 1024)
             with tf.variable_scope('Logits'):
                 if global_pool:
                     # Global average pooling.
@@ -255,6 +218,7 @@ def gvcnn(inputs,
                 if spatial_squeeze:
                     logits = tf.squeeze(logits, [1, 2], name='SpatialSqueeze')
 
+                # Or
                 # net = slim.flatten(net)
                 # net = slim.fully_connected(net, 1024)
                 # logits = slim.fully_connected(net, num_classes, activation_fn=None)

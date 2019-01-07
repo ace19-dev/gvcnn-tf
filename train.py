@@ -66,8 +66,9 @@ flags.DEFINE_float('learning_rate', 0.0001, 'learning rate')
 flags.DEFINE_string('dataset_dir', '/home/ace19/dl_data/modelnet',
                     'Where the dataset reside.')
 
-flags.DEFINE_integer('how_many_training_epochs', 5, 'How many training loops to run')
-flags.DEFINE_integer('batch_size', 8, 'batch size')
+flags.DEFINE_integer('how_many_training_epochs', 10,
+                     'How many training loops to run')
+flags.DEFINE_integer('batch_size', 16, 'batch size')
 flags.DEFINE_integer('num_views', 8, 'number of views')
 flags.DEFINE_integer('height', 224, 'height')
 flags.DEFINE_integer('weight', 224, 'weight')
@@ -86,7 +87,7 @@ def main(unused_argv):
     # test.test3()
     # test.test4()
 
-    SCOPE = "GoogLeNet"
+    SCOPE = "googlenet"
 
     dataset = data.Data(FLAGS.dataset_dir, FLAGS.height, FLAGS.weight)
 
@@ -94,7 +95,6 @@ def main(unused_argv):
     tf.logging.info('Creating train logdir: %s', FLAGS.train_logdir)
 
     with tf.Graph().as_default() as graph:
-
         global_step = tf.train.get_or_create_global_step()
 
         # Define the model
@@ -110,7 +110,7 @@ def main(unused_argv):
 
         # TODO: use each graphs for grouping module and GVCNN ??
         # grouping module
-        d_scores = gvcnn.discrimination_score(X, FLAGS.num_classes)
+        d_scores = gvcnn.discrimination_score(X)
 
         # GVCNN
         logits = gvcnn.gvcnn(X,
@@ -122,7 +122,7 @@ def main(unused_argv):
                              dropout_keep_prob=dropout_keep_prob)
 
         # make a trainable variable not trainable
-        train_utils.edit_trainable_variables('FCN')
+        train_utils.edit_trainable_variables('fcn')
 
         # Define loss
         tf.losses.sparse_softmax_cross_entropy(labels=ground_truth,
@@ -256,7 +256,7 @@ def main(unused_argv):
                                             grouping_scheme: schemes,
                                             grouping_weight: weights,
                                             is_training: True,
-                                            dropout_keep_prob: 0.8})
+                                            dropout_keep_prob: 0.5})
 
                     train_writer.add_summary(train_summary)
                     tf.logging.info('Epoch #%d, Step #%d, rate %.10f, accuracy %.1f%%, loss %f' %
