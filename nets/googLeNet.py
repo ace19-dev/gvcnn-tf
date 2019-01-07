@@ -53,7 +53,7 @@ def googLeNet(image,
         # net = tf.layers.flatten(net, name='flat')
         # logits = tf.layers.dense(net, num_classes, name='fc4')
         # Or
-        logits = slim.conv2d(net, num_classes, [1, 1], activation_fn=None,
-                             normalizer_fn=None, scope=scope)
+        # logits = slim.conv2d(net, num_classes, [1, 1], activation_fn=None,
+        #                      normalizer_fn=None, scope=scope)
 
-        return logits
+        return net

@@ -129,37 +129,38 @@ def _CNN(inputs,
     # transpose views: (NxVxHxWxC) -> (VxNxHxWxC)
     views = tf.transpose(inputs, perm=[1, 0, 2, 3, 4])
 
-    with tf.variable_scope(scope, None, [inputs], reuse=reuse) as scope:
-        with slim.arg_scope([slim.batch_norm, slim.dropout],
-                            is_training=is_training):
-            for i in range(n_views):
-                batch_view = tf.gather(views, i)  # N x H x W x C
+    # with tf.variable_scope(scope, None, [inputs], reuse=reuse) as scope:
+    #     with slim.arg_scope([slim.batch_norm, slim.dropout],
+    #                         is_training=is_training):
+    for i in range(n_views):
+        batch_view = tf.gather(views, i)  # N x H x W x C
 
-                net, end_points = \
-                    inception_v2.inception_v2_base(batch_view, scope=scope)
+        net, end_points = \
+            inception_v2.inception_v2_base(batch_view, scope=None)
+        end_points['Logits'] = net
 
-                with tf.variable_scope('Logits'):
-                    if global_pool:
-                        # Global average pooling.
-                        net = tf.reduce_mean(net, [1, 2], keepdims=True, name='global_pool')
-                        end_points['global_pool'] = net
-                    else:
-                        # Pooling with a fixed kernel size.
-                        kernel_size = inception_v2._reduced_kernel_size_for_small_input(net, [7, 7])
-                        net = slim.avg_pool2d(net, kernel_size, padding='VALID',
-                                              scope='AvgPool_1a_{}x{}'.format(*kernel_size))
-                        end_points['AvgPool_1a'] = net
+        # with tf.variable_scope('Logits'):
+        #     if global_pool:
+        #         # Global average pooling.
+        #         net = tf.reduce_mean(net, [1, 2], keepdims=True, name='global_pool')
+        #         end_points['global_pool'] = net
+        #     else:
+        #         # Pooling with a fixed kernel size.
+        #         kernel_size = inception_v2._reduced_kernel_size_for_small_input(net, [7, 7])
+        #         net = slim.avg_pool2d(net, kernel_size, padding='VALID',
+        #                               scope='AvgPool_1a_{}x{}'.format(*kernel_size))
+        #         end_points['AvgPool_1a'] = net
+        #
+        #     # ? x 1 x 1 x 1024
+        #     # net = slim.dropout(net, keep_prob=dropout_keep_prob, scope='Dropout_1b')
+        #     # ? x 1 x 1 x 1024
+        #     # logits = slim.conv2d(net, num_classes, [1, 1], activation_fn=None,
+        #     #                      normalizer_fn=None, scope='Conv2d_1c_1x1')
+        #     # if spatial_squeeze:
+        #     #     logits = tf.squeeze(logits, [1, 2], name='SpatialSqueeze')
+        #     end_points['Logits'] = net
 
-                    # ? x 1 x 1 x 1024
-                    # net = slim.dropout(net, keep_prob=dropout_keep_prob, scope='Dropout_1b')
-                    # ? x 1 x 1 x 1024
-                    # logits = slim.conv2d(net, num_classes, [1, 1], activation_fn=None,
-                    #                      normalizer_fn=None, scope='Conv2d_1c_1x1')
-                    # if spatial_squeeze:
-                    #     logits = tf.squeeze(logits, [1, 2], name='SpatialSqueeze')
-                    end_points['Logits'] = net
-
-                final_view_descriptors.append(net)
+        final_view_descriptors.append(net)
 
     return final_view_descriptors
 
@@ -221,23 +222,41 @@ def gvcnn(inputs,
           scope='GoogLeNet',
           global_pool=True):
 
-    final_view_descriptors = _CNN(inputs,
-                                  is_training,
-                                  dropout_keep_prob,
-                                  spatial_squeeze,
-                                  reuse,
-                                  scope,
-                                  global_pool)
+    with tf.variable_scope(scope, None, [inputs], reuse=reuse) as scope:
+        with slim.arg_scope([slim.batch_norm, slim.dropout],
+                            is_training=is_training):
+            final_view_descriptors = _CNN(inputs,
+                                          is_training,
+                                          dropout_keep_prob,
+                                          spatial_squeeze,
+                                          reuse,
+                                          scope,
+                                          global_pool)
 
-    group_descriptors = _view_pooling(final_view_descriptors, grouping_scheme)
-    shape_descriptor = _group_fusion(group_descriptors, grouping_weight)
+            group_descriptors = _view_pooling(final_view_descriptors, grouping_scheme)
+            shape_descriptor = _group_fusion(group_descriptors, grouping_weight)
 
-    # net = slim.flatten(shape_description)
-    # logits = slim.fully_connected(net, num_classes, activation_fn=None)
-    logits = slim.conv2d(shape_descriptor, num_classes, [1, 1], activation_fn=None,
-                         normalizer_fn=None, scope=scope)
-    if spatial_squeeze:
-        logits = tf.squeeze(logits, [1, 2], name='SpatialSqueeze')
+            with tf.variable_scope('Logits'):
+                if global_pool:
+                    # Global average pooling.
+                    net = tf.reduce_mean(shape_descriptor, [1, 2], keepdims=True, name='global_pool')
+                    # end_points['global_pool'] = net
+                else:
+                    # Pooling with a fixed kernel size.
+                    kernel_size = inception_v2._reduced_kernel_size_for_small_input(shape_descriptor, [7, 7])
+                    net = slim.avg_pool2d(shape_descriptor, kernel_size, padding='VALID',
+                                          scope='AvgPool_1a_{}x{}'.format(*kernel_size))
+                    # end_points['AvgPool_1a'] = net
+
+                # # ? x 1 x 1 x 1024
+                # net = slim.dropout(net, keep_prob=dropout_keep_prob, scope='Dropout_1b')
+                # logits = slim.conv2d(net, num_classes, [1, 1], activation_fn=None,
+                #                      normalizer_fn=None, scope='Conv2d_1c_1x1')
+                # if spatial_squeeze:
+                #     logits = tf.squeeze(logits, [1, 2], name='SpatialSqueeze')
+
+                net = slim.flatten(net)
+                logits = slim.fully_connected(net, num_classes, activation_fn=None)
 
     return logits
 
