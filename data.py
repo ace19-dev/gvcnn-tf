@@ -17,7 +17,6 @@ class Data(object):
         self.label_to_index = {}
         self.cls_start_step = {}
         self.images, self.labels = self._prepare_data()
-        self.shuffle_all()
 
 
     def _prepare_data(self):
@@ -73,12 +72,12 @@ class Data(object):
         self.images[selected], self.labels[selected] = zip(*combined)
 
 
-    def _parse_function(self, start, end, selected):
+    def _parse_function(self, selected, start, end):
         images = []
         # labels = []
         batch = self.images[selected][start:end]
         for idx, views_path in enumerate(batch):
-            views_path.sort()
+            # views_path.sort()
             views = []
             for view in views_path:
                 image_string = tf.read_file(view)
@@ -113,19 +112,18 @@ class Data(object):
             end = start + batch_size
             self.cls_start_step[selected] = end
 
-        batch_x, batch_y = self._parse_function(start, end, selected)
+        batch_x, batch_y = self._parse_function(selected, start, end)
 
         return batch_x, batch_y
 
 
     def size(self):
-        max = 0
+        sum = 0
         for idx, _ in enumerate(self.cls):
             num = len(self.images[idx])
-            if max < num:
-                max = num
+            sum += num
 
-        return max
+        return sum / len(self.cls)
 
 
     def data_size(self, selected):
