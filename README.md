@@ -7,6 +7,9 @@
 ## Data
 
 ## Quick Start
+- download data from http://modelnet.cs.princeton.edu/
+- make .png files with data_utils
+- execute train.py
 
 ## Evaluation
 
