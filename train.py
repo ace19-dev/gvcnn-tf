@@ -1,6 +1,7 @@
 import os
-
+import cv2
 import tensorflow as tf
+import numpy as np
 
 import data
 import gvcnn
@@ -60,7 +61,7 @@ flags.DEFINE_integer('slow_start_step', 0,
 flags.DEFINE_float('slow_start_learning_rate', 1e-4,
                    'Learning rate employed during slow start.')
 
-flags.DEFINE_float('learning_rate', 0.0001, 'learning rate')
+flags.DEFINE_float('learning_rate', 0.00001, 'learning rate')
 
 # Dataset settings.
 flags.DEFINE_string('dataset_dir', '/home/ace19/dl_data/modelnet',
@@ -68,7 +69,7 @@ flags.DEFINE_string('dataset_dir', '/home/ace19/dl_data/modelnet',
 
 flags.DEFINE_integer('how_many_training_epochs', 200,
                      'How many training loops to run')
-flags.DEFINE_integer('batch_size', 8, 'batch size')
+flags.DEFINE_integer('batch_size', 4, 'batch size')
 flags.DEFINE_integer('num_views', 8, 'number of views')
 flags.DEFINE_integer('height', 224, 'height')
 flags.DEFINE_integer('weight', 224, 'weight')
@@ -89,7 +90,7 @@ def main(unused_argv):
 
     SCOPE = "googlenet"
 
-    dataset = data.Data(FLAGS.dataset_dir, FLAGS.height, FLAGS.weight)
+    # dataset = data.Data(FLAGS.dataset_dir, FLAGS.height, FLAGS.weight)
 
     tf.gfile.MakeDirs(FLAGS.train_logdir)
     tf.logging.info('Creating train logdir: %s', FLAGS.train_logdir)
@@ -194,6 +195,17 @@ def main(unused_argv):
         summary_op = tf.summary.merge(list(summaries))
         train_writer = tf.summary.FileWriter(FLAGS.summaries_dir, graph)
 
+        ############################
+        # Prepare data
+        ############################
+        # Place data loading and preprocessing on the cpu
+        prepared_data = data.Data(FLAGS.dataset_dir, FLAGS.height, FLAGS.weight)
+        tr_data = data.DataLoader(prepared_data, FLAGS.batch_size)
+
+        # create an reinitializable iterator given the dataset structure
+        iterator = tr_data.dataset.make_initializable_iterator()
+        next_batch = iterator.get_next()
+
         with tf.Session() as sess:
             sess.run(tf.global_variables_initializer())
 
@@ -207,9 +219,9 @@ def main(unused_argv):
 
             start_epoch = 0
             # Get the number of training/validation steps per epoch
-            t_batches = int(dataset.size() / FLAGS.batch_size)
-            if dataset.size() % FLAGS.batch_size > 0:
-                t_batches += 1
+            batches = int(prepared_data.get_data_size() / FLAGS.batch_size)
+            if prepared_data.get_data_size() % FLAGS.batch_size > 0:
+                batches += 1
             # v_batches = int(dataset.data_size() / FLAGS.batch_size)
             # if val_data.data_size() % FLAGS.batch_size > 0:
             #     v_batches += 1
@@ -222,36 +234,39 @@ def main(unused_argv):
                 print(" Epoch {} ".format(training_epoch + 1))
                 print("------------------------")
 
-                dataset.shuffle_all()
-                for step in range(t_batches):
+                # dataset.shuffle_all()
+                sess.run(iterator.initializer)
+                for step in range(batches):
                     # Pull the image batch we'll use for training.
-                    train_batch_xs, train_batch_ys = dataset.next_batch(FLAGS.batch_size)
+                    # train_batch_xs, train_batch_ys = dataset.next_batch(FLAGS.batch_size)
+                    train_batch_xs, train_batch_ys = sess.run(next_batch)
 
-                    # Verify image
-                    # batch_x = tf.unstack(train_batch_xs, axis=0)
-                    # for n_batch, vs in enumerate(batch_x):
-                    #     v_list = tf.unstack(vs, axis=0)
-                    #     for i, v in enumerate(v_list):
-                    #         img = v.eval()
+                    # # Verify image
+                    # batch_x = np.squeeze(train_batch_xs, axis=0)
+                    # n_batch = batch_x.shape[0]
+                    # n_view = batch_x.shape[1]
+                    # for i in range(n_batch):
+                    #     for j in range(n_view):
+                    #         img = batch_x[i][j]
                     #         # scipy.misc.toimage(img).show()
                     #         # Or
                     #         img = cv2.cvtColor(img.astype(np.uint8), cv2.COLOR_BGR2RGB)
-                    #         cv2.imwrite('/home/ace19/Pictures/' + str(n_batch) +
-                    #                     '_' + str(i) + '.png', img)
+                    #         cv2.imwrite('/home/ace19/Pictures/' + str(i) +
+                    #                     '_' + str(j) + '.png', img)
                     #         # cv2.imshow(str(train_batch_ys[idx]), img)
-                    #         cv2.waitKey(200)
+                    #         cv2.waitKey(100)
                     #         cv2.destroyAllWindows()
 
-                    scores = sess.run(d_scores, feed_dict={X: train_batch_xs.eval()})
+                    scores = sess.run(d_scores, feed_dict={X: np.squeeze(train_batch_xs, axis=0)})
                     schemes = gvcnn.grouping_scheme(scores, NUM_GROUP, FLAGS.num_views)
                     weights = gvcnn.grouping_weight(scores, schemes)
 
                     # Run the graph with this batch of training data.
                     lr, train_summary, train_accuracy, train_loss, _ = \
                         sess.run([learning_rate, summary_op, accuracy, total_loss, train_op],
-                                 feed_dict={X: train_batch_xs.eval(),
+                                 feed_dict={X: np.squeeze(train_batch_xs, axis=0),
+                                            ground_truth: np.squeeze(train_batch_ys, axis=0),
                                             learning_rate:FLAGS.learning_rate,
-                                            ground_truth: train_batch_ys,
                                             grouping_scheme: schemes,
                                             grouping_weight: weights,
                                             is_training: True,
