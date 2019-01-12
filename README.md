@@ -5,7 +5,7 @@
 ### It is under development.
 
 ## Data
-- download .off data from http://modelnet.cs.princeton.edu/
+- download 40-Class Subset from http://modelnet.cs.princeton.edu/
 - make images with .py files in data_utils
 
 ## Quick Start
