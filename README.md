@@ -5,9 +5,11 @@
 ### It is under development.
 
 ## Data
+- download http://modelnet.cs.princeton.edu/
+- make images with .py files in data_utils
 
 ## Quick Start
-- prepare group-view image (like http://modelnet.cs.princeton.edu/)
+- prepare group-view image
 - execute train.py
 
 ## Evaluation
