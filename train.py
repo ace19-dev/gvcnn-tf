@@ -231,7 +231,7 @@ def main(unused_argv):
             ############################
             for training_epoch in range(start_epoch, FLAGS.how_many_training_epochs):
                 print("------------------------")
-                print(" Epoch {} ".format(training_epoch + 1))
+                print(" Epoch {} ".format(training_epoch))
                 print("------------------------")
 
                 # dataset.shuffle_all()
@@ -284,7 +284,7 @@ def main(unused_argv):
                 if (training_epoch <= FLAGS.how_many_training_epochs-1):
                     checkpoint_path = os.path.join(FLAGS.train_logdir, 'gvcnn.ckpt')
                     tf.logging.info('Saving to "%s-%d"', checkpoint_path, training_epoch)
-                    saver.save(sess, checkpoint_path, global_step=(training_epoch + 1))
+                    saver.save(sess, checkpoint_path, global_step=training_epoch)
 
 
 if __name__ == '__main__':
