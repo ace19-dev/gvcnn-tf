@@ -68,46 +68,52 @@ class DataLoader(object):
     """
 
     def __init__(self, dataset, batch_size, shuffle=True):
-        self.data_size = dataset.get_data_size() // batch_size
-
-        # shuffle in advance
         images, labels = self._get_data(dataset.get_data(),
                                         batch_size,
                                         dataset.get_label_to_index())
+
+        # self.data_size = dataset.get_data_size() // batch_size
+        self.data_size = len(images)
 
         # create dataset, Creating a source
         dataset = tf.data.Dataset.from_tensor_slices((images, labels))
         dataset = dataset.map(self._parse_func, num_parallel_calls=8)
         if shuffle:
             dataset = dataset.shuffle(buffer_size=(int(self.data_size * 0.4) + 3 * 1))
-        dataset = dataset.repeat()
-        self.dataset = dataset.batch(1)
+        dataset = dataset.batch(1)
+        self.dataset = dataset.repeat()
 
 
     def _get_data(self, data, batch_size, label_to_index):
         images = []
         labels = []
 
-        for _, cls_lst in data.items():
-            random.shuffle(cls_lst)
-            n = len(cls_lst)
-            tf.logging.info("num : " + str(n) + ", cls : " + str(cls_lst[0]['label']))
-            batch_img = []
-            batch_lbl = []
-            for idx, e in enumerate(cls_lst):
-                batch_img.append(e['view_paths'].split('|'))
-                batch_lbl.append(label_to_index[e['label']])
+        max = int(batch_size / 2)
+        for i in range(max):
+            for _, cls_lst in data.items():
+                random.shuffle(cls_lst)
+                n = len(cls_lst)
+                tf.logging.info("num : " + str(n) + ", cls : " + str(cls_lst[0]['label']))
+                batch_img = []
+                batch_lbl = []
+                for idx, e in enumerate(cls_lst):
+                    batch_img.append(e['view_paths'].split('|'))
+                    batch_lbl.append(label_to_index[e['label']])
 
-                if idx % batch_size == (batch_size-1):
-                    images.append(batch_img)
-                    labels.append(batch_lbl)
-                    batch_img = []
-                    batch_lbl = []
-                # elif idx == n-1:
-                #     images.append(batch_img)
-                #     labels.append(batch_lbl)
-                #     batch_img = []
-                #     batch_lbl = []
+                    if idx % batch_size == (batch_size-1):
+                        images.append(batch_img)
+                        labels.append(batch_lbl)
+                        batch_img = []
+                        batch_lbl = []
+                    elif idx == n-1:
+                        batch_num = len(batch_img)
+                        for i in range(batch_size-batch_num):
+                            batch_img.append(cls_lst[i]['view_paths'].split('|'))
+                            batch_lbl.append(label_to_index[cls_lst[i]['label']])
+                        images.append(batch_img)
+                        labels.append(batch_lbl)
+                        batch_img = []
+                        batch_lbl = []
 
         return images, labels
 
@@ -136,3 +142,6 @@ class DataLoader(object):
 
         return i, labels
 
+
+    def get_data_size(self):
+        return self.data_size

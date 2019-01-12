@@ -67,7 +67,7 @@ flags.DEFINE_float('learning_rate', 0.00001, 'learning rate')
 flags.DEFINE_string('dataset_dir', '/home/ace19/dl_data/modelnet',
                     'Where the dataset reside.')
 
-flags.DEFINE_integer('how_many_training_epochs', 200,
+flags.DEFINE_integer('how_many_training_epochs', 100,
                      'How many training loops to run')
 flags.DEFINE_integer('batch_size', 4, 'batch size')
 flags.DEFINE_integer('num_views', 8, 'number of views')
@@ -219,8 +219,8 @@ def main(unused_argv):
 
             start_epoch = 0
             # Get the number of training/validation steps per epoch
-            batches = int(prepared_data.get_data_size() / FLAGS.batch_size)
-            if prepared_data.get_data_size() % FLAGS.batch_size > 0:
+            batches = int(tr_data.get_data_size() / FLAGS.batch_size)
+            if tr_data.get_data_size() % FLAGS.batch_size > 0:
                 batches += 1
             # v_batches = int(dataset.data_size() / FLAGS.batch_size)
             # if val_data.data_size() % FLAGS.batch_size > 0:
@@ -282,9 +282,9 @@ def main(unused_argv):
 
                 # Save the model checkpoint periodically.
                 if (training_epoch <= FLAGS.how_many_training_epochs-1):
-                    checkpoint_path = os.path.join(FLAGS.train_logdir, 'GVCNN.ckpt')
+                    checkpoint_path = os.path.join(FLAGS.train_logdir, 'gvcnn.ckpt')
                     tf.logging.info('Saving to "%s-%d"', checkpoint_path, training_epoch)
-                    saver.save(sess, checkpoint_path, global_step=global_step)
+                    saver.save(sess, checkpoint_path, global_step=(training_epoch + 1))
 
 
 if __name__ == '__main__':
