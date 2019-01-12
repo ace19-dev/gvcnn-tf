@@ -1,6 +1,5 @@
 ## GVCNN (Group-View Convolutional Neural Networks for 3D Shape Recognition)
-
-### It is under development.
+- It's under development.
 
 ## Data
 - download 40-Class Subset from http://modelnet.cs.princeton.edu/
