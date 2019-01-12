@@ -7,7 +7,7 @@
 ## Data
 
 ## Quick Start
-- prepare group view image (like http://modelnet.cs.princeton.edu/)
+- prepare group-view image (like http://modelnet.cs.princeton.edu/)
 - execute train.py
 
 ## Evaluation
