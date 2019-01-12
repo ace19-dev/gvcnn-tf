@@ -13,10 +13,10 @@
 ## Evaluation
 
 ## TODO
-- edit data input module
-- validate result
-- change base architecture
-- ...
+- upgrade data input module.
+- validate result and fix.
+- test various base architecture.
+- and ...
 
 ## References from
 - https://github.com/WeiTang114/MVCNN-TensorFlow

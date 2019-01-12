@@ -41,7 +41,7 @@ def grouping_scheme(view_discrimination_score, num_group, num_views):
     return _grouping_scheme
 
 
-# TODO: modified according to equation2 in paper correctly when totally understand.
+# TODO: will modifiy according to equation2 in paper correctly when totally understand.
 # average value per group
 def grouping_weight(view_discrimination_score, grouping_scheme):
     num_group = grouping_scheme.shape[0]    # 10
@@ -68,7 +68,7 @@ def _view_pooling(final_view_descriptors, group_scheme):
     '''
     Final view descriptors are source of view pooling with grouping scheme.
 
-    Use the average pooling (TODO: try max pooling later)
+    Use the average pooling (TODO: how about max pooling later)
 
     :param group_scheme:
     :param final_view_descriptors:
