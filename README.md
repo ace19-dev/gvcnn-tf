@@ -7,6 +7,7 @@
 ## Data
 
 ## Quick Start
+- prepare group view image
 - execute train.py
 
 ## Evaluation
