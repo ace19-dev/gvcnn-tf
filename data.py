@@ -8,11 +8,8 @@ import tensorflow as tf
 
 class Data(object):
 
-    def __init__(self, dataset_dir, height, weight):
+    def __init__(self, dataset_dir):
         self.dataset_dir = dataset_dir
-        self.resize_h = height
-        self.resize_w = weight
-
         self.label_to_index = {}
         self._prepare_data()
 
@@ -67,7 +64,10 @@ class DataLoader(object):
     Handles loading, partitioning, and preparing training data.
     """
 
-    def __init__(self, dataset, batch_size, shuffle=True):
+    def __init__(self, dataset, batch_size, height, weight, shuffle=True):
+        self.resize_h = height
+        self.resize_w = weight
+
         images, labels = self._get_data(dataset.get_data(),
                                         batch_size,
                                         dataset.get_label_to_index())
@@ -130,7 +130,8 @@ class DataLoader(object):
                 # image_decoded = tf.image.decode_jpeg(image_string, channels=3)
                 # cropped_image = tf.image.central_crop(image_decoded, 0.7)
                 # rotated_image = tf.image.rot90(image_decoded, 1)
-                resized_image = tf.image.resize_images(image_decoded, [224, 224])
+                resized_image = tf.image.resize_images(image_decoded,
+                                                       [self.resize_h, self.resize_w])
                 # image = tf.cast(image_decoded, tf.float32)
                 image = tf.image.convert_image_dtype(resized_image, dtype=tf.float32)
                 # Finally, rescale to [-1,1] instead of [0, 1)

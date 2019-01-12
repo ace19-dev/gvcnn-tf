@@ -199,8 +199,11 @@ def main(unused_argv):
         # Prepare data
         ############################
         # Place data loading and preprocessing on the cpu
-        prepared_data = data.Data(FLAGS.dataset_dir, FLAGS.height, FLAGS.weight)
-        tr_data = data.DataLoader(prepared_data, FLAGS.batch_size)
+        prepared_data = data.Data(FLAGS.dataset_dir)
+        tr_data = data.DataLoader(prepared_data,
+                                  FLAGS.batch_size,
+                                  FLAGS.height,
+                                  FLAGS.weight)
 
         # create an reinitializable iterator given the dataset structure
         iterator = tr_data.dataset.make_initializable_iterator()
