@@ -7,11 +7,15 @@
 ## Data
 
 ## Quick Start
-- download data from http://modelnet.cs.princeton.edu/
-- make .png files with data_utils
 - execute train.py
 
 ## Evaluation
+
+## TODO
+- edit data input module
+- validate result
+- change base architecture
+- ...
 
 ## Reference from
 - https://github.com/WeiTang114/MVCNN-TensorFlow
