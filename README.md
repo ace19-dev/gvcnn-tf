@@ -18,6 +18,6 @@
 - change base architecture
 - ...
 
-## Reference from
+## References from
 - https://github.com/WeiTang114/MVCNN-TensorFlow
 - https://github.com/pclausen/obj2png
