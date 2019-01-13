@@ -72,7 +72,7 @@ flags.DEFINE_integer('how_many_training_epochs', 100,
 flags.DEFINE_integer('batch_size', 4, 'batch size')
 flags.DEFINE_integer('num_views', 8, 'number of views')
 flags.DEFINE_integer('height', 224, 'height')
-flags.DEFINE_integer('weight', 224, 'weight')
+flags.DEFINE_integer('width', 224, 'width')
 flags.DEFINE_integer('num_classes', 7, 'number of classes')
 
 
@@ -90,7 +90,7 @@ def main(unused_argv):
 
     SCOPE = "googlenet"
 
-    # dataset = data.Data(FLAGS.dataset_dir, FLAGS.height, FLAGS.weight)
+    # dataset = data.Data(FLAGS.dataset_dir, FLAGS.height, FLAGS.width)
 
     tf.gfile.MakeDirs(FLAGS.train_logdir)
     tf.logging.info('Creating train logdir: %s', FLAGS.train_logdir)
@@ -100,7 +100,7 @@ def main(unused_argv):
 
         # Define the model
         X = tf.placeholder(tf.float32,
-                           [None, FLAGS.num_views, FLAGS.height, FLAGS.weight, 3],
+                           [None, FLAGS.num_views, FLAGS.height, FLAGS.width, 3],
                            name='input')
         ground_truth = tf.placeholder(tf.int64, [None], name='ground_truth')
         is_training = tf.placeholder(tf.bool)
@@ -203,7 +203,7 @@ def main(unused_argv):
         tr_data = data.DataLoader(prepared_data,
                                   FLAGS.batch_size,
                                   FLAGS.height,
-                                  FLAGS.weight)
+                                  FLAGS.width)
 
         # create an reinitializable iterator given the dataset structure
         iterator = tr_data.dataset.make_initializable_iterator()

@@ -64,9 +64,9 @@ class DataLoader(object):
     Handles loading, partitioning, and preparing training data.
     """
 
-    def __init__(self, dataset, batch_size, height, weight, shuffle=True):
+    def __init__(self, dataset, batch_size, height, width, shuffle=True):
         self.resize_h = height
-        self.resize_w = weight
+        self.resize_w = width
 
         images, labels = self._get_data(dataset.get_data(),
                                         batch_size,
