@@ -81,6 +81,7 @@ class DataLoader(object):
         if shuffle:
             dataset = dataset.shuffle(buffer_size=(int(self.data_size * 0.4) + 3 * 1))
         dataset = dataset.batch(1)
+        dataset = dataset.prefetch(1)
         self.dataset = dataset.repeat()
 
 
