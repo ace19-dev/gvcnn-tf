@@ -32,7 +32,7 @@ flags.DEFINE_string('summaries_dir', './models/train_logs',
 
 flags.DEFINE_enum('learning_policy', 'step', ['step'],
                   'Learning rate policy for training.')
-flags.DEFINE_float('base_learning_rate', .0001,
+flags.DEFINE_float('base_learning_rate', .00001,
                    'The base learning rate for model training.')
 flags.DEFINE_float('learning_rate_decay_factor', 0.1,
                    'The rate to decay the base learning rate.')
@@ -60,8 +60,6 @@ flags.DEFINE_integer('slow_start_step', 0,
                      'Training model with small learning rate for few steps.')
 flags.DEFINE_float('slow_start_learning_rate', 1e-4,
                    'Learning rate employed during slow start.')
-
-flags.DEFINE_float('learning_rate', 0.00001, 'learning rate')
 
 # Dataset settings.
 flags.DEFINE_string('dataset_dir', '/home/ace19/dl_data/modelnet',
@@ -269,13 +267,13 @@ def main(unused_argv):
                         sess.run([learning_rate, summary_op, accuracy, total_loss, train_op],
                                  feed_dict={X: np.squeeze(train_batch_xs, axis=0),
                                             ground_truth: np.squeeze(train_batch_ys, axis=0),
-                                            learning_rate:FLAGS.learning_rate,
+                                            learning_rate:FLAGS.base_learning_rate,
                                             grouping_scheme: schemes,
                                             grouping_weight: weights,
                                             is_training: True,
                                             dropout_keep_prob: 0.5})
 
-                    train_writer.add_summary(train_summary)
+                    train_writer.add_summary(train_summary, training_epoch)
                     tf.logging.info('Epoch #%d, Step #%d, rate %.10f, accuracy %.1f%%, loss %f' %
                                     (training_epoch, step, lr, train_accuracy * 100, train_loss))
 
