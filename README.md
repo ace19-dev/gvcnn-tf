@@ -13,6 +13,8 @@
 -
 
 ## TODO
+- First of all, re-build network.
+- -----------------------------------
 - upgrade data input module.(tfrecord)
 - validate result and fix modules.
 - test various base architecture.

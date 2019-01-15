@@ -6,8 +6,8 @@ from __future__ import print_function
 import tensorflow as tf
 import numpy as np
 
-from slim.nets import inception_v2
-from nets import googLeNet
+from slim.nets import inception_v2, inception_v4
+from _nets import googLeNet
 
 slim = tf.contrib.slim
 
@@ -126,8 +126,9 @@ def _CNN(inputs):
     for i in range(n_views):
         batch_view = tf.gather(views, i)  # N x H x W x C
 
-        net, end_points = \
-            inception_v2.inception_v2_base(batch_view, scope=None)
+        with slim.arg_scope(inception_v4.inception_v2_arg_scope()):
+            net, end_points = \
+                inception_v2.inception_v4_base(batch_view, scope=None)
 
         final_view_descriptors.append(net)
 
@@ -135,6 +136,7 @@ def _CNN(inputs):
 
 
 def discrimination_score(inputs,
+                         num_classes,
                          reuse=tf.AUTO_REUSE,
                          scope='fcn'):
 
@@ -162,11 +164,17 @@ def discrimination_score(inputs,
     # transpose views: (NxVxHxWxC) -> (VxNxHxWxC)
     views = tf.transpose(inputs, perm=[1, 0, 2, 3, 4])
 
-    with tf.variable_scope(scope, None, [inputs], reuse=reuse) as scope:
+    with tf.variable_scope(scope,
+                           None,
+                           [inputs],
+                           reuse=reuse) as scope:
+
         for i in range(n_views):
             batch_view = tf.gather(views, i)  # N x H x W x C
             # FCN
-            logits = googLeNet.googLeNet(batch_view)
+            with slim.arg_scope(inception_v4.inception_v4_arg_scope()):
+                logits, end_points = \
+                    inception_v4.inception_v4(batch_view, num_classes, )
 
             # The average score is shown for the batch size input
             # corresponding to each point of view.

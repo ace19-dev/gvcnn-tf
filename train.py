@@ -20,6 +20,8 @@ NUM_GROUP = 10
 # Settings for logging.
 flags.DEFINE_string('train_logdir', './models',
                     'Where the checkpoint and logs are stored.')
+flags.DEFINE_string('ckpt_name_to_save', 'gvcnn.ckpt',
+                    'Name to save checkpoint file')
 flags.DEFINE_integer('log_steps', 10,
                      'Display logging information at every log_steps.')
 flags.DEFINE_integer('save_interval_secs', 1200,
@@ -48,9 +50,6 @@ flags.DEFINE_float('last_layer_gradient_multiplier', 1.0,
                    'The gradient multiplier for last layers, which is used to '
                    'boost the gradient of last layers if the value > 1.')
 
-# Settings for fine-tuning the network.
-flags.DEFINE_string('tf_initial_checkpoint', None,    # ./models/mobile.ckpt-20
-                    'The initial checkpoint in tensorflow format.')
 # Set to False if one does not want to re-use the trained classifier weights.
 flags.DEFINE_boolean('initialize_last_layer', True,
                      'Initialize the last layer.')
@@ -60,6 +59,33 @@ flags.DEFINE_integer('slow_start_step', 0,
                      'Training model with small learning rate for few steps.')
 flags.DEFINE_float('slow_start_learning_rate', 1e-4,
                    'Learning rate employed during slow start.')
+
+# Settings for fine-tuning the network.
+flags.DEFINE_string('pre_trained_checkpoint',
+                    './pre-trained/resnet_v2_101_2017_04_14/resnet_v2_101.ckpt',
+                    # None,
+                    'The pre-trained checkpoint in tensorflow format.')
+flags.DEFINE_string('checkpoint_exclude_scopes',
+                    'resnet_v2_101/logits',
+                    # None,
+                    'Comma-separated list of scopes of variables to exclude '
+                    'when restoring from a checkpoint.')
+flags.DEFINE_string('trainable_scopes',
+                    # 'ssd_300_vgg/block4_box, ssd_300_vgg/block7_box, \
+                    #  ssd_300_vgg/block8_box, ssd_300_vgg/block9_box, \
+                    #  ssd_300_vgg/block10_box, ssd_300_vgg/block11_box',
+                    None,
+                    'Comma-separated list of scopes to filter the set of variables '
+                    'to train. By default, None would train all the variables.')
+flags.DEFINE_string('checkpoint_model_scope',
+                    None,
+                    'Model scope in the checkpoint. None if the same as the trained model.')
+flags.DEFINE_string('model_name',
+                    'resnet_v2_101',
+                    'The name of the architecture to train.')
+flags.DEFINE_boolean('ignore_missing_vars',
+                     False,
+                     'When restoring a checkpoint would ignore missing variables.')
 
 # Dataset settings.
 flags.DEFINE_string('dataset_dir', '/home/ace19/dl_data/modelnet',
@@ -108,7 +134,7 @@ def main(unused_argv):
         learning_rate = tf.placeholder(tf.float32, [], name="lr")
 
         # grouping module
-        d_scores = gvcnn.discrimination_score(X)
+        d_scores = gvcnn.discrimination_score(X, FLAGS.num_classes)
 
         # GVCNN
         logits = gvcnn.gvcnn(X,
@@ -212,11 +238,10 @@ def main(unused_argv):
 
             # Create a saver object which will save all the variables
             # TODO:
-            saver = tf.train.Saver()
+            saver = tf.train.Saver(keep_checkpoint_every_n_hours=1.0)
             if FLAGS.tf_initial_checkpoint:
-                saver.restore(sess, FLAGS.tf_initial_checkpoint)
-            # saver = tf.train.Saver(
-            #     keep_checkpoint_every_n_hours=keep_checkpoint_every_n_hours)
+                # saver.restore(sess, FLAGS.tf_initial_checkpoint)
+                train_utils.restore_fn(FLAGS)
 
             start_epoch = 0
             # Get the number of training/validation steps per epoch
@@ -227,13 +252,13 @@ def main(unused_argv):
             # if val_data.data_size() % FLAGS.batch_size > 0:
             #     v_batches += 1
 
-            ############################
+            ##################
             # Training loop.
-            ############################
+            ##################
             for training_epoch in range(start_epoch, FLAGS.how_many_training_epochs):
-                print("------------------------")
+                print("-------------------------------------")
                 print(" Epoch {} ".format(training_epoch))
-                print("------------------------")
+                print("-------------------------------------")
 
                 # dataset.shuffle_all()
                 sess.run(iterator.initializer)
@@ -283,7 +308,7 @@ def main(unused_argv):
 
                 # Save the model checkpoint periodically.
                 if (training_epoch <= FLAGS.how_many_training_epochs-1):
-                    checkpoint_path = os.path.join(FLAGS.train_logdir, 'gvcnn.ckpt')
+                    checkpoint_path = os.path.join(FLAGS.train_logdir, FLAGS.ckpt_name_to_save)
                     tf.logging.info('Saving to "%s-%d"', checkpoint_path, training_epoch)
                     saver.save(sess, checkpoint_path, global_step=training_epoch)
 

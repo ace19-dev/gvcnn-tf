@@ -295,3 +295,75 @@ def edit_trainable_variables(removed):
             variables_to_remove.append(var)
     for rem in variables_to_remove:
         trainable_collection.remove(rem)
+
+
+def add_variables_summaries(learning_rate):
+    summaries = []
+    for variable in slim.get_model_variables():
+        summaries.append(tf.summary.histogram(variable.op.name, variable))
+    summaries.append(tf.summary.scalar('training/Learning Rate', learning_rate))
+    return summaries
+
+
+def restore_fn(flags):
+    """Returns a function run by the chief worker to warm-start the training.
+    Note that the init_fn is only run when initializing the model during the very
+    first global step.
+
+    """
+    # if flags.tf_initial_checkpoint is None:
+    #     return None
+
+    # Warn the user if a checkpoint exists in the train_dir. Then ignore.
+    # if tf.train.latest_checkpoint(flags.train_dir):
+    #     tf.logging.info(
+    #         'Ignoring --checkpoint_path because a checkpoint already exists in %s'
+    #         % flags.train_dir)
+    #     return None
+
+    exclusions = []
+    if flags.checkpoint_exclude_scopes:
+        exclusions = [scope.strip()
+                      for scope in flags.checkpoint_exclude_scopes.split(',')]
+
+    variables_to_restore = []
+    for var in slim.get_model_variables():
+        excluded = False
+        for exclusion in exclusions:
+            if var.op.name.startswith(exclusion):
+                excluded = True
+                break
+        if not excluded:
+            variables_to_restore.append(var)
+    # Change model scope if necessary.
+    if flags.checkpoint_model_scope is not None:
+        variables_to_restore = \
+            {var.op.name.replace(flags.model_name,
+                                 flags.checkpoint_model_scope): var
+             for var in variables_to_restore}
+
+
+    tf.logging.info('Fine-tuning from %s. Ignoring missing vars: %s' %
+                    (flags.pre_trained_checkpoint, flags.ignore_missing_vars))
+    slim.assign_from_checkpoint_fn(flags.pre_trained_checkpoint,
+                                   variables_to_restore,
+                                   ignore_missing_vars=flags.ignore_missing_vars)
+
+
+def get_variables_to_train(flags):
+    """Returns a list of variables to train.
+
+    Returns:
+      A list of variables to train by the optimizer.
+    """
+    if flags.trainable_scopes is None:
+        # print(tf.trainable_variables())
+        return tf.trainable_variables()
+    else:
+        scopes = [scope.strip() for scope in flags.trainable_scopes.split(',')]
+
+    variables_to_train = []
+    for scope in scopes:
+        variables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope)
+        variables_to_train.extend(variables)
+    return variables_to_train
