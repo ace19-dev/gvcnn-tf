@@ -126,9 +126,9 @@ def _CNN(inputs):
     for i in range(n_views):
         batch_view = tf.gather(views, i)  # N x H x W x C
 
-        with slim.arg_scope(inception_v4.inception_v2_arg_scope()):
+        with slim.arg_scope(inception_v2.inception_v2_arg_scope()):
             net, end_points = \
-                inception_v2.inception_v4_base(batch_view, scope=None)
+                inception_v2.inception_v2_base(batch_view, scope=None)
 
         final_view_descriptors.append(net)
 
@@ -172,9 +172,9 @@ def discrimination_score(inputs,
         for i in range(n_views):
             batch_view = tf.gather(views, i)  # N x H x W x C
             # FCN
-            with slim.arg_scope(inception_v4.inception_v4_arg_scope()):
+            with slim.arg_scope(inception_v2.inception_v2_arg_scope()):
                 logits, end_points = \
-                    inception_v4.inception_v4(batch_view, num_classes, )
+                    inception_v2.inception_v2(batch_view, num_classes, )
 
             # The average score is shown for the batch size input
             # corresponding to each point of view.
