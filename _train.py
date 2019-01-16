@@ -6,7 +6,6 @@ import numpy as np
 import data
 import gvcnn
 from utils import train_utils
-from nets import inception_v4
 
 slim = tf.contrib.slim
 
@@ -96,8 +95,8 @@ flags.DEFINE_integer('how_many_training_epochs', 100,
                      'How many training loops to run')
 flags.DEFINE_integer('batch_size', 4, 'batch size')
 flags.DEFINE_integer('num_views', 8, 'number of views')
-flags.DEFINE_integer('height', 299, 'height')
-flags.DEFINE_integer('width', 299, 'width')
+flags.DEFINE_integer('height', 224, 'height')
+flags.DEFINE_integer('width', 224, 'width')
 flags.DEFINE_integer('num_classes', 7, 'number of classes')
 
 
@@ -113,6 +112,8 @@ def main(unused_argv):
     # test.test3()
     # test.test4()
 
+    SCOPE = "googlenet"
+
     # dataset = data.Data(FLAGS.dataset_dir, FLAGS.height, FLAGS.width)
 
     tf.gfile.MakeDirs(FLAGS.train_logdir)
@@ -125,10 +126,6 @@ def main(unused_argv):
         X = tf.placeholder(tf.float32,
                            [None, FLAGS.num_views, FLAGS.height, FLAGS.width, 3],
                            name='input')
-        # n_views, n_batch, 71 x 71 x 192 Mixed_5a, inception v4
-        mid_level_X = tf.placeholder(tf.float32,
-                           [FLAGS.num_views, None, 71, 71, 192],
-                           name='mid_level_input')
         ground_truth = tf.placeholder(tf.int64, [None], name='ground_truth')
         is_training = tf.placeholder(tf.bool)
         dropout_keep_prob = tf.placeholder(tf.float32)
@@ -137,28 +134,29 @@ def main(unused_argv):
         learning_rate = tf.placeholder(tf.float32, [], name="lr")
 
         # grouping module
-        with slim.arg_scope(inception_v4.inception_v4_arg_scope()):
-            d_scores, raw_descs = gvcnn.discrimination_score(X)
+        d_scores = gvcnn.discrimination_score(X, FLAGS.num_classes)
 
         # GVCNN
-        with slim.arg_scope(inception_v4.inception_v4_arg_scope()):
-            logits, end_points = gvcnn.gvcnn(mid_level_X,
-                                             grouping_scheme,
-                                             grouping_weight,
-                                             FLAGS.num_classes,
-                                             is_training,
-                                             dropout_keep_prob=dropout_keep_prob)
+        logits = gvcnn.gvcnn(X,
+                             grouping_scheme,
+                             grouping_weight,
+                             FLAGS.num_classes,
+                             is_training,
+                             scope=SCOPE,
+                             dropout_keep_prob=dropout_keep_prob)
 
         # make a trainable variable not trainable
-        # train_utils.edit_trainable_variables('fcn')
+        train_utils.edit_trainable_variables('fcn')
 
         # Define loss
         tf.losses.sparse_softmax_cross_entropy(labels=ground_truth,
-                                                logits=logits)
+                                                logits=logits,
+                                                scope=SCOPE)
 
         # Gather update_ops. These contain, for example,
         # the updates for the batch_norm variables created by model.
-        update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+        update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS, SCOPE)
+        # update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
 
         # Gather initial summaries.
         summaries = set(tf.get_collection(tf.GraphKeys.SUMMARIES))
@@ -175,7 +173,8 @@ def main(unused_argv):
             summaries.add(tf.summary.histogram(model_var.op.name, model_var))
 
         # Add summaries for losses.
-        for loss in tf.get_collection(tf.GraphKeys.LOSSES):
+        for loss in tf.get_collection(tf.GraphKeys.LOSSES, SCOPE):
+        # for loss in tf.get_collection(tf.GraphKeys.LOSSES):
             summaries.add(tf.summary.scalar('losses/%s' % loss.op.name, loss))
 
         # learning_rate = train_utils.get_model_learning_rate(
@@ -189,7 +188,8 @@ def main(unused_argv):
         # for variable in slim.get_model_variables():
         #     summaries.add(tf.summary.histogram(variable.op.name, variable))
 
-        total_loss, grads_and_vars = train_utils.optimize(optimizer)
+        total_loss, grads_and_vars = train_utils.optimize(optimizer, scope=SCOPE)
+        # total_loss, grads_and_vars = train_utils.optimize(optimizer)
         total_loss = tf.check_numerics(total_loss, 'Loss is inf or nan.')
         summaries.add(tf.summary.scalar('total_loss', total_loss))
 
@@ -212,7 +212,8 @@ def main(unused_argv):
 
         # Add the summaries. These contain the summaries
         # created by model and either optimize() or _gather_loss().
-        summaries |= set(tf.get_collection(tf.GraphKeys.SUMMARIES))
+        summaries |= set(tf.get_collection(tf.GraphKeys.SUMMARIES, SCOPE))
+        # summaries |= set(tf.get_collection(tf.GraphKeys.SUMMARIES))
 
         # Merge all summaries together.
         summary_op = tf.summary.merge(list(summaries))
