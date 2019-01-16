@@ -124,8 +124,8 @@ def main(unused_argv):
         # Define the model
         X = tf.placeholder(tf.float32,
                            [None, FLAGS.num_views, FLAGS.height, FLAGS.width, 3],
-                           name='input')
-        # Before 4 x Inception-A blocks [n_views, n_batch, 35, 35, 384] - inception v4
+                           name='inputs')
+        # Before 4 x Inception-A blocks: [n_views, n_batch, 35, 35, 384] - inception v4
         mid_level_X = tf.placeholder(tf.float32,
                                     [FLAGS.num_views, None, 35, 35, 384],
                                     name='mid_level_input')
@@ -138,31 +138,33 @@ def main(unused_argv):
 
         # grouping module
         with slim.arg_scope(inception_v4.inception_v4_arg_scope()):
-            d_scores, raw_descs, end_points = gvcnn.discrimination_score(X)
+            d_scores, raw_descs, end_points_lst = gvcnn.discrimination_score(X)
 
         # GVCNN
         with slim.arg_scope(inception_v4.inception_v4_arg_scope()):
             logits, end_points2 = gvcnn.gvcnn(mid_level_X,
-                                             grouping_scheme,
-                                             grouping_weight,
-                                             FLAGS.num_classes,
-                                             is_training,
-                                             dropout_keep_prob=dropout_keep_prob)
+                                              grouping_scheme,
+                                              grouping_weight,
+                                              FLAGS.num_classes,
+                                              is_training,
+                                              dropout_keep_prob)
 
-            end_points.update(end_points2)
-            # Print name and shape of each tensor.
-            tf.logging.info("++++++++++++++++++++++++++++++++++")
-            tf.logging.info("Layers")
-            tf.logging.info("++++++++++++++++++++++++++++++++++")
+        # Print name and shape of each tensor.
+        tf.logging.info("++++++++++++++++++++++++++++++++++")
+        tf.logging.info("Layers")
+        tf.logging.info("++++++++++++++++++++++++++++++++++")
+        for end_points in end_points_lst:
             for k, v in end_points.items():
                 tf.logging.info('name = %s, shape = %s' % (v.name, v.get_shape()))
+        for k, v in end_points2.items():
+            tf.logging.info('name = %s, shape = %s' % (v.name, v.get_shape()))
 
-            # Print name and shape of parameter nodes  (values not yet initialized)
-            tf.logging.info("++++++++++++++++++++++++++++++++++")
-            tf.logging.info("Parameters")
-            tf.logging.info("++++++++++++++++++++++++++++++++++")
-            for v in slim.get_model_variables():
-                tf.logging.info('name = %s, shape = %s' % (v.name, v.get_shape()))
+        # Print name and shape of parameter nodes  (values not yet initialized)
+        tf.logging.info("++++++++++++++++++++++++++++++++++")
+        tf.logging.info("Parameters")
+        tf.logging.info("++++++++++++++++++++++++++++++++++")
+        for v in slim.get_model_variables():
+            tf.logging.info('name = %s, shape = %s' % (v.name, v.get_shape()))
 
         # make a trainable variable not trainable
         # train_utils.edit_trainable_variables('fcn')
@@ -300,6 +302,7 @@ def main(unused_argv):
                     schemes = gvcnn.grouping_scheme(scores, NUM_GROUP, FLAGS.num_views)
                     weights = gvcnn.grouping_weight(scores, schemes)
 
+                    # TODO: why sess.run below was executed in fcn? new two graph or ??
                     # Run the graph with this batch of training data.
                     lr, train_summary, train_accuracy, train_loss, _ = \
                         sess.run([learning_rate, summary_op, accuracy, total_loss, train_op],

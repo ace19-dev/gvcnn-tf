@@ -339,7 +339,7 @@ def restore_fn(flags):
                                  flags.checkpoint_model_scope): var
              for var in variables_to_restore}
 
-    tf.logging.info('----------------------')
+    tf.logging.info('++++++++++++++++++++')
     tf.logging.info('Fine-tuning from %s. Ignoring missing vars: %s' %
                     (flags.pre_trained_checkpoint, flags.ignore_missing_vars))
     slim.assign_from_checkpoint_fn(flags.pre_trained_checkpoint,

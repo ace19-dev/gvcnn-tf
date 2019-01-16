@@ -136,6 +136,7 @@ def discrimination_score(inputs,
     # FC layer to obtain the discrimination scores from raw view descriptors
     view_discrimination_score = []
     raw_view_descriptors = []
+    end_points_lst = []
 
     n_views = inputs.get_shape().as_list()[1]
     # transpose views: (NxVxHxWxC) -> (VxNxHxWxC)
@@ -149,6 +150,7 @@ def discrimination_score(inputs,
                                 is_training=is_training):
                 logits, end_points = inception_v4.fcn(batch_view, scope=scope)
                 raw_view_descriptors.append(logits)
+                end_points_lst.append(end_points)
 
                 # The average score is shown for the batch size input
                 # corresponding to each point of view.
@@ -158,7 +160,7 @@ def discrimination_score(inputs,
 
                 view_discrimination_score.append(batch_view_score)
 
-    return view_discrimination_score, tf.stack(raw_view_descriptors), end_points
+    return view_discrimination_score, tf.stack(raw_view_descriptors), end_points_lst
 
 
 def gvcnn(inputs,
