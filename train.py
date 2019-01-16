@@ -35,7 +35,7 @@ flags.DEFINE_string('summaries_dir', './models/train_logs',
 
 flags.DEFINE_enum('learning_policy', 'step', ['step'],
                   'Learning rate policy for training.')
-flags.DEFINE_float('base_learning_rate', .00001,
+flags.DEFINE_float('base_learning_rate', .0001,
                    'The base learning rate for model training.')
 flags.DEFINE_float('learning_rate_decay_factor', 0.1,
                    'The rate to decay the base learning rate.')
@@ -63,11 +63,11 @@ flags.DEFINE_float('slow_start_learning_rate', 1e-4,
 
 # Settings for fine-tuning the network.
 flags.DEFINE_string('pre_trained_checkpoint',
-                    './pre-trained/resnet_v2_101_2017_04_14/resnet_v2_101.ckpt',
+                    './pre-trained/inception_v4.ckpt',
                     # None,
                     'The pre-trained checkpoint in tensorflow format.')
 flags.DEFINE_string('checkpoint_exclude_scopes',
-                    'resnet_v2_101/logits',
+                    'gvcnn/AuxLogits, gvcnn/Logits',
                     # None,
                     'Comma-separated list of scopes of variables to exclude '
                     'when restoring from a checkpoint.')
@@ -82,7 +82,7 @@ flags.DEFINE_string('checkpoint_model_scope',
                     None,
                     'Model scope in the checkpoint. None if the same as the trained model.')
 flags.DEFINE_string('model_name',
-                    'resnet_v2_101',
+                    'inception_v4',
                     'The name of the architecture to train.')
 flags.DEFINE_boolean('ignore_missing_vars',
                      False,
@@ -125,10 +125,10 @@ def main(unused_argv):
         X = tf.placeholder(tf.float32,
                            [None, FLAGS.num_views, FLAGS.height, FLAGS.width, 3],
                            name='input')
-        # n_views, n_batch, 71 x 71 x 192 Mixed_5a, inception v4
+        # Before 4 x Inception-A blocks [n_views, n_batch, 35, 35, 384] - inception v4
         mid_level_X = tf.placeholder(tf.float32,
-                           [FLAGS.num_views, None, 71, 71, 192],
-                           name='mid_level_input')
+                                    [FLAGS.num_views, None, 35, 35, 384],
+                                    name='mid_level_input')
         ground_truth = tf.placeholder(tf.int64, [None], name='ground_truth')
         is_training = tf.placeholder(tf.bool)
         dropout_keep_prob = tf.placeholder(tf.float32)
@@ -138,16 +138,31 @@ def main(unused_argv):
 
         # grouping module
         with slim.arg_scope(inception_v4.inception_v4_arg_scope()):
-            d_scores, raw_descs = gvcnn.discrimination_score(X)
+            d_scores, raw_descs, end_points = gvcnn.discrimination_score(X)
 
         # GVCNN
         with slim.arg_scope(inception_v4.inception_v4_arg_scope()):
-            logits, end_points = gvcnn.gvcnn(mid_level_X,
+            logits, end_points2 = gvcnn.gvcnn(mid_level_X,
                                              grouping_scheme,
                                              grouping_weight,
                                              FLAGS.num_classes,
                                              is_training,
                                              dropout_keep_prob=dropout_keep_prob)
+
+            end_points.update(end_points2)
+            # Print name and shape of each tensor.
+            tf.logging.info("++++++++++++++++++++++++++++++++++")
+            tf.logging.info("Layers")
+            tf.logging.info("++++++++++++++++++++++++++++++++++")
+            for k, v in end_points.items():
+                tf.logging.info('name = %s, shape = %s' % (v.name, v.get_shape()))
+
+            # Print name and shape of parameter nodes  (values not yet initialized)
+            tf.logging.info("++++++++++++++++++++++++++++++++++")
+            tf.logging.info("Parameters")
+            tf.logging.info("++++++++++++++++++++++++++++++++++")
+            for v in slim.get_model_variables():
+                tf.logging.info('name = %s, shape = %s' % (v.name, v.get_shape()))
 
         # make a trainable variable not trainable
         # train_utils.edit_trainable_variables('fcn')
@@ -236,10 +251,8 @@ def main(unused_argv):
             sess.run(tf.global_variables_initializer())
 
             # Create a saver object which will save all the variables
-            # TODO:
             saver = tf.train.Saver(keep_checkpoint_every_n_hours=1.0)
-            if FLAGS.tf_initial_checkpoint:
-                # saver.restore(sess, FLAGS.tf_initial_checkpoint)
+            if FLAGS.pre_trained_checkpoint:
                 train_utils.restore_fn(FLAGS)
 
             start_epoch = 0
@@ -282,20 +295,21 @@ def main(unused_argv):
                     #         cv2.waitKey(100)
                     #         cv2.destroyAllWindows()
 
-                    scores = sess.run(d_scores, feed_dict={X: np.squeeze(train_batch_xs, axis=0)})
+                    scores, mid_level_descs = sess.run([d_scores, raw_descs],
+                                                        feed_dict={X: np.squeeze(train_batch_xs, axis=0)})
                     schemes = gvcnn.grouping_scheme(scores, NUM_GROUP, FLAGS.num_views)
                     weights = gvcnn.grouping_weight(scores, schemes)
 
                     # Run the graph with this batch of training data.
                     lr, train_summary, train_accuracy, train_loss, _ = \
                         sess.run([learning_rate, summary_op, accuracy, total_loss, train_op],
-                                 feed_dict={X: np.squeeze(train_batch_xs, axis=0),
+                                 feed_dict={mid_level_X: mid_level_descs,
                                             ground_truth: np.squeeze(train_batch_ys, axis=0),
                                             learning_rate:FLAGS.base_learning_rate,
                                             grouping_scheme: schemes,
                                             grouping_weight: weights,
                                             is_training: True,
-                                            dropout_keep_prob: 0.5})
+                                            dropout_keep_prob: 0.8})
 
                     train_writer.add_summary(train_summary, training_epoch)
                     tf.logging.info('Epoch #%d, Step #%d, rate %.10f, accuracy %.1f%%, loss %f' %

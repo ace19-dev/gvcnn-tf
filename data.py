@@ -64,7 +64,7 @@ class DataLoader(object):
     Handles loading, partitioning, and preparing training data.
     """
 
-    def __init__(self, dataset, batch_size, height, width, shuffle=True):
+    def __init__(self, dataset, batch_size, height, width):
         self.resize_h = height
         self.resize_w = width
 
@@ -78,11 +78,10 @@ class DataLoader(object):
         # create dataset, Creating a source
         dataset = tf.data.Dataset.from_tensor_slices((images, labels))
         dataset = dataset.map(self._parse_func, num_parallel_calls=8)
-        if shuffle:
-            dataset = dataset.shuffle(buffer_size=(int(self.data_size * 0.4) + 3 * 1))
-        dataset = dataset.batch(1)
-        dataset = dataset.prefetch(1)
-        self.dataset = dataset.repeat()
+        # dataset = dataset.shuffle(buffer_size=(int(self.data_size * 0.4) + 3 * batch_size))
+        dataset = dataset.shuffle(buffer_size=(int(self.data_size * 0.4) + 3 * 1))
+        dataset = dataset.repeat()
+        self.dataset = dataset.batch(1)
 
 
     def _get_data(self, data, batch_size, label_to_index):

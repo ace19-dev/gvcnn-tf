@@ -158,29 +158,7 @@ def discrimination_score(inputs,
 
                 view_discrimination_score.append(batch_view_score)
 
-    return view_discrimination_score, tf.stack(raw_view_descriptors)
-
-
-# def _cnn(inputs, scope=None):
-#     '''
-#        The second part of the network (CNN) and the group module, are used to extract
-#        the final view descriptors together with the discrimination scores, separately.
-#     '''
-#     final_view_descriptors = []
-#
-#     n_views = inputs.get_shape().as_list()[1]
-#     # transpose views: (NxVxHxWxC) -> (VxNxHxWxC)
-#     views = tf.transpose(inputs, perm=[1, 0, 2, 3, 4])
-#
-#     for i in range(n_views):
-#         batch_view = tf.gather(views, i)  # N x H x W x C
-#
-#         net, end_points = \
-#             inception_v4.cnn(batch_view, scope=scope)
-#
-#         final_view_descriptors.append(net)
-#
-#     return final_view_descriptors
+    return view_discrimination_score, tf.stack(raw_view_descriptors), end_points
 
 
 def gvcnn(inputs,
@@ -190,16 +168,16 @@ def gvcnn(inputs,
           is_training=True,
           dropout_keep_prob=0.8,
           reuse=tf.AUTO_REUSE,
-          scope='gvcnn',
+          scope='cnn',
           create_aux_logits=True):
 
-    with tf.variable_scope(scope, 'gvcnn', [inputs], reuse=reuse) as scope:
+    with tf.variable_scope(scope, 'cnn', [inputs], reuse=reuse) as scope:
         with slim.arg_scope([slim.batch_norm, slim.dropout],
                             is_training=is_training):
 
             '''
-               The second part of the network (CNN) and the group module, are used to extract
-               the final view descriptors together with the discrimination scores, separately.
+            The second part of the network (CNN) and the group module, are used to extract
+            the final view descriptors together with the discrimination scores, separately.
             '''
             final_view_descriptors = []
 
@@ -207,8 +185,7 @@ def gvcnn(inputs,
             for i in range(n_views):
                 batch_view = tf.gather(inputs, i)  # N x H x W x C
 
-                net, end_points = \
-                    inception_v4.cnn(batch_view, scope=scope)
+                net, end_points = inception_v4.cnn(batch_view, scope=scope)
                 final_view_descriptors.append(net)
 
             # View Pooling
