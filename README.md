@@ -15,6 +15,7 @@
 ## TODO
 - modify data input module.(dataset + tfrecord)
 - re-build network.
+- ----------------------------------------------
 - validate result and fix modules.
 - test various base architecture.
 - and ?
