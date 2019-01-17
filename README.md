@@ -13,7 +13,7 @@
 -
 
 ## TODO
-- modify data input module.(dataset + tfrecord)
+- re-check data input module about memory usage
 - re-build network.
 - ----------------------------------------------
 - validate result and fix modules.
