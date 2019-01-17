@@ -241,7 +241,7 @@ def main(unused_argv):
         ################
         # Prepare data
         ################
-        filenames = tf.placeholder(tf.string, shape=[None])
+        filenames = tf.placeholder(tf.string, shape=[])
         tr_dataset = data.Dataset(filenames, FLAGS.batch_size, FLAGS.how_many_training_epochs,
                                   FLAGS.height, FLAGS.width)
         iterator = tr_dataset.dataset.make_initializable_iterator()
@@ -267,8 +267,7 @@ def main(unused_argv):
 
             # The filenames argument to the TFRecordDataset initializer can either be a string,
             # a list of strings, or a tf.Tensor of strings.
-            training_filenames = []
-            training_filenames.append(os.path.join(FLAGS.dataset_dir, 'train.record'))
+            training_filenames = os.path.join(FLAGS.dataset_dir, 'train.record')
             ##################
             # Training loop.
             ##################
