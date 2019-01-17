@@ -63,8 +63,8 @@ flags.DEFINE_float('slow_start_learning_rate', 1e-4,
 
 # Settings for fine-tuning the network.
 flags.DEFINE_string('pre_trained_checkpoint',
-                    './pre-trained/inception_v4.ckpt',
-                    # None,
+                    # './pre-trained/inception_v4.ckpt',
+                    None,
                     'The pre-trained checkpoint in tensorflow format.')
 flags.DEFINE_string('checkpoint_exclude_scopes',
                     'gvcnn/AuxLogits, gvcnn/Logits',
@@ -94,7 +94,8 @@ flags.DEFINE_string('dataset_dir', '/home/ace19/dl_data/modelnet',
 
 flags.DEFINE_integer('how_many_training_epochs', 100,
                      'How many training loops to run')
-flags.DEFINE_integer('batch_size', 4, 'batch size')
+# TODO: apply batch later
+# flags.DEFINE_integer('batch_size', 4, 'batch size')
 flags.DEFINE_integer('num_views', 8, 'number of views')
 flags.DEFINE_integer('height', 299, 'height')
 flags.DEFINE_integer('width', 299, 'width')
@@ -139,110 +140,110 @@ def main(unused_argv):
         grouping_weight = tf.placeholder(tf.float32, [NUM_GROUP, 1])
         learning_rate = tf.placeholder(tf.float32, [], name="lr")
 
-        # # grouping module
-        # with slim.arg_scope(inception_v4.inception_v4_arg_scope()):
-        #     d_scores, raw_descs, end_points_lst = gvcnn.discrimination_score(X)
-        #
-        # # GVCNN
-        # with slim.arg_scope(inception_v4.inception_v4_arg_scope()):
-        #     logits, end_points2 = gvcnn.gvcnn(mid_level_X,
-        #                                       grouping_scheme,
-        #                                       grouping_weight,
-        #                                       FLAGS.num_classes,
-        #                                       is_training,
-        #                                       dropout_keep_prob)
-        #
-        # # Print name and shape of each tensor.
-        # tf.logging.info("++++++++++++++++++++++++++++++++++")
-        # tf.logging.info("Layers")
-        # tf.logging.info("++++++++++++++++++++++++++++++++++")
-        # for end_points in end_points_lst:
-        #     for k, v in end_points.items():
-        #         tf.logging.info('name = %s, shape = %s' % (v.name, v.get_shape()))
-        # for k, v in end_points2.items():
-        #     tf.logging.info('name = %s, shape = %s' % (v.name, v.get_shape()))
-        #
-        # # Print name and shape of parameter nodes  (values not yet initialized)
-        # tf.logging.info("++++++++++++++++++++++++++++++++++")
-        # tf.logging.info("Parameters")
-        # tf.logging.info("++++++++++++++++++++++++++++++++++")
-        # for v in slim.get_model_variables():
-        #     tf.logging.info('name = %s, shape = %s' % (v.name, v.get_shape()))
-        #
-        # # make a trainable variable not trainable
-        # # train_utils.edit_trainable_variables('fcn')
-        #
-        # # Define loss
-        # tf.losses.sparse_softmax_cross_entropy(labels=ground_truth,
-        #                                         logits=logits)
-        #
-        # # Gather update_ops. These contain, for example,
-        # # the updates for the batch_norm variables created by model.
-        # update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
-        #
-        # # Gather initial summaries.
-        # summaries = set(tf.get_collection(tf.GraphKeys.SUMMARIES))
-        #
-        # prediction = tf.argmax(logits, 1, name='prediction')
-        # correct_prediction = tf.equal(prediction, ground_truth)
-        # confusion_matrix = tf.confusion_matrix(
-        #     ground_truth, prediction, num_classes=FLAGS.num_classes)
-        # accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
-        # summaries.add(tf.summary.scalar('accuracy', accuracy))
-        #
-        # # Add summaries for model variables.
-        # for model_var in slim.get_model_variables():
-        #     summaries.add(tf.summary.histogram(model_var.op.name, model_var))
-        #
-        # # Add summaries for losses.
-        # for loss in tf.get_collection(tf.GraphKeys.LOSSES):
-        #     summaries.add(tf.summary.scalar('losses/%s' % loss.op.name, loss))
-        #
-        # # learning_rate = train_utils.get_model_learning_rate(
-        # #     FLAGS.learning_policy, FLAGS.base_learning_rate,
-        # #     FLAGS.learning_rate_decay_step, FLAGS.learning_rate_decay_factor,
-        # #     None, FLAGS.learning_power,
-        # #     FLAGS.slow_start_step, FLAGS.slow_start_learning_rate)
-        # optimizer = tf.train.MomentumOptimizer(learning_rate, FLAGS.momentum)
-        # summaries.add(tf.summary.scalar('learning_rate', learning_rate))
-        #
-        # # for variable in slim.get_model_variables():
-        # #     summaries.add(tf.summary.histogram(variable.op.name, variable))
-        #
-        # total_loss, grads_and_vars = train_utils.optimize(optimizer)
-        # total_loss = tf.check_numerics(total_loss, 'Loss is inf or nan.')
-        # summaries.add(tf.summary.scalar('total_loss', total_loss))
-        #
-        # # Modify the gradients for biases and last layer variables.
-        # last_layers = train_utils.get_extra_layer_scopes(
-        #     FLAGS.last_layers_contain_logits_only)
-        # grad_mult = train_utils.get_model_gradient_multipliers(
-        #     last_layers, FLAGS.last_layer_gradient_multiplier)
-        # if grad_mult:
-        #     grads_and_vars = slim.learning.multiply_gradients(
-        #         grads_and_vars, grad_mult)
-        #
-        # # Create gradient update op.
-        # grad_updates = optimizer.apply_gradients(
-        #     grads_and_vars, global_step=global_step)
-        # update_ops.append(grad_updates)
-        # update_op = tf.group(*update_ops)
-        # with tf.control_dependencies([update_op]):
-        #     train_op = tf.identity(total_loss, name='train_op')
-        #
-        # # Add the summaries. These contain the summaries
-        # # created by model and either optimize() or _gather_loss().
-        # summaries |= set(tf.get_collection(tf.GraphKeys.SUMMARIES))
-        #
-        # # Merge all summaries together.
-        # summary_op = tf.summary.merge(list(summaries))
-        # train_writer = tf.summary.FileWriter(FLAGS.summaries_dir, graph)
+        # grouping module
+        with slim.arg_scope(inception_v4.inception_v4_arg_scope()):
+            d_scores, raw_descs, end_points_lst = gvcnn.discrimination_score(X)
+
+        # GVCNN
+        with slim.arg_scope(inception_v4.inception_v4_arg_scope()):
+            logits, end_points2 = gvcnn.gvcnn(mid_level_X,
+                                              grouping_scheme,
+                                              grouping_weight,
+                                              FLAGS.num_classes,
+                                              is_training,
+                                              dropout_keep_prob)
+
+        # Print name and shape of each tensor.
+        tf.logging.info("++++++++++++++++++++++++++++++++++")
+        tf.logging.info("Layers")
+        tf.logging.info("++++++++++++++++++++++++++++++++++")
+        for end_points in end_points_lst:
+            for k, v in end_points.items():
+                tf.logging.info('name = %s, shape = %s' % (v.name, v.get_shape()))
+        for k, v in end_points2.items():
+            tf.logging.info('name = %s, shape = %s' % (v.name, v.get_shape()))
+
+        # Print name and shape of parameter nodes  (values not yet initialized)
+        tf.logging.info("++++++++++++++++++++++++++++++++++")
+        tf.logging.info("Parameters")
+        tf.logging.info("++++++++++++++++++++++++++++++++++")
+        for v in slim.get_model_variables():
+            tf.logging.info('name = %s, shape = %s' % (v.name, v.get_shape()))
+
+        # make a trainable variable not trainable
+        # train_utils.edit_trainable_variables('fcn')
+
+        # Define loss
+        tf.losses.sparse_softmax_cross_entropy(labels=ground_truth,
+                                                logits=logits)
+
+        # Gather update_ops. These contain, for example,
+        # the updates for the batch_norm variables created by model.
+        update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+
+        # Gather initial summaries.
+        summaries = set(tf.get_collection(tf.GraphKeys.SUMMARIES))
+
+        prediction = tf.argmax(logits, 1, name='prediction')
+        correct_prediction = tf.equal(prediction, ground_truth)
+        confusion_matrix = tf.confusion_matrix(
+            ground_truth, prediction, num_classes=FLAGS.num_classes)
+        accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+        summaries.add(tf.summary.scalar('accuracy', accuracy))
+
+        # Add summaries for model variables.
+        for model_var in slim.get_model_variables():
+            summaries.add(tf.summary.histogram(model_var.op.name, model_var))
+
+        # Add summaries for losses.
+        for loss in tf.get_collection(tf.GraphKeys.LOSSES):
+            summaries.add(tf.summary.scalar('losses/%s' % loss.op.name, loss))
+
+        # learning_rate = train_utils.get_model_learning_rate(
+        #     FLAGS.learning_policy, FLAGS.base_learning_rate,
+        #     FLAGS.learning_rate_decay_step, FLAGS.learning_rate_decay_factor,
+        #     None, FLAGS.learning_power,
+        #     FLAGS.slow_start_step, FLAGS.slow_start_learning_rate)
+        optimizer = tf.train.MomentumOptimizer(learning_rate, FLAGS.momentum)
+        summaries.add(tf.summary.scalar('learning_rate', learning_rate))
+
+        # for variable in slim.get_model_variables():
+        #     summaries.add(tf.summary.histogram(variable.op.name, variable))
+
+        total_loss, grads_and_vars = train_utils.optimize(optimizer)
+        total_loss = tf.check_numerics(total_loss, 'Loss is inf or nan.')
+        summaries.add(tf.summary.scalar('total_loss', total_loss))
+
+        # Modify the gradients for biases and last layer variables.
+        last_layers = train_utils.get_extra_layer_scopes(
+            FLAGS.last_layers_contain_logits_only)
+        grad_mult = train_utils.get_model_gradient_multipliers(
+            last_layers, FLAGS.last_layer_gradient_multiplier)
+        if grad_mult:
+            grads_and_vars = slim.learning.multiply_gradients(
+                grads_and_vars, grad_mult)
+
+        # Create gradient update op.
+        grad_updates = optimizer.apply_gradients(
+            grads_and_vars, global_step=global_step)
+        update_ops.append(grad_updates)
+        update_op = tf.group(*update_ops)
+        with tf.control_dependencies([update_op]):
+            train_op = tf.identity(total_loss, name='train_op')
+
+        # Add the summaries. These contain the summaries
+        # created by model and either optimize() or _gather_loss().
+        summaries |= set(tf.get_collection(tf.GraphKeys.SUMMARIES))
+
+        # Merge all summaries together.
+        summary_op = tf.summary.merge(list(summaries))
+        train_writer = tf.summary.FileWriter(FLAGS.summaries_dir, graph)
 
         ################
         # Prepare data
         ################
         filenames = tf.placeholder(tf.string, shape=[])
-        tr_dataset = data.Dataset(filenames, FLAGS.batch_size, FLAGS.how_many_training_epochs,
+        tr_dataset = data.Dataset(filenames, FLAGS.how_many_training_epochs,
                                   FLAGS.height, FLAGS.width)
         iterator = tr_dataset.dataset.make_initializable_iterator()
         next_batch = iterator.get_next()
@@ -258,12 +259,7 @@ def main(unused_argv):
 
             start_epoch = 0
             # Get the number of training/validation steps per epoch
-            batches = int(MODELNET_TRAINING_DATA_SIZE / FLAGS.batch_size)
-            if MODELNET_TRAINING_DATA_SIZE % FLAGS.batch_size > 0:
-                batches += 1
-            # v_batches = int(dataset.data_size() / FLAGS.batch_size)
-            # if val_data.data_size() % FLAGS.batch_size > 0:
-            #     v_batches += 1
+            batches = int(MODELNET_TRAINING_DATA_SIZE)
 
             # The filenames argument to the TFRecordDataset initializer can either be a string,
             # a list of strings, or a tf.Tensor of strings.
@@ -283,12 +279,11 @@ def main(unused_argv):
                     train_batch_xs, train_batch_ys = sess.run(next_batch)
 
                     # # Verify image
-                    # batch_x = np.squeeze(train_batch_xs, axis=0)
-                    # n_batch = batch_x.shape[0]
-                    # n_view = batch_x.shape[1]
+                    # n_batch = train_batch_xs.shape[0]
+                    # n_view = train_batch_xs.shape[1]
                     # for i in range(n_batch):
                     #     for j in range(n_view):
-                    #         img = batch_x[i][j]
+                    #         img = train_batch_xs[i][j]
                     #         # scipy.misc.toimage(img).show()
                     #         # Or
                     #         img = cv2.cvtColor(img.astype(np.uint8), cv2.COLOR_BGR2RGB)
@@ -298,26 +293,26 @@ def main(unused_argv):
                     #         cv2.waitKey(100)
                     #         cv2.destroyAllWindows()
 
-                    # scores, mid_level_descs = sess.run([d_scores, raw_descs],
-                    #                                     feed_dict={X: np.squeeze(train_batch_xs, axis=0)})
-                    # schemes = gvcnn.grouping_scheme(scores, NUM_GROUP, FLAGS.num_views)
-                    # weights = gvcnn.grouping_weight(scores, schemes)
-                    #
-                    # # TODO: why sess.run below was executed in fcn? new two graph or ??
-                    # # Run the graph with this batch of training data.
-                    # lr, train_summary, train_accuracy, train_loss, _ = \
-                    #     sess.run([learning_rate, summary_op, accuracy, total_loss, train_op],
-                    #              feed_dict={mid_level_X: mid_level_descs,
-                    #                         ground_truth: np.squeeze(train_batch_ys, axis=0),
-                    #                         learning_rate:FLAGS.base_learning_rate,
-                    #                         grouping_scheme: schemes,
-                    #                         grouping_weight: weights,
-                    #                         is_training: True,
-                    #                         dropout_keep_prob: 0.8})
-                    #
-                    # train_writer.add_summary(train_summary, training_epoch)
-                    # tf.logging.info('Epoch #%d, Step #%d, rate %.10f, accuracy %.1f%%, loss %f' %
-                    #                 (training_epoch, step, lr, train_accuracy * 100, train_loss))
+                    scores, mid_level_descs = sess.run([d_scores, raw_descs],
+                                                        feed_dict={X: np.squeeze(train_batch_xs, axis=0)})
+                    schemes = gvcnn.grouping_scheme(scores, NUM_GROUP, FLAGS.num_views)
+                    weights = gvcnn.grouping_weight(scores, schemes)
+
+                    # TODO: why sess.run below was executed in fcn? new two graph or ??
+                    # Run the graph with this batch of training data.
+                    lr, train_summary, train_accuracy, train_loss, _ = \
+                        sess.run([learning_rate, summary_op, accuracy, total_loss, train_op],
+                                 feed_dict={mid_level_X: mid_level_descs,
+                                            ground_truth: np.squeeze(train_batch_ys, axis=0),
+                                            learning_rate:FLAGS.base_learning_rate,
+                                            grouping_scheme: schemes,
+                                            grouping_weight: weights,
+                                            is_training: True,
+                                            dropout_keep_prob: 0.8})
+
+                    train_writer.add_summary(train_summary, training_epoch)
+                    tf.logging.info('Epoch #%d, Step #%d, rate %.10f, accuracy %.1f%%, loss %f' %
+                                    (training_epoch, step, lr, train_accuracy * 100, train_loss))
 
                 ###################################################
                 # TODO: Validate the model on the validation set
