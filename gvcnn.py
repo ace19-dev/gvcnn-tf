@@ -135,8 +135,6 @@ def discrimination_score(inputs,
 
     # FC layer to obtain the discrimination scores from raw view descriptors
     view_discrimination_score = []
-    raw_view_descriptors = []
-    end_points_lst = []
 
     n_views = inputs.get_shape().as_list()[1]
     # transpose views: (NxVxHxWxC) -> (VxNxHxWxC)
@@ -148,9 +146,7 @@ def discrimination_score(inputs,
         with tf.variable_scope(scope, 'fcn', [inputs], reuse=reuse) as scope:
             with slim.arg_scope([slim.batch_norm, slim.dropout],
                                 is_training=is_training):
-                logits, end_points = inception_v4.fcn(batch_view, scope=scope)
-                raw_view_descriptors.append(logits)
-                end_points_lst.append(end_points)
+                logits, _ = inception_v4.fcn(batch_view, scope=scope)
 
                 # The average score is shown for the batch size input
                 # corresponding to each point of view.
@@ -160,7 +156,7 @@ def discrimination_score(inputs,
 
                 view_discrimination_score.append(batch_view_score)
 
-    return view_discrimination_score, tf.stack(raw_view_descriptors), end_points_lst
+    return view_discrimination_score
 
 
 def gvcnn(inputs,
@@ -170,24 +166,26 @@ def gvcnn(inputs,
           is_training=True,
           dropout_keep_prob=0.8,
           reuse=tf.AUTO_REUSE,
-          scope='cnn',
-          create_aux_logits=True):
-
-    with tf.variable_scope(scope, 'cnn', [inputs], reuse=reuse) as scope:
+          scope='InceptionV4',
+          create_aux_logits=False):
+    '''
+    The second part of the network (CNN) and the group module, are used to extract
+    the final view descriptors together with the discrimination scores, separately.
+    '''
+    with tf.variable_scope(scope, 'InceptionV4', [inputs], reuse=reuse) as scope:
         with slim.arg_scope([slim.batch_norm, slim.dropout],
                             is_training=is_training):
 
-            '''
-            The second part of the network (CNN) and the group module, are used to extract
-            the final view descriptors together with the discrimination scores, separately.
-            '''
             final_view_descriptors = []
 
-            n_views = inputs.get_shape().as_list()[0]
-            for i in range(n_views):
-                batch_view = tf.gather(inputs, i)  # N x H x W x C
+            n_views = inputs.get_shape().as_list()[1]
+            # transpose views: (NxVxHxWxC) -> (VxNxHxWxC)
+            views = tf.transpose(inputs, perm=[1, 0, 2, 3, 4])
 
-                net, end_points = inception_v4.cnn(batch_view, scope=scope)
+            for i in range(n_views):
+                batch_view = tf.gather(views, i)  # N x H x W x C
+
+                net, end_points = inception_v4.inception_v4_base(batch_view, scope=scope)
                 final_view_descriptors.append(net)
 
             # View Pooling

@@ -25,10 +25,10 @@ flags.DEFINE_string('dataset_dir',
                     '/home/ace19/dl_data/modelnet',
                     'Root Directory to raw modelnet dataset.')
 flags.DEFINE_string('output_path',
-                    '/home/ace19/dl_data/modelnet/train.record',
+                    '/home/ace19/dl_data/modelnet/test.record',
                     'Path to output TFRecord')
 flags.DEFINE_string('dataset_category',
-                    'train',
+                    'test',
                     'dataset category, train or test')
 
 FLAGS = flags.FLAGS
@@ -81,7 +81,7 @@ def dict_to_tf_example(image,
     widths = []
     heights = []
     formats = []
-    labels = []
+    # labels = []
     keys = []
 
     view_lst = view_map_dict[image]
@@ -104,7 +104,7 @@ def dict_to_tf_example(image,
             raise ValueError('Image format not PNG')
         key = hashlib.sha256(encoded_png).hexdigest()
         keys.append(key.encode('utf8'))
-        labels.append(label)
+        # labels.append(label)
 
     example = tf.train.Example(features=tf.train.Features(feature={
         'image/height': dataset_util.int64_list_feature(heights),
@@ -114,7 +114,7 @@ def dict_to_tf_example(image,
         'image/key/sha256': dataset_util.bytes_list_feature(keys),
         'image/encoded': dataset_util.bytes_list_feature(encoded_pngs),
         'image/format': dataset_util.bytes_list_feature(formats),
-        'image/label': dataset_util.int64_list_feature(labels),
+        'image/label': dataset_util.int64_feature(label),
         # 'image/text': dataset_util.bytes_feature('label_text'.encode('utf8'))
     }))
     return example

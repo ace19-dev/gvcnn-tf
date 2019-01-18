@@ -47,21 +47,19 @@ class Dataset(object):
             features={
                 # 'image/filename': tf.FixedLenFeature([], tf.string),
                 'image/encoded': tf.FixedLenFeature([NUM_VIEWS], tf.string),
-                'image/label': tf.FixedLenFeature([NUM_VIEWS], tf.int64),
+                'image/label': tf.FixedLenFeature([], tf.int64),
             })
 
         images = []
-        labels = []
         img_lst = tf.unstack(features['image/encoded'])
-        lbl_lst = tf.unstack(features['image/label'])
         for i, img in enumerate(img_lst):
             # Convert from a scalar string tensor to a float32 tensor with shape
             image_decoded = tf.image.decode_png(img, channels=3)
             # image = tf.image.resize_images(image_decoded, [self.resize_h, self.resize_w])
             images.append(image_decoded)
 
-            # Convert label from a scalar uint8 tensor to an int32 scalar.
-            labels.append(lbl_lst[i])
+        # Convert label from a scalar uint8 tensor to an int32 scalar.
+        labels = features['image/label']
 
         return images, labels
 
