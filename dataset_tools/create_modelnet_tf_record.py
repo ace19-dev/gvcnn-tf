@@ -27,7 +27,9 @@ flags.DEFINE_string('dataset_dir',
 flags.DEFINE_string('output_path',
                     '/home/ace19/dl_data/modelnet/train.record',
                     'Path to output TFRecord')
-flags.DEFINE_string('dataset_category', 'train', 'dataset category, train or test')
+flags.DEFINE_string('dataset_category',
+                    'train',
+                    'dataset category, train or test')
 
 FLAGS = flags.FLAGS
 

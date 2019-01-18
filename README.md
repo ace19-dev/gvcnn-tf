@@ -15,7 +15,6 @@
 ## TODO
 - re-check data input module about memory usage
 - re-build network.
-- ----------------------------------------------
 - validate result and fix modules.
 - test various base architecture.
 - and ?

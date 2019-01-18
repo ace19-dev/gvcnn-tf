@@ -27,8 +27,8 @@ class Dataset(object):
         # The map transformation takes a function and applies it to every element
         # of the dataset.
         dataset = dataset.map(self.decode, num_parallel_calls=8)
-        # dataset = dataset.map(self.augment, num_parallel_calls=8)
-        # dataset = dataset.map(self.normalize, num_parallel_calls=8)
+        dataset = dataset.map(self.augment, num_parallel_calls=8)
+        dataset = dataset.map(self.normalize, num_parallel_calls=8)
 
         # The shuffle transformation uses a finite-sized buffer to shuffle elements
         # in memory. The parameter is the number of elements in the buffer. For
@@ -57,25 +57,35 @@ class Dataset(object):
         for i, img in enumerate(img_lst):
             # Convert from a scalar string tensor to a float32 tensor with shape
             image_decoded = tf.image.decode_png(img, channels=3)
-            image = tf.image.resize_images(image_decoded, [self.resize_h, self.resize_w])
-            images.append(image)
+            # image = tf.image.resize_images(image_decoded, [self.resize_h, self.resize_w])
+            images.append(image_decoded)
 
             # Convert label from a scalar uint8 tensor to an int32 scalar.
             labels.append(lbl_lst[i])
 
         return images, labels
 
-    # TODO
-    def augment(self, image, label):
+    def augment(self, images, labels):
         """Placeholder for data augmentation."""
         # OPTIONAL: Could reshape into a 28x28 image and apply distortions
         # here.  Since we are not applying any distortions in this
         # example, and the next step expects the image to be flattened
         # into a vector, we don't bother.
-        return image, label
+        img_lst = []
+        img_tensor_lst = tf.unstack(images)
+        for i, image in enumerate(img_tensor_lst):
+            image = tf.image.central_crop(image, 0.5)
+            image = tf.image.resize_images(image, [self.resize_h, self.resize_w])
+            img_lst.append(image)
 
-    # TODO
-    def normalize(self, image, label):
+        return img_lst, labels
+
+    def normalize(self, images, labels):
         """Convert `image` from [0, 255] -> [-0.5, 0.5] floats."""
-        image = tf.cast(image, tf.float32) * (1. / 255) - 0.5
-        return image, label
+        img_lst = []
+        img_tensor_lst = tf.unstack(images)
+        for i, image in enumerate(img_tensor_lst):
+            image = tf.cast(image, tf.float32) * (1. / 255) - 0.5
+            img_lst.append(image)
+
+        return img_lst, labels
