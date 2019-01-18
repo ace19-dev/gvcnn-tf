@@ -63,8 +63,8 @@ flags.DEFINE_float('slow_start_learning_rate', 1e-4,
 
 # Settings for fine-tuning the network.
 flags.DEFINE_string('pre_trained_checkpoint',
-                    # './pre-trained/inception_v4.ckpt',
-                    None,
+                    './pre-trained/inception_v4.ckpt',
+                    # None,
                     'The pre-trained checkpoint in tensorflow format.')
 flags.DEFINE_string('checkpoint_exclude_scopes',
                     'gvcnn/AuxLogits, gvcnn/Logits',
@@ -294,7 +294,7 @@ def main(unused_argv):
                     #         cv2.destroyAllWindows()
 
                     scores, mid_level_descs = sess.run([d_scores, raw_descs],
-                                                        feed_dict={X: np.squeeze(train_batch_xs, axis=0)})
+                                                        feed_dict={X: train_batch_xs})
                     schemes = gvcnn.grouping_scheme(scores, NUM_GROUP, FLAGS.num_views)
                     weights = gvcnn.grouping_weight(scores, schemes)
 
