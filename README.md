@@ -13,7 +13,7 @@
 -
 
 ## TODO
-- re-build network with tensorflow.
+- check whether pre-trained file is using well or not?
 - validate result and fix modules.
 - re-check data input module about memory usage
 - test various base architecture.
