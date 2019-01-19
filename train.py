@@ -63,12 +63,12 @@ flags.DEFINE_float('slow_start_learning_rate', 1e-4,
 
 # Settings for fine-tuning the network.
 flags.DEFINE_string('pre_trained_checkpoint',
-                    './pre-trained/inception_v4.ckpt',
-                    # None,
+                    # './pre-trained/inception_v4.ckpt',
+                    None,
                     'The pre-trained checkpoint in tensorflow format.')
 flags.DEFINE_string('checkpoint_exclude_scopes',
-                    # 'gvcnn/AuxLogits, gvcnn/Logits',
-                    None,
+                    'gvcnn/AuxLogits, gvcnn/Logits',
+                    # None,
                     'Comma-separated list of scopes of variables to exclude '
                     'when restoring from a checkpoint.')
 flags.DEFINE_string('trainable_scopes',
@@ -116,8 +116,6 @@ def main(unused_argv):
     # test2()
     # test.test3()
     # test.test4()
-
-    # dataset = data.Data(FLAGS.dataset_dir, FLAGS.height, FLAGS.width)
 
     tf.gfile.MakeDirs(FLAGS.train_logdir)
     tf.logging.info('Creating train logdir: %s', FLAGS.train_logdir)
