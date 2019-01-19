@@ -13,9 +13,9 @@
 -
 
 ## TODO
-- re-check data input module about memory usage
-- re-build network.
+- re-build network with tensorflow.
 - validate result and fix modules.
+- re-check data input module about memory usage
 - test various base architecture.
 - and ?
 
