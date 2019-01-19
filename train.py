@@ -15,7 +15,7 @@ flags = tf.app.flags
 FLAGS = flags.FLAGS
 
 
-NUM_GROUP = 10
+NUM_GROUP = 8
 
 
 # Settings for logging.
@@ -294,7 +294,7 @@ def main(unused_argv):
                                                     grouping_scheme: schemes,
                                                     grouping_weight: weights,
                                                     is_training: True,
-                                                    dropout_keep_prob: 0.7})
+                                                    dropout_keep_prob: 0.5})
 
                     train_writer.add_summary(train_summary, training_epoch)
                     tf.logging.info('Epoch #%d, Step #%d, rate %.10f, accuracy %.1f%%, loss %f' %

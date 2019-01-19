@@ -1,7 +1,6 @@
 ## GVCNN (Group-View Convolutional Neural Networks for 3D Shape Recognition)
 - It's under development.
 ![](assets/gvcnn_framework.png)
-The Group-View CNN framework for 3D shape recognition.
 
 ## Data
 - download 40-Class Subset from http://modelnet.cs.princeton.edu/
@@ -15,6 +14,7 @@ The Group-View CNN framework for 3D shape recognition.
 -
 
 ## TODO
+- refine Grouping Module (Intra-Group view_pooling, Group Fusion, ...)
 - validate result and fix modules.
 - re-check data input module about memory usage
 - test various base architecture.

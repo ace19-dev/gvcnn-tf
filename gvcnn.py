@@ -11,31 +11,31 @@ from nets import inception_v4
 slim = tf.contrib.slim
 
 
-# TODO: The more grouping, the better result ??
+
 def grouping_scheme(view_discrimination_score, num_group, num_views):
+    '''
+    Note that 1 ≤ M ≤ N because there
+    may exist sub-ranges that have no views falling into it.
+    '''
     _grouping_scheme = np.full((num_group, num_views), False)
 
     for idx, s in enumerate(view_discrimination_score):
-        if 0.0 <= s < 0.1:      # 0 group
+        if 0.0 <= s < 0.125:      # 0 group
             _grouping_scheme[0, idx] = True
-        elif 0.1 <= s < 0.2:    # 1 group
+        elif 0.125 <= s < 0.25:    # 1 group
             _grouping_scheme[1, idx] = True
-        elif 0.2 <= s < 0.3:    # 2 group
+        elif 0.25 <= s < 0.375:    # 2 group
             _grouping_scheme[2, idx] = True
-        elif 0.3 <= s < 0.4:    # 3 group
+        elif 0.375 <= s < 0.5:    # 3 group
             _grouping_scheme[3, idx] = True
-        elif 0.4 <= s < 0.5:    # 4 group
+        elif 0.5 <= s < 0.625:    # 4 group
             _grouping_scheme[4, idx] = True
-        elif 0.5 <= s < 0.6:    # 5 group
+        elif 0.625 <= s < 0.75:    # 5 group
             _grouping_scheme[5, idx] = True
-        elif 0.6 <= s < 0.7:    # 6 group
+        elif 0.75 <= s < 0.825:    # 6 group
             _grouping_scheme[6, idx] = True
-        elif 0.7 <= s < 0.8:    # 7 group
+        elif 0.825 <= s < 1.0:    # 7 group
             _grouping_scheme[7, idx] = True
-        elif 0.8 <= s < 0.9:    # 8 group
-            _grouping_scheme[8, idx] = True
-        elif 0.9 <= s < 1.0:    # 9 group
-            _grouping_scheme[9, idx] = True
 
     return _grouping_scheme
 
@@ -65,9 +65,18 @@ def grouping_weight(view_discrimination_score, grouping_scheme):
 def _view_pooling(final_view_descriptors, group_scheme):
 
     '''
+    Intra-Group View Pooling
+
     Final view descriptors are source of view pooling with grouping scheme.
 
-    Use the average pooling (TODO: how about max pooling later)
+    Given the view descriptors and the generated grouping
+    information, the objective here is to conduct intra-group
+    view pooling towards a group level description.
+
+    the views in the same group have the similar discrimination,
+    which are assigned the same weight.
+
+    Use the average pooling (TODO: max pooling later??)
 
     :param group_scheme:
     :param final_view_descriptors:
@@ -92,7 +101,11 @@ def _group_fusion(group_descriptors, group_weight):
     To generate the shape level description, all these group
     level descriptors should be further combined.
 
-    Get the final 3D shape descriptor D(S)
+    The groups containing more discriminative views contribute more to
+    the final 3D shape descriptor D(S) than those containing less discriminative views.
+    By using these hierarchical view-group-shape description framework,
+    the important and discriminative visual content can be discovered in the group level,
+    and thus emphasized in the shape descriptor accordingly.
 
     :param
     group_descriptors: dic (average pooling per group - tensor)
@@ -185,7 +198,7 @@ def gvcnn(inputs,
                 net, end_points = inception_v4.cnn(batch_view, scope=scope)
                 final_view_descriptors.append(net)
 
-            # View Pooling
+            # Intra-Group View Pooling
             group_descriptors = _view_pooling(final_view_descriptors, grouping_scheme)
             # Group Fusion
             shape_descriptor = _group_fusion(group_descriptors, grouping_weight)
