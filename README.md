@@ -13,7 +13,7 @@
 -
 
 ## TODO
-- check whether pre-trained file is using well or not?
+- check whether pre-trained file is using well or not? - use other pre-trained model intensionally
 - validate result and fix modules.
 - re-check data input module about memory usage
 - test various base architecture.
