@@ -67,8 +67,8 @@ flags.DEFINE_string('pre_trained_checkpoint',
                     # None,
                     'The pre-trained checkpoint in tensorflow format.')
 flags.DEFINE_string('checkpoint_exclude_scopes',
-                    'gvcnn/AuxLogits, gvcnn/Logits',
-                    # None,
+                    # 'gvcnn/AuxLogits, gvcnn/Logits',
+                    None,
                     'Comma-separated list of scopes of variables to exclude '
                     'when restoring from a checkpoint.')
 flags.DEFINE_string('trainable_scopes',
