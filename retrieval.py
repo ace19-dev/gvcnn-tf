@@ -1,3 +1,5 @@
+# TODO:
+#
 # In GVCNN, the shape descriptor comes
 # from the output of group fusion module, which is more rep-
 # resentative than the view descriptor extracted from single
