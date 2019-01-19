@@ -143,7 +143,7 @@ def main(unused_argv):
 
         with slim.arg_scope(inception_v4.inception_v4_arg_scope()):
             # GVCNN
-            logits, end_points = gvcnn.gvcnn(mid_level_X,
+            logits, _, end_points = gvcnn.gvcnn(mid_level_X,
                                              grouping_scheme,
                                              grouping_weight,
                                              FLAGS.num_classes,
@@ -279,8 +279,9 @@ def main(unused_argv):
                                                      grouping_scheme, grouping_weight, is_training,
                                                      dropout_keep_prob])
 
-                    scores, r_desc = sess.partial_run(handle, [d_scores, raw_desc],
-                                                                feed_dict={X: train_batch_xs})
+                    scores, r_desc = sess.partial_run(handle,
+                                                      [d_scores, raw_desc],
+                                                      feed_dict={X: train_batch_xs})
                     schemes = gvcnn.grouping_scheme(scores, NUM_GROUP, FLAGS.num_views)
                     weights = gvcnn.grouping_weight(scores, schemes)
 

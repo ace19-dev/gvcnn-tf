@@ -14,12 +14,11 @@
 -
 
 ## TODO
-- refine Grouping Module. (Intra-Group view_pooling, Group Fusion, ...)
-- evaluation - validate result and fix modules.
+- re-check Grouping Module. (Intra-Group view_pooling, Group Fusion, ...)
+- make classification and retrieval .py
 -
 - make input data module efficient.
 - test various base architecture.
-- check whether pre-trained file is using well or not.
 - and ?
 
 ## References from

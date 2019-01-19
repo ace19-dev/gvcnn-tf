@@ -11,7 +11,6 @@ from nets import inception_v4
 slim = tf.contrib.slim
 
 
-
 def grouping_scheme(view_discrimination_score, num_group, num_views):
     '''
     Note that 1 ≤ M ≤ N because there
@@ -248,7 +247,7 @@ def gvcnn(inputs,
                     end_points['Logits'] = logits   # (?,7)
                     end_points['Predictions'] = tf.nn.softmax(logits, name='Predictions')
 
-        return logits, end_points
+        return logits, shape_descriptor, end_points
 
 
 
