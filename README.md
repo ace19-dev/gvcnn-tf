@@ -16,6 +16,7 @@
 ## TODO
 - refine Grouping Module. (Intra-Group view_pooling, Group Fusion, ...)
 - evaluation - validate result and fix modules.
+-
 - make input data module efficient.
 - test various base architecture.
 - check whether pre-trained file is using well or not.
