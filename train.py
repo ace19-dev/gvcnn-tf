@@ -127,6 +127,9 @@ def main(unused_argv):
         X = tf.placeholder(tf.float32,
                            [None, FLAGS.num_views, FLAGS.height, FLAGS.width, 3],
                            name='inputs')
+        mid_level_X = tf.placeholder(tf.float32,
+                           [FLAGS.num_views, None, 35, 35, 384], # inputs of 4 x Inception-A blocks
+                           name='inputs')
         ground_truth = tf.placeholder(tf.int64, [None], name='ground_truth')
         is_training = tf.placeholder(tf.bool)
         dropout_keep_prob = tf.placeholder(tf.float32)
@@ -136,10 +139,11 @@ def main(unused_argv):
 
         with slim.arg_scope(inception_v4.inception_v4_arg_scope()):
             # grouping module
-            d_scores = gvcnn.discrimination_score(X)
+            d_scores, raw_desc = gvcnn.discrimination_score(X)
 
+        with slim.arg_scope(inception_v4.inception_v4_arg_scope()):
             # GVCNN
-            logits, end_points = gvcnn.gvcnn(X,
+            logits, end_points = gvcnn.gvcnn(mid_level_X,
                                              grouping_scheme,
                                              grouping_weight,
                                              FLAGS.num_classes,
@@ -248,7 +252,6 @@ def main(unused_argv):
                 print(" Epoch {} ".format(training_epoch))
                 print("-------------------------------------")
 
-                # dataset.shuffle_all()
                 sess.run(iterator.initializer, feed_dict={filenames: training_filenames})
                 for step in range(batches):
                     # Pull the image batch we'll use for training.
@@ -269,25 +272,33 @@ def main(unused_argv):
                     #         cv2.waitKey(100)
                     #         cv2.destroyAllWindows()
 
-                    scores = sess.run(d_scores, feed_dict={X: train_batch_xs})
+                    # Sets up a graph with feeds and fetches for partial run.
+                    handle = sess.partial_run_setup([d_scores, raw_desc,
+                                                     summary_op, accuracy, total_loss, train_op],
+                                                    [X, mid_level_X, ground_truth, learning_rate,
+                                                     grouping_scheme, grouping_weight, is_training,
+                                                     dropout_keep_prob])
+
+                    scores, r_desc = sess.partial_run(handle, [d_scores, raw_desc],
+                                                                feed_dict={X: train_batch_xs})
                     schemes = gvcnn.grouping_scheme(scores, NUM_GROUP, FLAGS.num_views)
                     weights = gvcnn.grouping_weight(scores, schemes)
 
-                    # TODO: why sess.run below was executed in fcn? new two graph or ??
                     # Run the graph with this batch of training data.
-                    lr, train_summary, train_accuracy, train_loss, _ = \
-                        sess.run([learning_rate, summary_op, accuracy, total_loss, train_op],
-                                 feed_dict={X: train_batch_xs,
-                                            ground_truth: train_batch_ys,
-                                            learning_rate:FLAGS.base_learning_rate,
-                                            grouping_scheme: schemes,
-                                            grouping_weight: weights,
-                                            is_training: True,
-                                            dropout_keep_prob: 0.8})
+                    train_summary, train_accuracy, train_loss, _ = \
+                        sess.partial_run(handle,
+                                         [summary_op, accuracy, total_loss, train_op],
+                                         feed_dict={mid_level_X: r_desc,
+                                                    ground_truth: train_batch_ys,
+                                                    learning_rate: FLAGS.base_learning_rate,
+                                                    grouping_scheme: schemes,
+                                                    grouping_weight: weights,
+                                                    is_training: True,
+                                                    dropout_keep_prob: 0.7})
 
                     train_writer.add_summary(train_summary, training_epoch)
                     tf.logging.info('Epoch #%d, Step #%d, rate %.10f, accuracy %.1f%%, loss %f' %
-                                    (training_epoch, step, lr, train_accuracy * 100, train_loss))
+                                    (training_epoch, step, FLAGS.base_learning_rate, train_accuracy * 100, train_loss))
 
                 ###################################################
                 # TODO: Validate the model on the validation set

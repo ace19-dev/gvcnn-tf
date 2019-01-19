@@ -221,6 +221,51 @@ def fcn(inputs, final_endpoint='Mixed_5a', scope=None):
     raise ValueError('Unknown final endpoint %s' % final_endpoint)
 
 
+def cnn(inputs, final_endpoint='Mixed_7d', scope=None):
+    end_points = {}
+
+    def add_and_check_final(name, net):
+        end_points[name] = net
+        return name == final_endpoint
+
+    with tf.variable_scope(scope, 'cnn', [inputs]):
+        with slim.arg_scope([slim.conv2d, slim.max_pool2d, slim.avg_pool2d],
+                            stride=1, padding='SAME'):
+            # 35 x 35 x 384
+            # 4 x Inception-A blocks
+            for idx in range(4):
+                block_scope = 'Mixed_5' + chr(ord('b') + idx)
+                net = block_inception_a(inputs, block_scope)
+                if add_and_check_final(block_scope, net): return net, end_points
+
+            # 35 x 35 x 384
+            # Reduction-A block
+            net = block_reduction_a(net, 'Mixed_6a')
+            if add_and_check_final('Mixed_6a', net): return net, end_points
+
+            # 17 x 17 x 1024
+            # 7 x Inception-B blocks
+            for idx in range(7):
+                block_scope = 'Mixed_6' + chr(ord('b') + idx)
+                net = block_inception_b(net, block_scope)
+                if add_and_check_final(block_scope, net): return net, end_points
+
+            # 17 x 17 x 1024
+            # Reduction-B block
+            net = block_reduction_b(net, 'Mixed_7a')
+            if add_and_check_final('Mixed_7a', net): return net, end_points
+
+            # 8 x 8 x 1536
+            # 3 x Inception-C blocks
+            for idx in range(3):
+                block_scope = 'Mixed_7' + chr(ord('b') + idx)
+                net = block_inception_c(net, block_scope)
+                if add_and_check_final(block_scope, net): return net, end_points
+
+
+    raise ValueError('Unknown final endpoint %s' % final_endpoint)
+
+
 def inception_v4_base(inputs, final_endpoint='Mixed_7d', scope=None):
     """Creates the Inception V4 network up to the given final endpoint.
 
