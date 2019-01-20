@@ -37,8 +37,9 @@ flags.DEFINE_integer('batch_size', 1, 'batch size')
 flags.DEFINE_integer('num_views', 8, 'number of views')
 flags.DEFINE_integer('height', 299, 'height')
 flags.DEFINE_integer('width', 299, 'width')
-# flags.DEFINE_integer('num_classes', 7, 'number of classes')
-
+flags.DEFINE_string('labels',
+                    'airplane,bed,bookshelf,cone,person,toilet,vase',
+                    'number of classes')
 
 def main(unused_argv):
     tf.logging.set_verbosity(tf.logging.INFO)
