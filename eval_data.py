@@ -1,3 +1,7 @@
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import tensorflow as tf
 
 
@@ -10,14 +14,13 @@ class Dataset(object):
     Handles loading, partitioning, and preparing training data.
     """
 
-    def __init__(self, tfrecord_path, height, width, batch_size=1):
+    def __init__(self, tfrecord_path, batch_size, height, width):
         self.resize_h = height
         self.resize_w = width
 
         dataset = tf.data.TFRecordDataset(tfrecord_path,
                                           compression_type='GZIP',
                                           num_parallel_reads=batch_size * 4)
-
         # dataset = dataset.map(self._parse_func, num_parallel_calls=8)
         # The map transformation takes a function and applies it to every element
         # of the dataset.
@@ -40,25 +43,32 @@ class Dataset(object):
             serialized_example,
             # Defaults are not specified since both keys are required.
             features={
-                # 'image/filename': tf.FixedLenFeature([], tf.string),
+                'image/filename': tf.FixedLenFeature([NUM_VIEWS], tf.string),
                 'image/encoded': tf.FixedLenFeature([NUM_VIEWS], tf.string),
-                'image/label': tf.FixedLenFeature([], tf.int64),
+                # 'image/label': tf.FixedLenFeature([], tf.int64),
             })
 
+        # Convert from a scalar string tensor to a float32 tensor with shape
+        # image_decoded = tf.image.decode_png(features['image/encoded'], channels=3)
+        # image = tf.image.resize_images(image_decoded, [self.resize_h, self.resize_w])
+        #
+        # filename = features['image/filename']
+
         images = []
+        filenames = []
         img_lst = tf.unstack(features['image/encoded'])
+        filename_lst = tf.unstack(features['image/filename'])
         for i, img in enumerate(img_lst):
             # Convert from a scalar string tensor to a float32 tensor with shape
             image_decoded = tf.image.decode_png(img, channels=3)
             # image = tf.image.resize_images(image_decoded, [self.resize_h, self.resize_w])
             images.append(image_decoded)
+            filenames.append(filename_lst[i])
 
-        # Convert label from a scalar uint8 tensor to an int32 scalar.
-        labels = features['image/label']
+        return images, filenames
 
-        return images, labels
 
-    def augment(self, images, labels):
+    def augment(self, images, filenames):
         """Placeholder for data augmentation."""
         # OPTIONAL: Could reshape into a 28x28 image and apply distortions
         # here.  Since we are not applying any distortions in this
@@ -71,9 +81,10 @@ class Dataset(object):
             image = tf.image.resize_images(image, [self.resize_h, self.resize_w])
             img_lst.append(image)
 
-        return img_lst, labels
+        return img_lst, filenames
 
-    def normalize(self, images, labels):
+
+    def normalize(self, images, filenames):
         """Convert `image` from [0, 255] -> [-0.5, 0.5] floats."""
         img_lst = []
         img_tensor_lst = tf.unstack(images)
@@ -81,4 +92,4 @@ class Dataset(object):
             image = tf.cast(image, tf.float32) * (1. / 255) - 0.5
             img_lst.append(image)
 
-        return img_lst, labels
+        return img_lst, filenames

@@ -72,9 +72,7 @@ flags.DEFINE_string('checkpoint_exclude_scopes',
                     'Comma-separated list of scopes of variables to exclude '
                     'when restoring from a checkpoint.')
 flags.DEFINE_string('trainable_scopes',
-                    # 'ssd_300_vgg/block4_box, ssd_300_vgg/block7_box, \
-                    #  ssd_300_vgg/block8_box, ssd_300_vgg/block9_box, \
-                    #  ssd_300_vgg/block10_box, ssd_300_vgg/block11_box',
+                    # 'gvcnn/AuxLogits, gvcnn/Logits',
                     None,
                     'Comma-separated list of scopes to filter the set of variables '
                     'to train. By default, None would train all the variables.')
@@ -144,11 +142,11 @@ def main(unused_argv):
         with slim.arg_scope(inception_v4.inception_v4_arg_scope()):
             # GVCNN
             logits, _, end_points = gvcnn.gvcnn(mid_level_X,
-                                             grouping_scheme,
-                                             grouping_weight,
-                                             FLAGS.num_classes,
-                                             is_training,
-                                             dropout_keep_prob)
+                                                grouping_scheme,
+                                                grouping_weight,
+                                                FLAGS.num_classes,
+                                                is_training,
+                                                dropout_keep_prob)
 
         # make a trainable variable not trainable
         # train_utils.edit_trainable_variables('fcn')
