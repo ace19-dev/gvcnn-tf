@@ -16,7 +16,6 @@
 ## TODO
 - re-check Grouping Module. (Intra-Group View Pooling, Group Fusion, ...)
 - make classification and retrieval modules
--
 - make input data module efficient.
 - test various base architecture.
 
