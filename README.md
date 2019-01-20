@@ -13,6 +13,9 @@
 ## Evaluation
 - classification
 - retrieval
+    - Euclidean distance
+    - low-rank Mahalanobis metric
+    - Deep Cosine Metric
 
 ## TODO
 - re-check Grouping Module. (Intra-Group View Pooling, Group Fusion, ...)
@@ -24,3 +27,4 @@
 - http://openaccess.thecvf.com/content_cvpr_2018/papers/Feng_GVCNN_Group-View_Convolutional_CVPR_2018_paper.pdf
 - https://github.com/WeiTang114/MVCNN-TensorFlow
 - https://github.com/pclausen/obj2png
+- https://github.com/nwojke/cosine_metric_learning
