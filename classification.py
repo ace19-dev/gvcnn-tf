@@ -32,6 +32,10 @@ MODELNET_EVAL_DATA_SIZE = 0
 flags.DEFINE_string('dataset_path', '/home/ace19/dl_data/modelnet/test.record',
                     'Where the dataset reside.')
 
+flags.DEFINE_string('checkpoint_path',
+                    os.getcwd() + '/models',
+                    'Directory where to read training checkpoints.')
+
 # TODO: will apply n-batch later
 flags.DEFINE_integer('batch_size', 1, 'batch size')
 flags.DEFINE_integer('num_views', 8, 'number of views')
