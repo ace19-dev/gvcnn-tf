@@ -15,7 +15,7 @@
 
 ## TODO
 - re-check Grouping Module. (Intra-Group view_pooling, Group Fusion, ...)
-- make classification and retrieval .py
+- make classification and retrieval modules
 -
 - make input data module efficient.
 - test various base architecture.
