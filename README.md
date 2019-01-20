@@ -14,7 +14,7 @@
 -
 
 ## TODO
-- re-check Grouping Module. (Intra-Group view_pooling, Group Fusion, ...)
+- re-check Grouping Module. (Intra-Group View Pooling, Group Fusion, ...)
 - make classification and retrieval modules
 -
 - make input data module efficient.
