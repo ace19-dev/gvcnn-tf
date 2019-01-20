@@ -11,7 +11,8 @@
 - execute train.py
 
 ## Evaluation
--
+- classification
+- retrieval
 
 ## TODO
 - re-check Grouping Module. (Intra-Group View Pooling, Group Fusion, ...)
