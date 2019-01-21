@@ -35,7 +35,7 @@ flags.DEFINE_string('summaries_dir', './models/train_logs',
 
 flags.DEFINE_enum('learning_policy', 'step', ['step'],
                   'Learning rate policy for training.')
-flags.DEFINE_float('base_learning_rate', .0001,
+flags.DEFINE_float('base_learning_rate', .00001,
                    'The base learning rate for model training.')
 flags.DEFINE_float('learning_rate_decay_factor', 0.1,
                    'The rate to decay the base learning rate.')
@@ -292,7 +292,7 @@ def main(unused_argv):
                                                     grouping_scheme: schemes,
                                                     grouping_weight: weights,
                                                     is_training: True,
-                                                    dropout_keep_prob: 0.5})
+                                                    dropout_keep_prob: 0.8})
 
                     train_writer.add_summary(train_summary, training_epoch)
                     tf.logging.info('Epoch #%d, Step #%d, rate %.10f, accuracy %.1f%%, loss %f' %

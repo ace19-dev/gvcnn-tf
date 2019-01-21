@@ -25,10 +25,10 @@ flags.DEFINE_string('dataset_dir',
                     '/home/ace19/dl_data/modelnet',
                     'Root Directory to raw modelnet dataset.')
 flags.DEFINE_string('output_path',
-                    '/home/ace19/dl_data/modelnet/test.record',
+                    '/home/ace19/dl_data/modelnet/train.record',
                     'Path to output TFRecord')
 flags.DEFINE_string('dataset_category',
-                    'test',
+                    'train',
                     'dataset category, train or test')
 
 FLAGS = flags.FLAGS

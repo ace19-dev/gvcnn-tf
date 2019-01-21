@@ -54,20 +54,20 @@ class Dataset(object):
             images.append(image)
 
         # Convert label from a scalar uint8 tensor to an int32 scalar.
-        labels = features['image/label']
+        label = features['image/label']
 
-        return images, labels
+        return images, label
 
-    def augment(self, images, labels):
+    def augment(self, images, label):
         """Placeholder for data augmentation."""
         # OPTIONAL: Could reshape into a 28x28 image and apply distortions
         # here.  Since we are not applying any distortions in this
         # example, and the next step expects the image to be flattened
         # into a vector, we don't bother.
 
-        return images, labels
+        return images, label
 
-    def normalize(self, images, labels):
+    def normalize(self, images, label):
         """Convert `image` from [0, 255] -> [-0.5, 0.5] floats."""
         img_lst = []
         img_tensor_lst = tf.unstack(images)
@@ -75,4 +75,4 @@ class Dataset(object):
             image = tf.cast(image, tf.float32) * (1. / 255) - 0.5
             img_lst.append(image)
 
-        return img_lst, labels
+        return img_lst, label
