@@ -133,7 +133,7 @@ def main(unused_argv):
         dropout_keep_prob = tf.placeholder(tf.float32)
         grouping_scheme = tf.placeholder(tf.bool, [NUM_GROUP, FLAGS.num_views])
         grouping_weight = tf.placeholder(tf.float32, [NUM_GROUP, 1])
-        learning_rate = tf.placeholder(tf.float32, [], name="lr")
+        learning_rate = tf.placeholder(tf.float32)
 
         with slim.arg_scope(inception_v4.inception_v4_arg_scope()):
             # grouping module

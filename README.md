@@ -18,6 +18,7 @@
     - Deep Cosine Metric
 
 ## TODO
+- check (Loss is inf or nan. : Tensor had NaN values)
 - re-check Grouping Module. (Intra-Group View Pooling, Group Fusion, ...)
 - make classification and retrieval modules
 - make input data module efficient.
