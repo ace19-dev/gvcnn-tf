@@ -61,8 +61,8 @@ class Dataset(object):
         for i, img in enumerate(img_lst):
             # Convert from a scalar string tensor to a float32 tensor with shape
             image_decoded = tf.image.decode_png(img, channels=3)
-            # image = tf.image.resize_images(image_decoded, [self.resize_h, self.resize_w])
-            images.append(image_decoded)
+            image = tf.image.resize_images(image_decoded, [self.resize_h, self.resize_w])
+            images.append(image)
             filenames.append(filename_lst[i])
 
         return images, filenames
@@ -74,14 +74,8 @@ class Dataset(object):
         # here.  Since we are not applying any distortions in this
         # example, and the next step expects the image to be flattened
         # into a vector, we don't bother.
-        img_lst = []
-        img_tensor_lst = tf.unstack(images)
-        for i, image in enumerate(img_tensor_lst):
-            image = tf.image.central_crop(image, 0.5)
-            image = tf.image.resize_images(image, [self.resize_h, self.resize_w])
-            img_lst.append(image)
 
-        return img_lst, filenames
+        return images, filenames
 
 
     def normalize(self, images, filenames):

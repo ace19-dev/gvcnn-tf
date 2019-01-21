@@ -221,8 +221,7 @@ def main(unused_argv):
         # Prepare data
         ################
         filenames = tf.placeholder(tf.string, shape=[])
-        tr_dataset = data.Dataset(filenames, FLAGS.how_many_training_epochs,
-                                  FLAGS.height, FLAGS.width)
+        tr_dataset = data.Dataset(filenames, FLAGS.height, FLAGS.width)
         iterator = tr_dataset.dataset.make_initializable_iterator()
         next_batch = iterator.get_next()
 
