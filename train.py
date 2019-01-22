@@ -152,8 +152,9 @@ def main(unused_argv):
         # train_utils.edit_trainable_variables('fcn')
 
         # Define loss
-        tf.losses.sparse_softmax_cross_entropy(labels=ground_truth,
-                                                logits=logits)
+        # tf.losses.sparse_softmax_cross_entropy(labels=ground_truth, logits=logits)
+        -tf.reduce_sum(tf.cast(ground_truth, tf.float32) *
+                       tf.log(tf.nn.softmax(logits) + 1e-10))
 
         # Gather update_ops. These contain, for example,
         # the updates for the batch_norm variables created by model.
@@ -292,7 +293,7 @@ def main(unused_argv):
                                                     grouping_scheme: schemes,
                                                     grouping_weight: weights,
                                                     is_training: True,
-                                                    dropout_keep_prob: 0.8})
+                                                    dropout_keep_prob: 0.5})
 
                     train_writer.add_summary(train_summary, training_epoch)
                     tf.logging.info('Epoch #%d, Step #%d, rate %.10f, accuracy %.1f%%, loss %f' %
