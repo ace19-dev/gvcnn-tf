@@ -11,6 +11,7 @@ import io
 import logging
 import os
 import random
+import numpy as np
 
 import PIL.Image
 import tensorflow as tf
@@ -18,11 +19,11 @@ import tensorflow as tf
 from dataset_tools import dataset_util
 
 
-RANDOM_SEED = 8045
+# RANDOM_SEED = 8045
 
 flags = tf.app.flags
 flags.DEFINE_string('dataset_dir',
-                    '/home/ace19/dl_data/modelnet',
+                    '/home/ace19/dl_data/modelnet/base',
                     'Root Directory to raw modelnet dataset.')
 flags.DEFINE_string('output_path',
                     '/home/ace19/dl_data/modelnet/train.record',
@@ -81,7 +82,7 @@ def dict_to_tf_example(image,
     widths = []
     heights = []
     formats = []
-    # labels = []
+    labels = []
     keys = []
 
     view_lst = view_map_dict[image]
@@ -128,7 +129,12 @@ def main(_):
 
     dataset_lst = os.listdir(FLAGS.dataset_dir)
     dataset_lst.sort()
-    label_to_index = {cls: i for i, cls in enumerate(dataset_lst)}
+    label_to_index = {}
+    for i, cls in enumerate(dataset_lst):
+        cls_path = os.path.join(FLAGS.dataset_dir, cls)
+        if os.path.isdir(cls_path):
+            label_to_index[cls] = i
+
     label_map_dict, view_map_dict = get_data_map_dict(label_to_index)
 
     tf.logging.info('Reading from modelnet dataset.')

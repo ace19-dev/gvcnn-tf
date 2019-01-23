@@ -35,7 +35,7 @@ flags.DEFINE_string('summaries_dir', './models/train_logs',
 
 flags.DEFINE_enum('learning_policy', 'step', ['step'],
                   'Learning rate policy for training.')
-flags.DEFINE_float('base_learning_rate', .00001,
+flags.DEFINE_float('base_learning_rate', .0001,
                    'The base learning rate for model training.')
 flags.DEFINE_float('learning_rate_decay_factor', 0.1,
                    'The rate to decay the base learning rate.')
@@ -139,7 +139,6 @@ def main(unused_argv):
             # grouping module
             d_scores, raw_desc = gvcnn.discrimination_score(X)
 
-        with slim.arg_scope(inception_v4.inception_v4_arg_scope()):
             # GVCNN
             logits, _, end_points = gvcnn.gvcnn(mid_level_X,
                                                 grouping_scheme,
@@ -152,7 +151,7 @@ def main(unused_argv):
         # train_utils.edit_trainable_variables('fcn')
 
         # Define loss
-        tf.losses.parse_softmax_cross_entropy(labels=ground_truth, logits=logits)
+        tf.reduce_mean(tf.losses.sparse_softmax_cross_entropy(labels=ground_truth, logits=logits))
 
         # Gather update_ops. These contain, for example,
         # the updates for the batch_norm variables created by model.
@@ -181,7 +180,8 @@ def main(unused_argv):
         #     FLAGS.learning_rate_decay_step, FLAGS.learning_rate_decay_factor,
         #     None, FLAGS.learning_power,
         #     FLAGS.slow_start_step, FLAGS.slow_start_learning_rate)
-        optimizer = tf.train.MomentumOptimizer(learning_rate, FLAGS.momentum)
+        # optimizer = tf.train.MomentumOptimizer(learning_rate, FLAGS.momentum)
+        optimizer = tf.train.AdamOptimizer(learning_rate)
         summaries.add(tf.summary.scalar('learning_rate', learning_rate))
 
         # for variable in slim.get_model_variables():
@@ -254,6 +254,7 @@ def main(unused_argv):
                     train_batch_xs, train_batch_ys = sess.run(next_batch)
 
                     # # Verify image
+                    # assert not np.any(np.isnan(train_batch_xs))
                     # n_batch = train_batch_xs.shape[0]
                     # n_view = train_batch_xs.shape[1]
                     # for i in range(n_batch):
@@ -291,7 +292,7 @@ def main(unused_argv):
                                                     grouping_scheme: schemes,
                                                     grouping_weight: weights,
                                                     is_training: True,
-                                                    dropout_keep_prob: 0.8})
+                                                    dropout_keep_prob: 0.5})
 
                     train_writer.add_summary(train_summary, training_epoch)
                     tf.logging.info('Epoch #%d, Step #%d, rate %.10f, accuracy %.1f%%, loss %f' %
