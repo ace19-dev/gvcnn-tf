@@ -139,7 +139,6 @@ def main(unused_argv):
             # grouping module
             d_scores, raw_desc = gvcnn.discrimination_score(X)
 
-        # with slim.arg_scope(inception_v4.inception_v4_arg_scope()):
             # GVCNN
             logits, _, end_points = gvcnn.gvcnn(mid_level_X,
                                                 grouping_scheme,
