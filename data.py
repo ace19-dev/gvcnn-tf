@@ -25,12 +25,15 @@ class Dataset(object):
         dataset = dataset.map(self.augment, num_parallel_calls=8)
         dataset = dataset.map(self.normalize, num_parallel_calls=8)
 
+        # Prefetches a batch at a time to smooth out the time taken to load input
+        # files for shuffling and processing.
+        dataset = dataset.prefetch(buffer_size=batch_size)
         # The shuffle transformation uses a finite-sized buffer to shuffle elements
         # in memory. The parameter is the number of elements in the buffer. For
         # completely uniform shuffling, set the parameter to be the same as the
         # number of elements in the dataset.
         dataset = dataset.shuffle(1000 + 3 * batch_size)
-        dataset = dataset.repeat(1)
+        dataset = dataset.repeat()
         self.dataset = dataset.batch(batch_size)
 
 
