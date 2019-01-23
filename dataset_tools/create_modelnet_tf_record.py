@@ -11,6 +11,7 @@ import io
 import logging
 import os
 import random
+import numpy as np
 
 import PIL.Image
 import tensorflow as tf
@@ -18,17 +19,17 @@ import tensorflow as tf
 from dataset_tools import dataset_util
 
 
-RANDOM_SEED = 8045
+# RANDOM_SEED = 8045
 
 flags = tf.app.flags
 flags.DEFINE_string('dataset_dir',
-                    '/home/ace19/dl_data/modelnet',
+                    '/home/ace19/dl_data/modelnet/base',
                     'Root Directory to raw modelnet dataset.')
 flags.DEFINE_string('output_path',
-                    '/home/ace19/dl_data/modelnet/test.record',
+                    '/home/ace19/dl_data/modelnet/train.record',
                     'Path to output TFRecord')
 flags.DEFINE_string('dataset_category',
-                    'test',
+                    'train',
                     'dataset category, train or test')
 
 FLAGS = flags.FLAGS

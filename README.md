@@ -18,9 +18,6 @@
     - Deep Cosine Metric
 
 ## TODO
-- in progress - Loss is inf or nan. : Tensor had NaN values
-    - change loss func
-    - change model
 - re-check Grouping Module. (Intra-Group View Pooling, Group Fusion, ...)
 - make classification and retrieval modules
 - make input data module efficient.

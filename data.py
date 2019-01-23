@@ -23,7 +23,7 @@ class Dataset(object):
         # of the dataset.
         dataset = dataset.map(self.decode, num_parallel_calls=8)
         dataset = dataset.map(self.augment, num_parallel_calls=8)
-        dataset = dataset.map(self.normalize, num_parallel_calls=8)
+        # dataset = dataset.map(self.normalize, num_parallel_calls=8)
 
         # The shuffle transformation uses a finite-sized buffer to shuffle elements
         # in memory. The parameter is the number of elements in the buffer. For
