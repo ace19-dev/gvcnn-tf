@@ -183,8 +183,7 @@ def main(unused_argv):
         #     FLAGS.learning_rate_decay_step, FLAGS.learning_rate_decay_factor,
         #     None, FLAGS.learning_power,
         #     FLAGS.slow_start_step, FLAGS.slow_start_learning_rate)
-        # optimizer = tf.train.MomentumOptimizer(learning_rate, FLAGS.momentum)
-        optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
+        optimizer = tf.train.MomentumOptimizer(learning_rate, FLAGS.momentum)
         summaries.add(tf.summary.scalar('learning_rate', learning_rate))
 
         # for variable in slim.get_model_variables():
