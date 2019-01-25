@@ -15,7 +15,6 @@
 - retrieval
     - Euclidean distance
     - low-rank Mahalanobis metric
-    - Deep Cosine Metric
 
 ## TODO
 - re-check Grouping Module. (Intra-Group View Pooling, Group Fusion, ...)
