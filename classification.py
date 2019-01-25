@@ -98,7 +98,7 @@ def main(unused_argv):
         sess.run(tf.global_variables_initializer())
 
         # Create a saver object which will save all the variables
-        saver = tf.train.Saver(keep_checkpoint_every_n_hours=1.0)
+        saver = tf.train.Saver()
         if tf.gfile.IsDirectory(FLAGS.checkpoint_path):
             checkpoint_path = tf.train.latest_checkpoint(FLAGS.checkpoint_path)
         else:
