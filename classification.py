@@ -25,7 +25,7 @@ FLAGS = flags.FLAGS
 NUM_GROUP = 8
 
 # temporary constant
-MODELNET_EVAL_DATA_SIZE = 0
+MODELNET_EVAL_DATA_SIZE = 540
 
 
 # Dataset settings.
