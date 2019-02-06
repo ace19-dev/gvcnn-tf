@@ -75,7 +75,7 @@ def _view_pooling(final_view_descriptors, group_scheme):
     the views in the same group have the similar discrimination,
     which are assigned the same weight.
 
-    Use the average pooling (TODO: max pooling later??)
+    Use max pooling
 
     :param group_scheme:
     :param final_view_descriptors:
@@ -90,7 +90,7 @@ def _view_pooling(final_view_descriptors, group_scheme):
         view_desc = tf.cond(tf.not_equal(tf.size(ind), 0),
                             lambda : tf.gather(final_view_descriptors, ind),
                             lambda : tf.expand_dims(zero_tensor, 0))
-        group_descriptors[i] = tf.squeeze(tf.reduce_mean(view_desc, axis=0, keepdims=True), [0])
+        group_descriptors[i] = tf.squeeze(tf.reduce_max(view_desc, axis=0, keepdims=True), [0])
 
     return group_descriptors
 
