@@ -1,5 +1,7 @@
+
+### It's under development.
+
 ## GVCNN (Group-View Convolutional Neural Networks for 3D Shape Recognition)
-- It's under development.
 ![](assets/gvcnn_framework.png)
 
 ## Data
