@@ -13,9 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 """Contains the definition of the Inception V4 architecture.
-
 As described in http://arxiv.org/abs/1602.07261.
-
   Inception-v4, Inception-ResNet and the Impact of Residual Connections
     on Learning
   Christian Szegedy, Sergey Ioffe, Vincent Vanhoucke, Alex Alemi
@@ -146,18 +144,15 @@ def block_inception_c(inputs, scope=None, reuse=None):
 # ~ Stem Layer(Mixed_5a) - 앞단의 Conv 레이어를 stem 영역이라고 부른다
 def fcn(inputs, final_endpoint='Mixed_5a', scope=None):
     """Creates the Inception V4 network up to the given final endpoint.
-
     Args:
       inputs: a 4-D tensor of size [batch_size, height, width, 3]. -> data_format='NDHWC',
       final_endpoint: specifies the endpoint to construct the network up to.
         It can be one of [ 'Conv2d_1a_3x3', 'Conv2d_2a_3x3', 'Conv2d_2b_3x3',
         'Mixed_3a', 'Mixed_4a']
       scope: Optional variable_scope.
-
     Returns:
       logits: the logits outputs of the model.
       end_points: the set of end_points from the inception model.
-
     Raises:
       ValueError: if final_endpoint is not set to one of the predefined values,
     """
@@ -268,7 +263,6 @@ def cnn(inputs, final_endpoint='Mixed_7d', scope=None):
 
 def inception_v4_base(inputs, final_endpoint='Mixed_7d', scope=None):
     """Creates the Inception V4 network up to the given final endpoint.
-
     Args:
       inputs: a 4-D tensor of size [batch_size, height, width, 3].
       final_endpoint: specifies the endpoint to construct the network up to.
@@ -278,11 +272,9 @@ def inception_v4_base(inputs, final_endpoint='Mixed_7d', scope=None):
         'Mixed_6f', 'Mixed_6g', 'Mixed_6h', 'Mixed_7a', 'Mixed_7b', 'Mixed_7c',
         'Mixed_7d']
       scope: Optional variable_scope.
-
     Returns:
       logits: the logits outputs of the model.
       end_points: the set of end_points from the inception model.
-
     Raises:
       ValueError: if final_endpoint is not set to one of the predefined values,
     """
@@ -382,7 +374,6 @@ def inception_v4(inputs, num_classes=1001, is_training=True,
                  scope='InceptionV4',
                  create_aux_logits=True):
     """Creates the Inception V4 model.
-
     Args:
       inputs: a 4-D tensor of size [batch_size, height, width, 3].
       num_classes: number of predicted classes. If 0 or None, the logits layer
@@ -394,7 +385,6 @@ def inception_v4(inputs, num_classes=1001, is_training=True,
         able to reuse 'scope' must be given.
       scope: Optional variable_scope.
       create_aux_logits: Whether to include the auxiliary logits.
-
     Returns:
       net: a Tensor with the logits (pre-softmax activations) if num_classes
         is a non-zero integer, or the non-dropped input to the logits layer

@@ -147,6 +147,13 @@ def main(unused_argv):
                                                 is_training,
                                                 dropout_keep_prob)
 
+        # Print name and shape of parameter nodes  (values not yet initialized)
+        tf.logging.info("++++++++++++++++++++++++++++++++++")
+        tf.logging.info("Parameters")
+        tf.logging.info("++++++++++++++++++++++++++++++++++")
+        for v in slim.get_model_variables():
+            tf.logging.info('name = %s, shape = %s' % (v.name, v.get_shape()))
+
         # make a trainable variable not trainable
         # train_utils.edit_trainable_variables('fcn')
 
@@ -201,8 +208,8 @@ def main(unused_argv):
                 grads_and_vars, grad_mult)
 
         # Create gradient update op.
-        grad_updates = optimizer.apply_gradients(
-            grads_and_vars, global_step=global_step)
+        grad_updates = optimizer.apply_gradients(grads_and_vars,
+                                                 global_step=global_step)
         update_ops.append(grad_updates)
         update_op = tf.group(*update_ops)
         with tf.control_dependencies([update_op]):
