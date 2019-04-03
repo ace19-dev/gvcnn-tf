@@ -97,23 +97,14 @@ flags.DEFINE_integer('how_many_training_epochs', 100,
 flags.DEFINE_integer('num_views', 8, 'number of views')
 flags.DEFINE_integer('height', 299, 'height')
 flags.DEFINE_integer('width', 299, 'width')
-flags.DEFINE_integer('num_classes', 7, 'number of classes')
+flags.DEFINE_integer('num_classes', 5, 'number of classes')
 
 # temporary constant
-MODELNET_TRAINING_DATA_SIZE = 2780
+MODELNET_TRAINING_DATA_SIZE = 2525
 
 
 def main(unused_argv):
     tf.logging.set_verbosity(tf.logging.INFO)
-
-    # test.test(h_w,
-    #           FLAGS.num_views,
-    #           NUM_GROUP,
-    #           FLAGS.num_classes,
-    #           FLAGS.batch_size)
-    # test2()
-    # test.test3()
-    # test.test4()
 
     tf.gfile.MakeDirs(FLAGS.train_logdir)
     tf.logging.info('Creating train logdir: %s', FLAGS.train_logdir)
@@ -125,9 +116,9 @@ def main(unused_argv):
         X = tf.placeholder(tf.float32,
                            [None, FLAGS.num_views, FLAGS.height, FLAGS.width, 3],
                            name='inputs')
-        mid_level_X = tf.placeholder(tf.float32,
-                           [FLAGS.num_views, None, 35, 35, 384], # inputs of 4 x Inception-A blocks
-                           name='inputs')
+        # mid_level_X = tf.placeholder(tf.float32,
+        #                    [FLAGS.num_views, None, 35, 35, 384], # inputs of 4 x Inception-A blocks
+        #                    name='inputs')
         ground_truth = tf.placeholder(tf.int64, [None], name='ground_truth')
         is_training = tf.placeholder(tf.bool)
         dropout_keep_prob = tf.placeholder(tf.float32)
@@ -135,17 +126,16 @@ def main(unused_argv):
         grouping_weight = tf.placeholder(tf.float32, [NUM_GROUP, 1])
         learning_rate = tf.placeholder(tf.float32)
 
-        with slim.arg_scope(inception_v4.inception_v4_arg_scope()):
-            # grouping module
-            d_scores, raw_desc = gvcnn.discrimination_score(X)
+        # # grouping module
+        # d_scores, raw_desc = gvcnn.discrimination_score(X)
 
-            # GVCNN
-            logits, _, end_points = gvcnn.gvcnn(mid_level_X,
-                                                grouping_scheme,
-                                                grouping_weight,
-                                                FLAGS.num_classes,
-                                                is_training,
-                                                dropout_keep_prob)
+        # GVCNN
+        logits, d_scores, raw_desc, _, end_points = gvcnn.gvcnn(X,
+                                                                grouping_scheme,
+                                                                grouping_weight,
+                                                                FLAGS.num_classes,
+                                                                is_training,
+                                                                dropout_keep_prob)
 
         # Print name and shape of parameter nodes  (values not yet initialized)
         tf.logging.info("++++++++++++++++++++++++++++++++++")
@@ -279,7 +269,7 @@ def main(unused_argv):
                     # Sets up a graph with feeds and fetches for partial run.
                     handle = sess.partial_run_setup([d_scores, raw_desc,
                                                      summary_op, accuracy, total_loss, train_op],
-                                                    [X, mid_level_X, ground_truth, learning_rate,
+                                                    [X, ground_truth, learning_rate,
                                                      grouping_scheme, grouping_weight, is_training,
                                                      dropout_keep_prob])
 
@@ -293,7 +283,7 @@ def main(unused_argv):
                     train_summary, train_accuracy, train_loss, _ = \
                         sess.partial_run(handle,
                                          [summary_op, accuracy, total_loss, train_op],
-                                         feed_dict={mid_level_X: r_desc,
+                                         feed_dict={X: train_batch_xs,  # TODO: check feed_dick value
                                                     ground_truth: train_batch_ys,
                                                     learning_rate: FLAGS.base_learning_rate,
                                                     grouping_scheme: schemes,
