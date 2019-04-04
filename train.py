@@ -115,10 +115,10 @@ def main(unused_argv):
         # Define the model
         X = tf.placeholder(tf.float32,
                            [None, FLAGS.num_views, FLAGS.height, FLAGS.width, 3],
-                           name='inputs')
-        # mid_level_X = tf.placeholder(tf.float32,
-        #                    [FLAGS.num_views, None, 35, 35, 384], # inputs of 4 x Inception-A blocks
-        #                    name='inputs')
+                           name='X')
+        # final_X = tf.placeholder(tf.float32,
+        #                          [FLAGS.num_views, None, 8, 8, 1536],
+        #                          name='final_X')
         ground_truth = tf.placeholder(tf.int64, [None], name='ground_truth')
         is_training = tf.placeholder(tf.bool)
         dropout_keep_prob = tf.placeholder(tf.float32)
@@ -126,26 +126,16 @@ def main(unused_argv):
         grouping_weight = tf.placeholder(tf.float32, [NUM_GROUP, 1])
         learning_rate = tf.placeholder(tf.float32)
 
-        # # grouping module
-        # d_scores, raw_desc = gvcnn.discrimination_score(X)
+        # Grouping
+        d_scores, raw_desc, final_desc = gvcnn.discrimination_score(X, is_training)
 
         # GVCNN
-        logits, d_scores, raw_desc, _, end_points = gvcnn.gvcnn(X,
-                                                                grouping_scheme,
-                                                                grouping_weight,
-                                                                FLAGS.num_classes,
-                                                                is_training,
-                                                                dropout_keep_prob)
-
-        # Print name and shape of parameter nodes  (values not yet initialized)
-        tf.logging.info("++++++++++++++++++++++++++++++++++")
-        tf.logging.info("Parameters")
-        tf.logging.info("++++++++++++++++++++++++++++++++++")
-        for v in slim.get_model_variables():
-            tf.logging.info('name = %s, shape = %s' % (v.name, v.get_shape()))
-
-        # make a trainable variable not trainable
-        # train_utils.edit_trainable_variables('fcn')
+        logits, _ = gvcnn.gvcnn(final_desc,
+                                grouping_scheme,
+                                grouping_weight,
+                                FLAGS.num_classes,
+                                is_training,
+                                dropout_keep_prob)
 
         # Define loss
         tf.reduce_mean(tf.losses.sparse_softmax_cross_entropy(labels=ground_truth, logits=logits))
@@ -225,10 +215,11 @@ def main(unused_argv):
         with tf.Session(config=sess_config) as sess:
             sess.run(tf.global_variables_initializer())
 
+            # TODO: How to load the pre-trained value.
             # Create a saver object which will save all the variables
             saver = tf.train.Saver(keep_checkpoint_every_n_hours=1.0)
-            if FLAGS.pre_trained_checkpoint:
-                train_utils.restore_fn(FLAGS)
+            # if FLAGS.pre_trained_checkpoint:
+            #     train_utils.restore_fn(FLAGS)
 
             start_epoch = 0
             # Get the number of training/validation steps per epoch
@@ -266,16 +257,30 @@ def main(unused_argv):
                     #         cv2.waitKey(100)
                     #         cv2.destroyAllWindows()
 
+                    '''Below is a simple example: 
+                    python
+                    a = array_ops.placeholder(dtypes.float32, shape=[])
+                    b = array_ops.placeholder(dtypes.float32, shape=[])
+                    c = array_ops.placeholder(dtypes.float32, shape=[])
+                    r1 = math_ops.add(a, b)
+                    r2 = math_ops.multiply(r1, c)
+                
+                    h = sess.partial_run_setup([r1, r2], [a, b, c])
+                    res = sess.partial_run(h, r1, feed_dict={a: 1, b: 2})
+                    res = sess.partial_run(h, r2, feed_dict={c: res})
+                    '''
+
                     # Sets up a graph with feeds and fetches for partial run.
-                    handle = sess.partial_run_setup([d_scores, raw_desc,
+                    handle = sess.partial_run_setup([d_scores, raw_desc, final_desc,
                                                      summary_op, accuracy, total_loss, train_op],
                                                     [X, ground_truth, learning_rate,
                                                      grouping_scheme, grouping_weight, is_training,
                                                      dropout_keep_prob])
 
-                    scores, r_desc = sess.partial_run(handle,
-                                                      [d_scores, raw_desc],
-                                                      feed_dict={X: train_batch_xs})
+                    scores, raw, final = sess.partial_run(handle,
+                                                          [d_scores, raw_desc, final_desc],
+                                                          feed_dict={X: train_batch_xs,
+                                                                     is_training: True})
                     schemes = gvcnn.grouping_scheme(scores, NUM_GROUP, FLAGS.num_views)
                     weights = gvcnn.grouping_weight(scores, schemes)
 
@@ -283,13 +288,12 @@ def main(unused_argv):
                     train_summary, train_accuracy, train_loss, _ = \
                         sess.partial_run(handle,
                                          [summary_op, accuracy, total_loss, train_op],
-                                         feed_dict={X: train_batch_xs,  # TODO: check feed_dick value
-                                                    ground_truth: train_batch_ys,
+                                         feed_dict={ground_truth: train_batch_ys,
                                                     learning_rate: FLAGS.base_learning_rate,
                                                     grouping_scheme: schemes,
                                                     grouping_weight: weights,
                                                     is_training: True,
-                                                    dropout_keep_prob: 0.5})
+                                                    dropout_keep_prob: 0.8})
 
                     train_writer.add_summary(train_summary, training_epoch)
                     tf.logging.info('Epoch #%d, Step #%d, rate %.10f, accuracy %.1f%%, loss %f' %
