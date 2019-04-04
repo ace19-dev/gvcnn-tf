@@ -92,15 +92,14 @@ flags.DEFINE_string('dataset_dir', '/home/ace19/dl_data/modelnet',
 
 flags.DEFINE_integer('how_many_training_epochs', 100,
                      'How many training loops to run')
-# TODO: will apply n-batch later
-# flags.DEFINE_integer('batch_size', 4, 'batch size')
+flags.DEFINE_integer('batch_size', 4, 'batch size')
 flags.DEFINE_integer('num_views', 8, 'number of views')
-flags.DEFINE_integer('height', 299, 'height')
-flags.DEFINE_integer('width', 299, 'width')
+flags.DEFINE_integer('height', 112, 'height')
+flags.DEFINE_integer('width', 112, 'width')
 flags.DEFINE_integer('num_classes', 5, 'number of classes')
 
 # temporary constant
-MODELNET_TRAINING_DATA_SIZE = 2525
+MODELNET_TRAIN_DATA_SIZE = 2525
 
 
 def main(unused_argv):
@@ -116,25 +115,26 @@ def main(unused_argv):
         X = tf.placeholder(tf.float32,
                            [None, FLAGS.num_views, FLAGS.height, FLAGS.width, 3],
                            name='X')
-        # final_X = tf.placeholder(tf.float32,
-        #                          [FLAGS.num_views, None, 8, 8, 1536],
-        #                          name='final_X')
+        final_X = tf.placeholder(tf.float32,
+                                 [FLAGS.num_views, None, 2, 2, 1536],
+                                 name='final_X')
         ground_truth = tf.placeholder(tf.int64, [None], name='ground_truth')
         is_training = tf.placeholder(tf.bool)
+        is_training2 = tf.placeholder(tf.bool)
         dropout_keep_prob = tf.placeholder(tf.float32)
         grouping_scheme = tf.placeholder(tf.bool, [NUM_GROUP, FLAGS.num_views])
         grouping_weight = tf.placeholder(tf.float32, [NUM_GROUP, 1])
         learning_rate = tf.placeholder(tf.float32)
 
         # Grouping
-        d_scores, raw_desc, final_desc = gvcnn.discrimination_score(X, is_training)
+        d_scores, _, final_desc = gvcnn.discrimination_score(X, is_training)
 
         # GVCNN
-        logits, _ = gvcnn.gvcnn(final_desc,
+        logits, _ = gvcnn.gvcnn(final_X,
                                 grouping_scheme,
                                 grouping_weight,
                                 FLAGS.num_classes,
-                                is_training,
+                                is_training2,
                                 dropout_keep_prob)
 
         # Define loss
@@ -207,7 +207,7 @@ def main(unused_argv):
         # Prepare data
         ################
         filenames = tf.placeholder(tf.string, shape=[])
-        tr_dataset = data.Dataset(filenames, FLAGS.height, FLAGS.width)
+        tr_dataset = data.Dataset(filenames, FLAGS.height, FLAGS.width, FLAGS.batch_size)
         iterator = tr_dataset.dataset.make_initializable_iterator()
         next_batch = iterator.get_next()
 
@@ -215,7 +215,7 @@ def main(unused_argv):
         with tf.Session(config=sess_config) as sess:
             sess.run(tf.global_variables_initializer())
 
-            # TODO: How to load the pre-trained value.
+            # TODO:
             # Create a saver object which will save all the variables
             saver = tf.train.Saver(keep_checkpoint_every_n_hours=1.0)
             # if FLAGS.pre_trained_checkpoint:
@@ -223,7 +223,12 @@ def main(unused_argv):
 
             start_epoch = 0
             # Get the number of training/validation steps per epoch
-            batches = int(MODELNET_TRAINING_DATA_SIZE)
+            tr_batches = int(MODELNET_TRAIN_DATA_SIZE / FLAGS.batch_size)
+            if MODELNET_TRAIN_DATA_SIZE % FLAGS.batch_size > 0:
+                tr_batches += 1
+            # val_batches = int(PCAM_VALIDATE_DATA_SIZE / FLAGS.val_batch_size)
+            # if PCAM_VALIDATE_DATA_SIZE % FLAGS.val_batch_size > 0:
+            #     val_batches += 1
 
             # The filenames argument to the TFRecordDataset initializer can either be a string,
             # a list of strings, or a tf.Tensor of strings.
@@ -237,7 +242,7 @@ def main(unused_argv):
                 print("-------------------------------------")
 
                 sess.run(iterator.initializer, feed_dict={filenames: training_filenames})
-                for step in range(batches):
+                for step in range(tr_batches):
                     # Pull the image batch we'll use for training.
                     train_batch_xs, train_batch_ys = sess.run(next_batch)
 
@@ -257,30 +262,19 @@ def main(unused_argv):
                     #         cv2.waitKey(100)
                     #         cv2.destroyAllWindows()
 
-                    '''Below is a simple example: 
-                    python
-                    a = array_ops.placeholder(dtypes.float32, shape=[])
-                    b = array_ops.placeholder(dtypes.float32, shape=[])
-                    c = array_ops.placeholder(dtypes.float32, shape=[])
-                    r1 = math_ops.add(a, b)
-                    r2 = math_ops.multiply(r1, c)
-                
-                    h = sess.partial_run_setup([r1, r2], [a, b, c])
-                    res = sess.partial_run(h, r1, feed_dict={a: 1, b: 2})
-                    res = sess.partial_run(h, r2, feed_dict={c: res})
-                    '''
-
                     # Sets up a graph with feeds and fetches for partial run.
-                    handle = sess.partial_run_setup([d_scores, raw_desc, final_desc,
+                    handle = sess.partial_run_setup([d_scores, final_desc,
                                                      summary_op, accuracy, total_loss, train_op],
-                                                    [X, ground_truth, learning_rate,
+                                                    [X, final_X, ground_truth, learning_rate,
                                                      grouping_scheme, grouping_weight, is_training,
-                                                     dropout_keep_prob])
+                                                     is_training2, dropout_keep_prob])
 
-                    scores, raw, final = sess.partial_run(handle,
-                                                          [d_scores, raw_desc, final_desc],
-                                                          feed_dict={X: train_batch_xs,
-                                                                     is_training: True})
+                    scores, final = sess.partial_run(handle,
+                                                     [d_scores, final_desc],
+                                                     feed_dict={
+                                                        X: train_batch_xs,
+                                                        is_training: True}
+                                                     )
                     schemes = gvcnn.grouping_scheme(scores, NUM_GROUP, FLAGS.num_views)
                     weights = gvcnn.grouping_weight(scores, schemes)
 
@@ -288,12 +282,15 @@ def main(unused_argv):
                     train_summary, train_accuracy, train_loss, _ = \
                         sess.partial_run(handle,
                                          [summary_op, accuracy, total_loss, train_op],
-                                         feed_dict={ground_truth: train_batch_ys,
-                                                    learning_rate: FLAGS.base_learning_rate,
-                                                    grouping_scheme: schemes,
-                                                    grouping_weight: weights,
-                                                    is_training: True,
-                                                    dropout_keep_prob: 0.8})
+                                         feed_dict={
+                                             final_X: final,
+                                             ground_truth: train_batch_ys,
+                                             learning_rate: FLAGS.base_learning_rate,
+                                             grouping_scheme: schemes,
+                                             grouping_weight: weights,
+                                             is_training2: True,
+                                             dropout_keep_prob: 0.8}
+                                         )
 
                     train_writer.add_summary(train_summary, training_epoch)
                     tf.logging.info('Epoch #%d, Step #%d, rate %.10f, accuracy %.1f%%, loss %f' %

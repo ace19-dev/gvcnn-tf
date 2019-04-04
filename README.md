@@ -1,5 +1,5 @@
 
-# It's under development.
+## In progress.
 
 ## GVCNN (Group-View Convolutional Neural Networks for 3D Shape Recognition)
 ![](assets/gvcnn_framework.png)
@@ -17,12 +17,15 @@
 - retrieval
     - Euclidean distance
     - low-rank Mahalanobis metric
+    
+## Done
+- 
 
 ## TODO
-- re-check Grouping Module. (Intra-Group View Pooling, Group Fusion, ...)
-- make classification and retrieval modules
+- check grouping module. (Intra-Group View Pooling, Group Fusion, ...)
+- apply imgaug
+- create classification and retrieval modules
 - make input data module efficient.
-- test various base architecture.
 
 ## References from
 - http://openaccess.thecvf.com/content_cvpr_2018/papers/Feng_GVCNN_Group-View_Convolutional_CVPR_2018_paper.pdf
