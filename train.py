@@ -6,7 +6,6 @@ import numpy as np
 import data
 import gvcnn
 from utils import train_utils
-from nets import inception_v4
 
 slim = tf.contrib.slim
 
@@ -92,10 +91,10 @@ flags.DEFINE_string('dataset_dir', '/home/ace19/dl_data/modelnet',
 
 flags.DEFINE_integer('how_many_training_epochs', 100,
                      'How many training loops to run')
-flags.DEFINE_integer('batch_size', 4, 'batch size')
+flags.DEFINE_integer('batch_size', 1, 'batch size')
 flags.DEFINE_integer('num_views', 8, 'number of views')
-flags.DEFINE_integer('height', 112, 'height')
-flags.DEFINE_integer('width', 112, 'width')
+flags.DEFINE_integer('height', 299, 'height')
+flags.DEFINE_integer('width', 299, 'width')
 flags.DEFINE_integer('num_classes', 5, 'number of classes')
 
 # temporary constant
@@ -116,7 +115,7 @@ def main(unused_argv):
                            [None, FLAGS.num_views, FLAGS.height, FLAGS.width, 3],
                            name='X')
         final_X = tf.placeholder(tf.float32,
-                                 [FLAGS.num_views, None, 2, 2, 1536],
+                                 [FLAGS.num_views, None, 8, 8, 1536],
                                  name='final_X')
         ground_truth = tf.placeholder(tf.int64, [None], name='ground_truth')
         is_training = tf.placeholder(tf.bool)
@@ -127,7 +126,9 @@ def main(unused_argv):
         learning_rate = tf.placeholder(tf.float32)
 
         # Grouping
-        d_scores, _, final_desc = gvcnn.discrimination_score(X, is_training)
+        d_scores, _, final_desc = gvcnn.discrimination_score(X,
+                                                             FLAGS.num_classes,
+                                                             is_training)
 
         # GVCNN
         logits, _ = gvcnn.gvcnn(final_X,
