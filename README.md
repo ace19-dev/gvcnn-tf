@@ -23,9 +23,8 @@
 
 ## TODO
 - check grouping module. (Intra-Group View Pooling, Group Fusion, ...)
-- apply imgaug
+- apply n-batch
 - create classification and retrieval modules
-- make input data module efficient.
 
 ## References from
 - http://openaccess.thecvf.com/content_cvpr_2018/papers/Feng_GVCNN_Group-View_Convolutional_CVPR_2018_paper.pdf

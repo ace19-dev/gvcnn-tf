@@ -5,51 +5,51 @@ from __future__ import print_function
 
 import tensorflow as tf
 import numpy as np
+import math
 
 from nets import inception_v4
 
 slim = tf.contrib.slim
 
-# The ore discriminative group should have higher weights and vice versa.
+# What is a relationship between group count and accuracy?
 def grouping_scheme(view_discrimination_score, num_group, num_views):
     '''
     Note that 1 ≤ M ≤ N because there
     may exist sub-ranges that have no views falling into it.
     '''
-    _grouping_scheme = np.full((num_group, num_views), False)
+    schemes = np.full((num_group, num_views), False)
 
     for idx, s in enumerate(view_discrimination_score):
-        if 0.0 <= s < 0.1:      # 0 group
-            _grouping_scheme[0, idx] = True
+        if 0.0 <= s < 0.1:  # 0 group
+            schemes[0,idx] = True
         elif 0.1 <= s < 0.2:    # 1 group
-            _grouping_scheme[1, idx] = True
+            schemes[1,idx] = True
         elif 0.2 <= s < 0.3:    # 2 group
-            _grouping_scheme[2, idx] = True
+            schemes[2,idx] = True
         elif 0.3 <= s < 0.4:    # 3 group
-            _grouping_scheme[3, idx] = True
+            schemes[3,idx] = True
         elif 0.4 <= s < 0.5:    # 4 group
-            _grouping_scheme[4, idx] = True
+            schemes[4,idx] = True
         elif 0.5 <= s < 0.6:    # 5 group
-            _grouping_scheme[5, idx] = True
+            schemes[5,idx] = True
         elif 0.6 <= s < 0.7:    # 6 group
-            _grouping_scheme[6, idx] = True
+            schemes[6,idx] = True
         elif 0.7 <= s < 0.8:    # 7 group
-            _grouping_scheme[7, idx] = True
+            schemes[7,idx] = True
         elif 0.8 <= s < 0.9:    # 8 group
-            _grouping_scheme[8, idx] = True
+            schemes[8,idx] = True
         elif 0.9 <= s < 1.0:    # 9 group
-            _grouping_scheme[9, idx] = True
+            schemes[9,idx] = True
 
-    return _grouping_scheme
+    return schemes
 
 
-# TODO: modifiy func below
-# currently, average value per group
+# TODO: modify
 def grouping_weight(view_discrimination_score, grouping_scheme):
     num_group = grouping_scheme.shape[0]
     num_views = grouping_scheme.shape[1]
 
-    _grouping_weight = np.zeros(shape=(num_group, 1), dtype=np.float32)
+    weights = np.zeros(shape=(num_group, 1), dtype=np.float32)
     for i in range(num_group):
         n = 0
         sum = 0
@@ -59,10 +59,10 @@ def grouping_weight(view_discrimination_score, grouping_scheme):
                 n += 1
 
         if n != 0:
-            _grouping_weight[i][0] = sum / n
-            # weight[i][0] = tf.cast(tf.div(sum, n), dtype=tf.float32)
+            weights[i][0] = sum / n
+            # weights[i][0] = tf.cast(tf.div(sum, n), dtype=tf.float32)
 
-    return _grouping_weight
+    return weights
 
 
 def view_pooling(final_view_descriptors, group_scheme):
@@ -166,7 +166,7 @@ def discrimination_score(inputs,
         final_view_descriptors.append(net)
 
         # GAP layer to obtain the discrimination scores from raw view descriptors.
-        raw = tf.reduce_mean(raw_desc['raw_desc'], [1, 2], keep_dims=True)
+        raw = tf.reduce_mean(raw_desc['raw_desc'], [1, 2], keepdims=True)
         raw = slim.conv2d(raw, num_classes, [1, 1], activation_fn=None)
         raw = tf.reduce_max(raw, axis=[1,2,3])
         batch_view_score = tf.nn.sigmoid(tf.log(tf.abs(raw)))

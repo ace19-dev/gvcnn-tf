@@ -327,7 +327,7 @@ def inception_v4(inputs,
         #                 net = slim.avg_pool2d(net, kernel_size, padding='VALID',
         #                                       scope='AvgPool_1a')
         #             else:
-        #                 net = tf.reduce_mean(net, [1, 2], keep_dims=True,
+        #                 net = tf.reduce_mean(net, [1, 2], keepdims=True,
         #                                      name='global_pool')
         #             end_points['global_pool'] = net
         #             if not num_classes:
