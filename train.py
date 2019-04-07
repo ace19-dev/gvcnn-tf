@@ -121,6 +121,8 @@ def main(unused_argv):
                                  name='final_X')
         ground_truth = tf.placeholder(tf.int64, [None], name='ground_truth')
         is_training = tf.placeholder(tf.bool)
+        is_training2 = tf.placeholder(tf.bool)
+        dropout_keep_prob = tf.placeholder(tf.float32)
         grouping_scheme = tf.placeholder(tf.bool, [NUM_GROUP, FLAGS.num_views])
         grouping_weight = tf.placeholder(tf.float32, [NUM_GROUP, 1])
         learning_rate = tf.placeholder(tf.float32)
@@ -134,7 +136,9 @@ def main(unused_argv):
         logits, _ = gvcnn.gvcnn(final_X,
                                 grouping_scheme,
                                 grouping_weight,
-                                FLAGS.num_classes)
+                                FLAGS.num_classes,
+                                is_training2,
+                                dropout_keep_prob)
 
         # Define loss
         tf.reduce_mean(tf.losses.sparse_softmax_cross_entropy(labels=ground_truth, logits=logits))
@@ -270,7 +274,8 @@ def main(unused_argv):
                     handle = sess.partial_run_setup([d_scores, final_desc, summary_op,
                                                      accuracy, total_loss, grad_summ_op, train_op],
                                                     [X, final_X, ground_truth, learning_rate,
-                                                     grouping_scheme, grouping_weight, is_training])
+                                                     grouping_scheme, grouping_weight, is_training,
+                                                     is_training2, dropout_keep_prob])
 
                     scores, final = sess.partial_run(handle,
                                                      [d_scores, final_desc],
@@ -290,7 +295,9 @@ def main(unused_argv):
                                              ground_truth: train_batch_ys,
                                              learning_rate: FLAGS.base_learning_rate,
                                              grouping_scheme: schemes,
-                                             grouping_weight: weights}
+                                             grouping_weight: weights,
+                                             is_training2: True,
+                                             dropout_keep_prob: 0.8}
                                          )
 
                     train_writer.add_summary(train_summary, training_epoch)

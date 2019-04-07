@@ -12,16 +12,6 @@ from nets import inception_v4
 slim = tf.contrib.slim
 
 
-batch_norm_params = {
-  'decay': 0.997,    # batch_norm_decay
-  'epsilon': 1e-5,   # batch_norm_epsilon
-  'scale': True,     # batch_norm_scale
-  'updates_collections': tf.GraphKeys.UPDATE_OPS,    # batch_norm_updates_collections
-  'is_training': True,  # is_training
-  'fused': None,  # Use fused batch norm if possible.
-}
-
-
 # What is a relationship between group count and accuracy?
 def grouping_scheme(view_discrimination_score, num_group, num_views):
     '''
@@ -198,6 +188,8 @@ def gvcnn(final_view_descriptors,
           grouping_scheme,
           grouping_weight,
           num_classes,
+          is_training=True,
+          keep_prob=0.8,
           create_aux_logits=False):
 
     # Intra-Group View Pooling
@@ -205,13 +197,13 @@ def gvcnn(final_view_descriptors,
     # Group Fusion
     shape_descriptor = group_fusion(group_descriptors, grouping_weight)
 
-    # Global average pooling
+    # GlobalAveragePooling
     # (?,8,8,1536)
     net = tf.reduce_mean(shape_descriptor, axis=[1, 2], keepdims=True)
     # (?,1,1,1536)
-    net = slim.conv2d(net, num_classes, [1, 1], activation_fn=None,
-                        normalizer_fn=None, scope='logits')
-    # (?,1,1,num_classes)
-    net = tf.squeeze(net, [1, 2], name='spatial_squeeze')
+    net = slim.dropout(net, keep_prob, is_training=is_training, scope='dropout')
+    net = slim.flatten(net, scope='pre_logits_flatten')
+    # (?,1536)
+    logits = slim.fully_connected(net, num_classes, activation_fn=None, scope='logits')
 
-    return net, shape_descriptor
+    return logits, shape_descriptor
