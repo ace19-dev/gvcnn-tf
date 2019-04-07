@@ -11,6 +11,17 @@ from nets import inception_v4
 
 slim = tf.contrib.slim
 
+
+batch_norm_params = {
+  'decay': 0.997,    # batch_norm_decay
+  'epsilon': 1e-5,   # batch_norm_epsilon
+  'scale': True,     # batch_norm_scale
+  'updates_collections': tf.GraphKeys.UPDATE_OPS,    # batch_norm_updates_collections
+  'is_training': True,  # is_training
+  'fused': None,  # Use fused batch norm if possible.
+}
+
+
 # What is a relationship between group count and accuracy?
 def grouping_scheme(view_discrimination_score, num_group, num_views):
     '''
@@ -44,7 +55,6 @@ def grouping_scheme(view_discrimination_score, num_group, num_views):
     return schemes
 
 
-# TODO: modify
 def grouping_weight(view_discrimination_score, grouping_scheme):
     num_group = grouping_scheme.shape[0]
     num_views = grouping_scheme.shape[1]
@@ -65,6 +75,7 @@ def grouping_weight(view_discrimination_score, grouping_scheme):
     return weights
 
 
+# TODO: check func
 def view_pooling(final_view_descriptors, group_scheme):
 
     '''
@@ -99,6 +110,7 @@ def view_pooling(final_view_descriptors, group_scheme):
     return group_descriptors
 
 
+# TODO: check func
 def group_fusion(group_descriptors, group_weight):
     '''
     To generate the shape level description, all these group
@@ -117,11 +129,11 @@ def group_fusion(group_descriptors, group_weight):
     :return:
     '''
     group_weight_lst = tf.unstack(group_weight)
-    numerator = []  # 분자
+    numerator = []  # numerator
     for key, value in group_descriptors.items():
         numerator.append(tf.multiply(group_weight_lst[key], group_descriptors[key]))
 
-    denominator = tf.reduce_sum(group_weight_lst)   # 분모
+    denominator = tf.reduce_sum(group_weight_lst)   # denominator
     shape_descriptor = tf.div(tf.add_n(numerator), denominator)
 
     return shape_descriptor
@@ -168,9 +180,8 @@ def discrimination_score(inputs,
         # GAP layer to obtain the discrimination scores from raw view descriptors.
         raw = tf.reduce_mean(raw_desc['raw_desc'], [1, 2], keepdims=True)
         raw = slim.conv2d(raw, num_classes, [1, 1], activation_fn=None)
-        raw = tf.reduce_max(raw, axis=[1,2,3])
+        raw = tf.reduce_max(raw, axis=[1, 2, 3])
         batch_view_score = tf.nn.sigmoid(tf.log(tf.abs(raw)))
-
         view_discrimination_scores.append(batch_view_score)
 
     # # Print name and shape of parameter nodes  (values not yet initialized)
@@ -187,8 +198,6 @@ def gvcnn(final_view_descriptors,
           grouping_scheme,
           grouping_weight,
           num_classes,
-          is_training=True,
-          dropout_keep_prob=0.8,
           create_aux_logits=False):
 
     # Intra-Group View Pooling
@@ -196,30 +205,13 @@ def gvcnn(final_view_descriptors,
     # Group Fusion
     shape_descriptor = group_fusion(group_descriptors, grouping_weight)
 
-    # (?, 8, 8, 1536)
-    with slim.arg_scope([slim.conv2d, slim.max_pool2d, slim.avg_pool2d],
-                        stride=1, padding='SAME'):
-        # Final pooling and prediction
-        with tf.variable_scope('Logits'):
-            # 8 x 8 x 1536
-            kernel_size = shape_descriptor.get_shape()[1:3]
-            if kernel_size.is_fully_defined():
-                net = slim.avg_pool2d(shape_descriptor, kernel_size, padding='VALID',
-                                      scope='AvgPool_1a')
-            else:
-                net = tf.reduce_mean(shape_descriptor, [1, 2], keep_dims=True,
-                                     name='global_pool')
-            # end_points['global_pool'] = net
-            if not num_classes:
-                return net  #, end_points
-            # 1 x 1 x 1536
-            net = slim.dropout(net, dropout_keep_prob, is_training=is_training, scope='Dropout_1b')
-            net = slim.flatten(net, scope='PreLogitsFlatten')
-            # end_points['PreLogitsFlatten'] = net
-            # 1536
-            logits = slim.fully_connected(net, num_classes, activation_fn=None,
-                                          scope='Logits')
-            # end_points['Logits'] = logits  # (?,7)
-            # end_points['Predictions'] = tf.nn.softmax(logits, name='Predictions')
+    # Global average pooling
+    # (?,8,8,1536)
+    net = tf.reduce_mean(shape_descriptor, axis=[1, 2], keepdims=True)
+    # (?,1,1,1536)
+    net = slim.conv2d(net, num_classes, [1, 1], activation_fn=None,
+                        normalizer_fn=None, scope='logits')
+    # (?,1,1,num_classes)
+    net = tf.squeeze(net, [1, 2], name='spatial_squeeze')
 
-    return logits, shape_descriptor
+    return net, shape_descriptor

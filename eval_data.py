@@ -2,6 +2,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import random
+
 import tensorflow as tf
 
 
@@ -14,7 +16,7 @@ class Dataset(object):
     Handles loading, partitioning, and preparing training data.
     """
 
-    def __init__(self, tfrecord_path, batch_size, height, width):
+    def __init__(self, tfrecord_path, height, width, batch_size):
         self.resize_h = height
         self.resize_w = width
 
@@ -77,8 +79,19 @@ class Dataset(object):
         # here.  Since we are not applying any distortions in this
         # example, and the next step expects the image to be flattened
         # into a vector, we don't bother.
+        img_lst = []
+        img_tensor_lst = tf.unstack(images)
+        for i, image in enumerate(img_tensor_lst):
+            image = tf.image.central_crop(image, 0.85)
+            image = tf.image.random_flip_up_down(image)
+            image = tf.image.random_flip_left_right(image)
+            image = tf.image.rot90(image, k=random.randint(0, 4))
+            paddings = tf.constant([[22, 22], [22, 22], [0, 0]])  # 299
+            image = tf.pad(image, paddings, "CONSTANT")
 
-        return images, filenames
+            img_lst.append(image)
+
+        return img_lst, filenames
 
 
     def normalize(self, images, filenames):

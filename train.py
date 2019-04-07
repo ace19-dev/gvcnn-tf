@@ -91,6 +91,7 @@ flags.DEFINE_string('dataset_dir', '/home/ace19/dl_data/modelnet',
 
 flags.DEFINE_integer('how_many_training_epochs', 100,
                      'How many training loops to run')
+# Currently only one batch is available.
 flags.DEFINE_integer('batch_size', 1, 'batch size')
 flags.DEFINE_integer('num_views', 8, 'number of views')
 flags.DEFINE_integer('height', 299, 'height')
@@ -99,6 +100,7 @@ flags.DEFINE_integer('num_classes', 5, 'number of classes')
 
 # temporary constant
 MODELNET_TRAIN_DATA_SIZE = 2525
+MODELNET_VALIDATE_DATA_SIZE = 350
 
 
 def main(unused_argv):
@@ -119,8 +121,6 @@ def main(unused_argv):
                                  name='final_X')
         ground_truth = tf.placeholder(tf.int64, [None], name='ground_truth')
         is_training = tf.placeholder(tf.bool)
-        is_training2 = tf.placeholder(tf.bool)
-        dropout_keep_prob = tf.placeholder(tf.float32)
         grouping_scheme = tf.placeholder(tf.bool, [NUM_GROUP, FLAGS.num_views])
         grouping_weight = tf.placeholder(tf.float32, [NUM_GROUP, 1])
         learning_rate = tf.placeholder(tf.float32)
@@ -134,9 +134,7 @@ def main(unused_argv):
         logits, _ = gvcnn.gvcnn(final_X,
                                 grouping_scheme,
                                 grouping_weight,
-                                FLAGS.num_classes,
-                                is_training2,
-                                dropout_keep_prob)
+                                FLAGS.num_classes)
 
         # Define loss
         tf.reduce_mean(tf.losses.sparse_softmax_cross_entropy(labels=ground_truth, logits=logits))
@@ -188,6 +186,9 @@ def main(unused_argv):
             grads_and_vars = slim.learning.multiply_gradients(
                 grads_and_vars, grad_mult)
 
+        grad_summ_op = tf.summary.merge([tf.summary.histogram("%s-grad" % g[1].name, g[0])
+                                         for g in grads_and_vars])
+
         # Create gradient update op.
         grad_updates = optimizer.apply_gradients(grads_and_vars,
                                                  global_step=global_step)
@@ -203,6 +204,7 @@ def main(unused_argv):
         # Merge all summaries together.
         summary_op = tf.summary.merge(list(summaries))
         train_writer = tf.summary.FileWriter(FLAGS.summaries_dir, graph)
+        validation_writer = tf.summary.FileWriter(FLAGS.summaries_dir + '/validation', graph)
 
         ################
         # Prepare data
@@ -227,13 +229,14 @@ def main(unused_argv):
             tr_batches = int(MODELNET_TRAIN_DATA_SIZE / FLAGS.batch_size)
             if MODELNET_TRAIN_DATA_SIZE % FLAGS.batch_size > 0:
                 tr_batches += 1
-            # val_batches = int(PCAM_VALIDATE_DATA_SIZE / FLAGS.val_batch_size)
-            # if PCAM_VALIDATE_DATA_SIZE % FLAGS.val_batch_size > 0:
-            #     val_batches += 1
+            val_batches = int(MODELNET_VALIDATE_DATA_SIZE / FLAGS.batch_size)
+            if MODELNET_VALIDATE_DATA_SIZE % FLAGS.batch_size > 0:
+                val_batches += 1
 
             # The filenames argument to the TFRecordDataset initializer can either be a string,
             # a list of strings, or a tf.Tensor of strings.
             training_filenames = os.path.join(FLAGS.dataset_dir, 'train.record')
+            validate_filenames = os.path.join(FLAGS.dataset_dir, 'validate.record')
             ##################
             # Training loop.
             ##################
@@ -264,11 +267,10 @@ def main(unused_argv):
                     #         cv2.destroyAllWindows()
 
                     # Sets up a graph with feeds and fetches for partial run.
-                    handle = sess.partial_run_setup([d_scores, final_desc,
-                                                     summary_op, accuracy, total_loss, train_op],
+                    handle = sess.partial_run_setup([d_scores, final_desc, summary_op,
+                                                     accuracy, total_loss, grad_summ_op, train_op],
                                                     [X, final_X, ground_truth, learning_rate,
-                                                     grouping_scheme, grouping_weight, is_training,
-                                                     is_training2, dropout_keep_prob])
+                                                     grouping_scheme, grouping_weight, is_training])
 
                     scores, final = sess.partial_run(handle,
                                                      [d_scores, final_desc],
@@ -280,26 +282,83 @@ def main(unused_argv):
                     weights = gvcnn.grouping_weight(scores, schemes)
 
                     # Run the graph with this batch of training data.
-                    train_summary, train_accuracy, train_loss, _ = \
+                    train_summary, train_accuracy, train_loss, grad_vals, _ = \
                         sess.partial_run(handle,
-                                         [summary_op, accuracy, total_loss, train_op],
+                                         [summary_op, accuracy, total_loss, grad_summ_op, train_op],
                                          feed_dict={
                                              final_X: final,
                                              ground_truth: train_batch_ys,
                                              learning_rate: FLAGS.base_learning_rate,
                                              grouping_scheme: schemes,
-                                             grouping_weight: weights,
-                                             is_training2: True,
-                                             dropout_keep_prob: 0.8}
+                                             grouping_weight: weights}
                                          )
 
                     train_writer.add_summary(train_summary, training_epoch)
+                    train_writer.add_summary(grad_vals, training_epoch)
                     tf.logging.info('Epoch #%d, Step #%d, rate %.10f, accuracy %.1f%%, loss %f' %
                                     (training_epoch, step, FLAGS.base_learning_rate, train_accuracy * 100, train_loss))
 
+
                 ###################################################
-                # TODO: Validate the model on the validation set
+                # Validate the model on the validation set
                 ###################################################
+                # tf.logging.info('--------------------------')
+                # tf.logging.info(' Start validation ')
+                # tf.logging.info('--------------------------')
+                #
+                # # Reinitialize iterator with the validation dataset
+                # sess.run(iterator.initializer, feed_dict={filenames: validate_filenames})
+                # total_val_accuracy = 0
+                # validation_count = 0
+                # total_conf_matrix = None
+                #
+                # for step in range(val_batches):
+                #     validation_batch_xs, validation_batch_ys = sess.run(next_batch)
+                #
+                #     # Sets up a graph with feeds and fetches for partial run.
+                #     handle = sess.partial_run_setup([d_scores, final_desc,
+                #                                      summary_op, accuracy, confusion_matrix],
+                #                                     [X, final_X, ground_truth, learning_rate,
+                #                                      grouping_scheme, grouping_weight, is_training,
+                #                                      is_training2, dropout_keep_prob])
+                #
+                #     scores, final = sess.partial_run(handle,
+                #                                      [d_scores, final_desc],
+                #                                      feed_dict={
+                #                                          X: validation_batch_xs,
+                #                                          is_training: False}
+                #                                      )
+                #     schemes = gvcnn.grouping_scheme(scores, NUM_GROUP, FLAGS.num_views)
+                #     weights = gvcnn.grouping_weight(scores, schemes)
+                #
+                #     # Run the graph with this batch of training data.
+                #     val_summary, val_accuracy, conf_matrix = \
+                #         sess.partial_run(handle,
+                #                          [summary_op, accuracy, confusion_matrix],
+                #                          feed_dict={
+                #                              final_X: final,
+                #                              ground_truth: validation_batch_ys,
+                #                              learning_rate: FLAGS.base_learning_rate,
+                #                              grouping_scheme: schemes,
+                #                              grouping_weight: weights,
+                #                              is_training2: False,
+                #                              dropout_keep_prob: 1.0}
+                #                          )
+                #
+                #     validation_writer.add_summary(val_summary, training_epoch)
+                #
+                #     total_val_accuracy += val_accuracy
+                #     validation_count += 1
+                #     if total_conf_matrix is None:
+                #         total_conf_matrix = conf_matrix
+                #     else:
+                #         total_conf_matrix += conf_matrix
+                #
+                #
+                # total_val_accuracy /= validation_count
+                # tf.logging.info('Confusion Matrix:\n %s' % (total_conf_matrix))
+                # tf.logging.info('Validation accuracy = %.1f%% (N=%d)' %
+                #                 (total_val_accuracy * 100, MODELNET_VALIDATE_DATA_SIZE))
 
                 # Save the model checkpoint periodically.
                 if (training_epoch <= FLAGS.how_many_training_epochs-1):

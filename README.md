@@ -17,14 +17,15 @@
 - retrieval
     - Euclidean distance
     - low-rank Mahalanobis metric
+    - and ...
     
 ## Done
 - 
 
 ## TODO
-- check grouping module. (Intra-Group View Pooling, Group Fusion, ...)
-- apply n-batch
-- create classification and retrieval modules
+- validate grouping module. (Intra-Group View Pooling, Group Fusion, ...)
+- create retrieval modules
+- apply n-batch later
 
 ## References from
 - http://openaccess.thecvf.com/content_cvpr_2018/papers/Feng_GVCNN_Group-View_Convolutional_CVPR_2018_paper.pdf
