@@ -3,8 +3,6 @@ import tensorflow as tf
 import random
 
 
-NUM_VIEWS = 8
-
 class Dataset(object):
     """
     Wrapper class around the new Tensorflows dataset pipeline.
@@ -12,7 +10,8 @@ class Dataset(object):
     Handles loading, partitioning, and preparing training data.
     """
 
-    def __init__(self, tfrecord_path, height, width, batch_size=1):
+    def __init__(self, tfrecord_path, num_views, height, width, batch_size=1):
+        self.num_views = num_views
         self.resize_h = height
         self.resize_w = width
 
@@ -46,7 +45,7 @@ class Dataset(object):
             # Defaults are not specified since both keys are required.
             features={
                 # 'image/filename': tf.FixedLenFeature([], tf.string),
-                'image/encoded': tf.FixedLenFeature([NUM_VIEWS], tf.string),
+                'image/encoded': tf.FixedLenFeature([self.num_views], tf.string),
                 'image/label': tf.FixedLenFeature([], tf.int64),
             })
 

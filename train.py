@@ -32,32 +32,31 @@ flags.DEFINE_boolean('save_summaries_images', False,
 flags.DEFINE_string('summaries_dir', './models/train_logs',
                      'Where to save summary logs for TensorBoard.')
 
-flags.DEFINE_enum('learning_policy', 'step', ['step'],
+flags.DEFINE_enum('learning_policy', 'poly', ['poly', 'step'],
                   'Learning rate policy for training.')
-flags.DEFINE_float('base_learning_rate', .0001,
+flags.DEFINE_float('base_learning_rate', .0002,
                    'The base learning rate for model training.')
-flags.DEFINE_float('learning_rate_decay_factor', 0.1,
+flags.DEFINE_float('learning_rate_decay_factor', 1e-3,
                    'The rate to decay the base learning rate.')
 flags.DEFINE_float('learning_rate_decay_step', .2000,
                    'Decay the base learning rate at a fixed step.')
 flags.DEFINE_float('learning_power', 0.9,
                    'The power value used in the poly learning policy.')
-flags.DEFINE_float('training_number_of_steps', 30000,
+flags.DEFINE_float('training_number_of_steps', 300000,
                    'The number of steps used for training.')
 flags.DEFINE_float('momentum', 0.9, 'The momentum value to use')
 
 flags.DEFINE_float('last_layer_gradient_multiplier', 1.0,
                    'The gradient multiplier for last layers, which is used to '
                    'boost the gradient of last layers if the value > 1.')
-
 # Set to False if one does not want to re-use the trained classifier weights.
 flags.DEFINE_boolean('initialize_last_layer', True,
                      'Initialize the last layer.')
 flags.DEFINE_boolean('last_layers_contain_logits_only', False,
                      'Only consider logits as last layers or not.')
-flags.DEFINE_integer('slow_start_step', 0,
+flags.DEFINE_integer('slow_start_step', 5050,
                      'Training model with small learning rate for few steps.')
-flags.DEFINE_float('slow_start_learning_rate', 1e-4,
+flags.DEFINE_float('slow_start_learning_rate', 1e-5,
                    'Learning rate employed during slow start.')
 
 # Settings for fine-tuning the network.
@@ -66,8 +65,8 @@ flags.DEFINE_string('pre_trained_checkpoint',
                     None,
                     'The pre-trained checkpoint in tensorflow format.')
 flags.DEFINE_string('checkpoint_exclude_scopes',
-                    'gvcnn/AuxLogits, gvcnn/Logits',
-                    # None,
+                    # 'gvcnn/AuxLogits, gvcnn/Logits',
+                    None,
                     'Comma-separated list of scopes of variables to exclude '
                     'when restoring from a checkpoint.')
 flags.DEFINE_string('trainable_scopes',
@@ -131,7 +130,7 @@ def main(unused_argv):
         dropout_keep_prob = tf.placeholder(tf.float32)
         grouping_scheme = tf.placeholder(tf.bool, [NUM_GROUP, FLAGS.num_views])
         grouping_weight = tf.placeholder(tf.float32, [NUM_GROUP, 1])
-        learning_rate = tf.placeholder(tf.float32)
+        # learning_rate = tf.placeholder(tf.float32)
 
         # Grouping Module
         d_scores, _, final_desc = gvcnn.discrimination_score(X,
@@ -171,11 +170,11 @@ def main(unused_argv):
         for loss in tf.get_collection(tf.GraphKeys.LOSSES):
             summaries.add(tf.summary.scalar('losses/%s' % loss.op.name, loss))
 
-        # learning_rate = train_utils.get_model_learning_rate(
-        #     FLAGS.learning_policy, FLAGS.base_learning_rate,
-        #     FLAGS.learning_rate_decay_step, FLAGS.learning_rate_decay_factor,
-        #     None, FLAGS.learning_power,
-        #     FLAGS.slow_start_step, FLAGS.slow_start_learning_rate)
+        learning_rate = train_utils.get_model_learning_rate(
+            FLAGS.learning_policy, FLAGS.base_learning_rate,
+            FLAGS.learning_rate_decay_step, FLAGS.learning_rate_decay_factor,
+            FLAGS.training_number_of_steps, FLAGS.learning_power,
+            FLAGS.slow_start_step, FLAGS.slow_start_learning_rate)
         # optimizer = tf.train.MomentumOptimizer(learning_rate, FLAGS.momentum)
         optimizer = tf.train.AdamOptimizer(learning_rate)
         summaries.add(tf.summary.scalar('learning_rate', learning_rate))
@@ -187,14 +186,14 @@ def main(unused_argv):
         total_loss = tf.check_numerics(total_loss, 'Loss is inf or nan.')
         summaries.add(tf.summary.scalar('total_loss', total_loss))
 
-        # Modify the gradients for biases and last layer variables.
-        last_layers = train_utils.get_extra_layer_scopes(
-            FLAGS.last_layers_contain_logits_only)
-        grad_mult = train_utils.get_model_gradient_multipliers(
-            last_layers, FLAGS.last_layer_gradient_multiplier)
-        if grad_mult:
-            grads_and_vars = slim.learning.multiply_gradients(
-                grads_and_vars, grad_mult)
+        # # Modify the gradients for biases and last layer variables.
+        # last_layers = train_utils.get_extra_layer_scopes(
+        #     FLAGS.last_layers_contain_logits_only)
+        # grad_mult = train_utils.get_model_gradient_multipliers(
+        #     last_layers, FLAGS.last_layer_gradient_multiplier)
+        # if grad_mult:
+        #     grads_and_vars = slim.learning.multiply_gradients(
+        #         grads_and_vars, grad_mult)
 
         grad_summ_op = tf.summary.merge([tf.summary.histogram("%s-grad" % g[1].name, g[0])
                                          for g in grads_and_vars])
@@ -220,7 +219,11 @@ def main(unused_argv):
         # Prepare data
         ################
         filenames = tf.placeholder(tf.string, shape=[])
-        tr_dataset = data.Dataset(filenames, FLAGS.height, FLAGS.width, FLAGS.batch_size)
+        tr_dataset = data.Dataset(filenames,
+                                  FLAGS.num_views,
+                                  FLAGS.height,
+                                  FLAGS.width,
+                                  FLAGS.batch_size)
         iterator = tr_dataset.dataset.make_initializable_iterator()
         next_batch = iterator.get_next()
 
@@ -231,8 +234,8 @@ def main(unused_argv):
             # TODO:
             # Create a saver object which will save all the variables
             saver = tf.train.Saver(keep_checkpoint_every_n_hours=1.0)
-            # if FLAGS.pre_trained_checkpoint:
-            #     train_utils.restore_fn(FLAGS)
+            if FLAGS.pre_trained_checkpoint:
+                train_utils.restore_fn(FLAGS)
 
             start_epoch = 0
             # Get the number of training/validation steps per epoch
@@ -277,9 +280,9 @@ def main(unused_argv):
                     #         cv2.destroyAllWindows()
 
                     # Sets up a graph with feeds and fetches for partial run.
-                    handle = sess.partial_run_setup([d_scores, final_desc, summary_op,
+                    handle = sess.partial_run_setup([d_scores, final_desc, learning_rate, summary_op,
                                                      accuracy, total_loss, grad_summ_op, train_op],
-                                                    [X, final_X, ground_truth, learning_rate,
+                                                    [X, final_X, ground_truth,
                                                      grouping_scheme, grouping_weight, is_training,
                                                      is_training2, dropout_keep_prob])
 
@@ -293,13 +296,12 @@ def main(unused_argv):
                     weights = gvcnn.grouping_weight(scores, schemes)
 
                     # Run the graph with this batch of training data.
-                    train_summary, train_accuracy, train_loss, grad_vals, _ = \
+                    lr, train_summary, train_accuracy, train_loss, grad_vals, _ = \
                         sess.partial_run(handle,
-                                         [summary_op, accuracy, total_loss, grad_summ_op, train_op],
+                                         [learning_rate, summary_op, accuracy, total_loss, grad_summ_op, train_op],
                                          feed_dict={
                                              final_X: final,
                                              ground_truth: train_batch_ys,
-                                             learning_rate: FLAGS.base_learning_rate,
                                              grouping_scheme: schemes,
                                              grouping_weight: weights,
                                              is_training2: True,
@@ -309,7 +311,7 @@ def main(unused_argv):
                     train_writer.add_summary(train_summary, training_epoch)
                     train_writer.add_summary(grad_vals, training_epoch)
                     tf.logging.info('Epoch #%d, Step #%d, rate %.10f, accuracy %.1f%%, loss %f' %
-                                    (training_epoch, step, FLAGS.base_learning_rate, train_accuracy * 100, train_loss))
+                                    (training_epoch, step, lr, train_accuracy * 100, train_loss))
 
 
                 ###################################################
@@ -351,7 +353,6 @@ def main(unused_argv):
                 #                          feed_dict={
                 #                              final_X: final,
                 #                              ground_truth: validation_batch_ys,
-                #                              learning_rate: FLAGS.base_learning_rate,
                 #                              grouping_scheme: schemes,
                 #                              grouping_weight: weights,
                 #                              is_training2: False,
