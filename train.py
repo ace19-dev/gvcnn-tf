@@ -13,8 +13,8 @@ flags = tf.app.flags
 
 FLAGS = flags.FLAGS
 
-
-NUM_GROUP = 8
+# relate to grouping_scheme func.
+NUM_GROUP = 10
 
 
 # Settings for logging.
@@ -127,7 +127,7 @@ def main(unused_argv):
         grouping_weight = tf.placeholder(tf.float32, [NUM_GROUP, 1])
         learning_rate = tf.placeholder(tf.float32)
 
-        # Grouping
+        # Grouping Module
         d_scores, _, final_desc = gvcnn.discrimination_score(X,
                                                              FLAGS.num_classes,
                                                              is_training)
