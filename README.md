@@ -1,6 +1,3 @@
-
-## In progress.
-
 ## GVCNN (Group-View Convolutional Neural Networks for 3D Shape Recognition)
 ![](assets/gvcnn_framework.png)
 
@@ -12,20 +9,14 @@
 - prepare group-view image
 - execute train.py
 
-## Evaluation
-- classification
-- retrieval
-    - Euclidean distance
-    - low-rank Mahalanobis metric
-    - and ...
-    
 ## TODO
-- validate training/test
+- validate training result
 - create retrieval modules
 - apply n-batch later
 
 ## Notice
-- it had better use lighter model because it needs a big resources.
+- It had better use lighter model or decrease image size because it needs a big resources.
+- Currently only one batch is available.
 
 ## References from
 - http://openaccess.thecvf.com/content_cvpr_2018/papers/Feng_GVCNN_Group-View_Convolutional_CVPR_2018_paper.pdf

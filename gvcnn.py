@@ -79,7 +79,7 @@ def view_pooling(final_view_descriptors, group_scheme):
     the views in the same group have the similar discrimination,
     which are assigned the same weight.
 
-    use mean pooling
+    mean pooling or max pooling?
 
     :param group_scheme:
     :param final_view_descriptors:

@@ -116,6 +116,7 @@ def main(unused_argv):
         X = tf.placeholder(tf.float32,
                            [None, FLAGS.num_views, FLAGS.height, FLAGS.width, 3],
                            name='X')
+        # for 299 size, otherwise you should modify shape for ur size.
         final_X = tf.placeholder(tf.float32,
                                  [FLAGS.num_views, None, 8, 8, 1536],
                                  name='final_X')
