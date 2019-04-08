@@ -25,7 +25,7 @@
 - apply n-batch later
 
 ## Notice
-- it had better use lighter model.
+- it had better use lighter model because it needs a big resources.
 
 ## References from
 - http://openaccess.thecvf.com/content_cvpr_2018/papers/Feng_GVCNN_Group-View_Convolutional_CVPR_2018_paper.pdf
