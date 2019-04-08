@@ -14,7 +14,6 @@ import tensorflow as tf
 
 import data
 import gvcnn
-from nets import inception_v4
 
 slim = tf.contrib.slim
 
@@ -25,7 +24,7 @@ FLAGS = flags.FLAGS
 NUM_GROUP = 8
 
 # temporary constant
-MODELNET_EVAL_DATA_SIZE = 540
+MODELNET_EVAL_DATA_SIZE = 150
 
 
 # Dataset settings.
@@ -36,13 +35,12 @@ flags.DEFINE_string('checkpoint_path',
                     os.getcwd() + '/models',
                     'Directory where to read training checkpoints.')
 
-# TODO: will apply n-batch later
 flags.DEFINE_integer('batch_size', 1, 'batch size')
 flags.DEFINE_integer('num_views', 8, 'number of views')
 flags.DEFINE_integer('height', 299, 'height')
 flags.DEFINE_integer('width', 299, 'width')
 flags.DEFINE_string('labels',
-                    'airplane,bed,bookshelf,cone,person,toilet,vase',
+                    'airplane,bed,bookshelf,toilet,vase',
                     'number of classes')
 
 def main(unused_argv):
@@ -52,44 +50,51 @@ def main(unused_argv):
     num_classes = len(labels)
 
     # Define the model
+    # Define the model
     X = tf.placeholder(tf.float32,
                        [None, FLAGS.num_views, FLAGS.height, FLAGS.width, 3],
-                       name='inputs')
-    mid_level_X = tf.placeholder(tf.float32,
-                       [FLAGS.num_views, None, 35, 35, 384], # inputs of 4 x Inception-A blocks
-                       name='inputs')
+                       name='X')
+    # for 299 size, otherwise you should modify shape for ur size.
+    final_X = tf.placeholder(tf.float32,
+                             [FLAGS.num_views, None, 8, 8, 1536],
+                             name='final_X')
+    ground_truth = tf.placeholder(tf.int64, [None], name='ground_truth')
     is_training = tf.placeholder(tf.bool)
+    is_training2 = tf.placeholder(tf.bool)
     dropout_keep_prob = tf.placeholder(tf.float32)
     grouping_scheme = tf.placeholder(tf.bool, [NUM_GROUP, FLAGS.num_views])
     grouping_weight = tf.placeholder(tf.float32, [NUM_GROUP, 1])
 
-    with slim.arg_scope(inception_v4.inception_v4_arg_scope()):
-        # grouping module
-        d_scores, raw_desc = gvcnn.discrimination_score(X)
+    # Grouping Module
+    d_scores, _, final_desc = gvcnn.discrimination_score(X,
+                                                         num_classes,
+                                                         is_training)
 
-    with slim.arg_scope(inception_v4.inception_v4_arg_scope()):
-        # GVCNN
-        logits, _, end_points = gvcnn.gvcnn(mid_level_X,
-                                            grouping_scheme,
-                                            grouping_weight,
-                                            num_classes,
-                                            is_training,
-                                            dropout_keep_prob)
+    # GVCNN
+    logits, _ = gvcnn.gvcnn(final_X,
+                            grouping_scheme,
+                            grouping_weight,
+                            num_classes,
+                            is_training2,
+                            dropout_keep_prob)
 
-    prediction = tf.nn.softmax(logits)
-    predicted_labels = tf.argmax(prediction, 1)
+    # prediction = tf.nn.softmax(logits)
+    # predicted_labels = tf.argmax(prediction, 1)
 
-    # prediction = tf.argmax(logits, 1, name='prediction')
-    # correct_prediction = tf.equal(prediction, ground_truth)
-    # confusion_matrix = tf.confusion_matrix(
-    #     ground_truth, prediction, num_classes=num_classes)
-    # accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+    prediction = tf.argmax(logits, 1, name='prediction')
+    correct_prediction = tf.equal(prediction, ground_truth)
+    confusion_matrix = tf.confusion_matrix(
+        ground_truth, prediction, num_classes=num_classes)
+    accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
     ################
     # Prepare data
     ################
     filenames = tf.placeholder(tf.string, shape=[])
-    eval_dataset = data.Dataset(filenames, FLAGS.height, FLAGS.width)
+    eval_dataset = data.Dataset(filenames,
+                                FLAGS.height,
+                                FLAGS.width,
+                                FLAGS.batch_size)
     iterator = eval_dataset.dataset.make_initializable_iterator()
     next_batch = iterator.get_next()
 
@@ -112,20 +117,20 @@ def main(unused_argv):
         if MODELNET_EVAL_DATA_SIZE % FLAGS.batch_size > 0:
             batches += 1
 
-        ##################################################
-        # prediction & make results into csv file.
-        ##################################################
+        ##############
+        # prediction
+        ##############
         start_time = datetime.datetime.now()
-        print("Start prediction: {}".format(start_time))
-
-        id2name = {i: name for i, name in enumerate(labels)}
-        submission = {}
+        tf.logging.info("Start prediction: %s" % start_time)
 
         eval_filenames = os.path.join(FLAGS.dataset_path)
         sess.run(iterator.initializer, feed_dict={filenames: eval_filenames})
+
         count = 0;
+        total_acc = 0
+        total_conf_matrix = None
         for i in range(batches):
-            batch_xs, filename = sess.run(next_batch)
+            batch_xs, batch_ys = sess.run(next_batch)
             # # Verify image
             # n_batch = batch_xs.shape[0]
             # for i in range(n_batch):
@@ -139,50 +144,51 @@ def main(unused_argv):
             #     cv2.destroyAllWindows()
 
             # Sets up a graph with feeds and fetches for partial run.
-            handle = sess.partial_run_setup([d_scores, raw_desc, predicted_labels],
-                                            [X, mid_level_X, grouping_scheme,
-                                             grouping_weight, is_training, dropout_keep_prob])
+            handle = sess.partial_run_setup([d_scores, final_desc,
+                                             accuracy, confusion_matrix],
+                                            [X, final_X, ground_truth,
+                                             grouping_scheme, grouping_weight, is_training,
+                                             is_training2, dropout_keep_prob])
 
-            scores, r_desc = sess.partial_run(handle,
-                                              [d_scores, raw_desc],
-                                              feed_dict={X: batch_xs})
+            scores, final = sess.partial_run(handle,
+                                             [d_scores, final_desc],
+                                             feed_dict={
+                                                 X: batch_xs,
+                                                 is_training: False}
+                                             )
             schemes = gvcnn.grouping_scheme(scores, NUM_GROUP, FLAGS.num_views)
             weights = gvcnn.grouping_weight(scores, schemes)
 
-            pred = sess.partial_run(handle,
-                                    predicted_labels,
-                                    feed_dict={mid_level_X: r_desc,
-                                               grouping_scheme: schemes,
-                                               grouping_weight: weights,
-                                               is_training: False,
-                                               dropout_keep_prob: 1.0})
-            size = len(filename)
-            for n in range(size):
-                submission[filename[n].decode('UTF-8')] = id2name[pred[n]]
+            # Run the graph with this batch of training data.
+            acc, conf_matrix  = \
+                sess.partial_run(handle,
+                                 [accuracy, confusion_matrix],
+                                 feed_dict={
+                                     final_X: final,
+                                     ground_truth: batch_ys,
+                                     grouping_scheme: schemes,
+                                     grouping_weight: weights,
+                                     is_training2: False,
+                                     dropout_keep_prob: 1.0}
+                                 )
 
-            count += size
-            tf.logging.info('Total count: #%d' % count)
+            total_acc += acc
+            count += 1
+
+            if total_conf_matrix is None:
+                total_conf_matrix = conf_matrix
+            else:
+                total_conf_matrix += conf_matrix
+
+        total_acc /= count
+        tf.logging.info('Confusion Matrix:\n %s' % (total_conf_matrix))
+        tf.logging.info('Final test accuracy = %.1f%% (N=%d)' % (total_acc * 100,
+                                                                 MODELNET_EVAL_DATA_SIZE))
 
         end_time = datetime.datetime.now()
-        tf.logging.info('#%d Data, End prediction: %s' % (MODELNET_EVAL_DATA_SIZE, end_time))
+        tf.logging.info('End prediction: %s' % end_time)
         tf.logging.info('prediction waste time: %s' % (end_time - start_time))
 
-    ######################################
-    # make submission.csv for kaggle
-    ######################################
-    if not os.path.exists(FLAGS.result_dir):
-        os.makedirs(FLAGS.result_dir)
-
-    fout = open(
-        os.path.join(FLAGS.result_dir,
-                     FLAGS.model_architecture + '-#' +
-                     global_step + '.csv'),
-        'w', encoding='utf-8', newline='')
-    writer = csv.writer(fout)
-    writer.writerow(['image', 'label'])
-    for key in sorted(submission.keys()):
-        writer.writerow([key, submission[key]])
-    fout.close()
 
 if __name__ == '__main__':
     tf.app.run()

@@ -96,7 +96,9 @@ flags.DEFINE_integer('batch_size', 1, 'batch size')
 flags.DEFINE_integer('num_views', 8, 'number of views')
 flags.DEFINE_integer('height', 299, 'height')
 flags.DEFINE_integer('width', 299, 'width')
-flags.DEFINE_integer('num_classes', 5, 'number of classes')
+flags.DEFINE_string('labels',
+                    'airplane,bed,bookshelf,toilet,vase',
+                    'number of classes')
 
 # temporary constant
 MODELNET_TRAIN_DATA_SIZE = 2525
@@ -105,6 +107,9 @@ MODELNET_VALIDATE_DATA_SIZE = 350
 
 def main(unused_argv):
     tf.logging.set_verbosity(tf.logging.INFO)
+
+    labels = FLAGS.labels.split(',')
+    num_classes = len(labels)
 
     tf.gfile.MakeDirs(FLAGS.train_logdir)
     tf.logging.info('Creating train logdir: %s', FLAGS.train_logdir)
@@ -130,14 +135,14 @@ def main(unused_argv):
 
         # Grouping Module
         d_scores, _, final_desc = gvcnn.discrimination_score(X,
-                                                             FLAGS.num_classes,
+                                                             num_classes,
                                                              is_training)
 
         # GVCNN
         logits, _ = gvcnn.gvcnn(final_X,
                                 grouping_scheme,
                                 grouping_weight,
-                                FLAGS.num_classes,
+                                num_classes,
                                 is_training2,
                                 dropout_keep_prob)
 
@@ -154,7 +159,7 @@ def main(unused_argv):
         prediction = tf.argmax(logits, 1, name='prediction')
         correct_prediction = tf.equal(prediction, ground_truth)
         confusion_matrix = tf.confusion_matrix(
-            ground_truth, prediction, num_classes=FLAGS.num_classes)
+            ground_truth, prediction, num_classes=num_classes)
         accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
         summaries.add(tf.summary.scalar('accuracy', accuracy))
 
