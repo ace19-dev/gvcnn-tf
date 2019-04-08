@@ -2,6 +2,7 @@ import tensorflow as tf
 
 import random
 
+
 NUM_VIEWS = 8
 
 class Dataset(object):
