@@ -12,7 +12,6 @@
 ## TODO
 - validate training result
 - create retrieval modules
-- apply n-batch later
 
 ## Notice
 - It had better use lighter model or decrease image size because it needs a big resources.
