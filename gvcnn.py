@@ -65,7 +65,6 @@ def grouping_weight(view_discrimination_score, grouping_scheme):
     return weights
 
 
-# TODO: check func
 def view_pooling(final_view_descriptors, group_scheme):
 
     '''
@@ -73,29 +72,29 @@ def view_pooling(final_view_descriptors, group_scheme):
 
     Final view descriptors are source of view pooling with grouping scheme.
 
-    Given the view descriptors and the generated grouping
-    information, the objective here is to conduct intra-group
+    Given the view descriptors and the generated grouping information,
+    the objective here is to conduct intra-group
     view pooling towards a group level description.
 
     the views in the same group have the similar discrimination,
     which are assigned the same weight.
 
-    Use max pooling
+    use mean pooling
 
     :param group_scheme:
     :param final_view_descriptors:
     :return: group_descriptors
     '''
     group_descriptors = {}
-    zero_tensor = tf.zeros_like(final_view_descriptors[0])
+    empty = tf.zeros_like(final_view_descriptors[0])
 
-    group_scheme_lst = tf.unstack(group_scheme)
-    indices = [tf.squeeze(tf.where(elem), axis=1) for elem in group_scheme_lst]
+    scheme_list = tf.unstack(group_scheme)
+    indices = [tf.squeeze(tf.where(elem), axis=1) for elem in scheme_list]
     for i, ind in enumerate(indices):
-        view_desc = tf.cond(tf.not_equal(tf.size(ind), 0),
+        view_descs = tf.cond(tf.not_equal(tf.size(ind), 0),
                             lambda : tf.gather(final_view_descriptors, ind),
-                            lambda : tf.expand_dims(zero_tensor, 0))
-        group_descriptors[i] = tf.squeeze(tf.reduce_max(view_desc, axis=0, keepdims=True), [0])
+                            lambda : tf.expand_dims(empty, 0))
+        group_descriptors[i] = tf.squeeze(tf.reduce_mean(view_descs, axis=0, keepdims=True), [0])
 
     return group_descriptors
 
@@ -113,17 +112,17 @@ def group_fusion(group_descriptors, group_weight):
     and thus emphasized in the shape descriptor accordingly.
 
     :param
-    group_descriptors: dic (average pooling per group - tensor)
-    cls_group_weight: tensor. shape=(5,1)
+    group_descriptors:
+    group_weight:
 
     :return:
     '''
-    group_weight_lst = tf.unstack(group_weight)
+    group_weight_list = tf.unstack(group_weight)
     numerator = []  # numerator
     for key, value in group_descriptors.items():
-        numerator.append(tf.multiply(group_weight_lst[key], group_descriptors[key]))
+        numerator.append(tf.multiply(group_weight_list[key], group_descriptors[key]))
 
-    denominator = tf.reduce_sum(group_weight_lst)   # denominator
+    denominator = tf.reduce_sum(group_weight_list)   # denominator
     shape_descriptor = tf.div(tf.add_n(numerator), denominator)
 
     return shape_descriptor
