@@ -74,11 +74,11 @@ class Dataset(object):
         img_lst = []
         img_tensor_lst = tf.unstack(images)
         for i, image in enumerate(img_tensor_lst):
-            image = tf.image.central_crop(image, 0.85)
+            image = tf.image.central_crop(image, 0.9)
             image = tf.image.random_flip_up_down(image)
             image = tf.image.random_flip_left_right(image)
             image = tf.image.rot90(image, k=random.randint(0, 4))
-            paddings = tf.constant([[22, 22], [22, 22], [0, 0]])  # 299
+            paddings = tf.constant([[14, 14], [14, 14], [0, 0]])  # 299
             image = tf.pad(image, paddings, "CONSTANT")
 
             img_lst.append(image)
