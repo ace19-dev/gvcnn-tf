@@ -99,7 +99,6 @@ def view_pooling(final_view_descriptors, group_scheme):
     return group_descriptors
 
 
-# TODO: check func
 def group_fusion(group_descriptors, group_weight):
     '''
     To generate the shape level description, all these group
@@ -112,7 +111,7 @@ def group_fusion(group_descriptors, group_weight):
     and thus emphasized in the shape descriptor accordingly.
 
     :param
-    group_descriptors:
+    group_descriptors: dic {index: group_desc}
     group_weight:
 
     :return:

@@ -19,11 +19,8 @@
     - low-rank Mahalanobis metric
     - and ...
     
-## Done
-- 
-
 ## TODO
-- validate grouping module. (Intra-Group View Pooling, Group Fusion, ...)
+- validate training/test
 - create retrieval modules
 - apply n-batch later
 
