@@ -204,4 +204,4 @@ def gvcnn(final_view_descriptors,
     # (?,1536)
     logits = slim.fully_connected(net, num_classes, activation_fn=None, scope='logits')
 
-    return logits, shape_descriptor
+    return logits, shape_descriptor # use it for 3D shape retrieval.
