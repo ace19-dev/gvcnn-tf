@@ -9,9 +9,12 @@
 - prepare group-view image
 - execute train.py
 
+## Retrieval
+- I would like to replace it with the source below.
+- [Here is repo for retrieval module.](http://www.naver.com) 
+
 ## TODO
 - validate training result
-- create retrieval modules
 
 ## Notice
 - It had better use lighter model or decrease image size because it needs a big resources.
@@ -21,4 +24,5 @@
 - http://openaccess.thecvf.com/content_cvpr_2018/papers/Feng_GVCNN_Group-View_Convolutional_CVPR_2018_paper.pdf
 - https://github.com/WeiTang114/MVCNN-TensorFlow
 - https://github.com/pclausen/obj2png
+- https://github.com/ace19-dev/gvcnn
 
