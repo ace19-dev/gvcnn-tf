@@ -10,7 +10,7 @@
 - execute train.py
 
 ## Retrieval
-- I would like to replace it with the source below.
+- For training efficiency, it was implemented at the source below.
 - [Here is repo for retrieval module.](https://github.com/ace19-dev/mvcnn-tf) 
 
 ## TODO
