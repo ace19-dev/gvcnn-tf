@@ -11,7 +11,7 @@
 
 ## Retrieval
 - I would like to replace it with the source below.
-- [Here is repo for retrieval module.](http://www.naver.com) 
+- [Here is repo for retrieval module.](https://github.com/ace19-dev/mvcnn-tf) 
 
 ## TODO
 - validate training result
