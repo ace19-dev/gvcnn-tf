@@ -13,9 +13,6 @@
 - For training efficiency, it was implemented at the source below.
 - [Here is repo for retrieval module.](https://github.com/ace19-dev/mvcnn-tf) 
 
-## TODO
-- validate training result
-
 ## Notice
 - It had better use lighter model or decrease image size because it needs a big resources.
 - Currently only one batch is available.
