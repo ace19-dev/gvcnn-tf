@@ -10,7 +10,7 @@
 - execute train.py
 
 ## Retrieval
-- For training efficiency, it was implemented at the [repo for retrieval module.](https://github.com/ace19-dev/mvcnn-tf) 
+- For training efficiency, it was implemented at the [other repository.](https://github.com/ace19-dev/mvcnn-tf) 
 
 ## Notice
 - It had better use lighter model or decrease image size because it needs a big resources.
