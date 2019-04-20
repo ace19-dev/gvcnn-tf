@@ -3,10 +3,14 @@
 
 ## Data
 - download 40-Class Subset from http://modelnet.cs.princeton.edu/
-- make images with .py files in data_utils
+- make .png images in order below
+  - data_utils/make_views_dir.py
+  - data_utils/off2obj.py
+  - data_utils/obj2png.py
 
 ## Quick Start
-- prepare group-view image
+- make group-view image tfrecord file
+  - dataset_tools/create_modelnet_tf_record.py
 - execute train.py
 
 ## Retrieval
