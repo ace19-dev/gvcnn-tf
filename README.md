@@ -18,7 +18,7 @@
 
 ## Notice
 - It had better use lighter model or decrease image size because it needs a big resources.
-- Currently batch size 1 is only available. 
+- Only 1 batch size is available now.  
 
 ## References from
 - http://openaccess.thecvf.com/content_cvpr_2018/papers/Feng_GVCNN_Group-View_Convolutional_CVPR_2018_paper.pdf
