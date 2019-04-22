@@ -5,7 +5,7 @@
 - Download 10-Class Orientation-aligned Subset from http://modelnet.cs.princeton.edu/
 - make .png images in order below
   - data_utils/make_views_dir.py
-  - data_utils/off2obj.py (sudo apt install openctm-tools)
+  - data_utils/off2obj.py (after 'sudo apt install openctm-tools')
   - data_utils/obj2png.py
 
 ## Quick Start
