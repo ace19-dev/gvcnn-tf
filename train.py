@@ -96,7 +96,7 @@ flags.DEFINE_integer('num_views', 8, 'number of views')
 flags.DEFINE_integer('height', 299, 'height')
 flags.DEFINE_integer('width', 299, 'width')
 flags.DEFINE_string('labels',
-                    'airplane,bed,bookshelf,toilet,vase',
+                    'bathtub,bed,chair,desk,dresser,monitor,night_stand,sofa,table,toilet',
                     'number of classes')
 
 # temporary constant

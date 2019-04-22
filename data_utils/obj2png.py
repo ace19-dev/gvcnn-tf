@@ -50,7 +50,7 @@ flags.DEFINE_string('target_dir', '/home/ace19/dl_data/modelnet',
 flags.DEFINE_string('target_file_ext', '.obj',
                     'target file extension')
 
-flags.DEFINE_string('dataset_category', 'test',
+flags.DEFINE_string('dataset_category', 'train',
                     'train or test')
 
 flags.DEFINE_integer('num_views', 8, 'Number of views')
