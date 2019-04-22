@@ -100,7 +100,6 @@ flags.DEFINE_string('labels',
                     'number of classes')
 
 # temporary constant
-# MODELNET_TRAIN_DATA_SIZE = 2525
 MODELNET_TRAIN_DATA_SIZE = 908
 MODELNET_VALIDATE_DATA_SIZE = 350
 
