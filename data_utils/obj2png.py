@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Created on Sat Jul  7 00:40:00 2018
 
@@ -28,126 +27,112 @@ SOFTWARE.
 
 """
 
-import argparse
+import tensorflow as tf
+
+import os
 import data_utils.ObjFile
 import sys
 import os
 import glob
 
-if __name__ == '__main__':
 
-    parser = argparse.ArgumentParser(description='Obj to png using MatPlotLib')
+flags = tf.app.flags
 
-    parser.add_argument("-i", "--infiles",
-              dest='objfiles',
-              # nargs='+',
-              default='/home/ace19/dl_data/ModelNet40/cone/train',
-              help="File or files to be converted to png")
+FLAGS = flags.FLAGS
 
-    parser.add_argument("-o", "--outfile",
-              dest='outfile',
-              help="Output file(s). Default: infile.png")
 
-    parser.add_argument("-od", "--outdir",
-              dest='outdir',
-              default='/home/ace19/dl_data/modelnet/cone/train',
-              help="Output directory.")
+flags.DEFINE_string('source_dir', '/home/ace19/dl_data/ModelNet10',
+                    'Directory where .obj files is.')
 
-    parser.add_argument("-n", "--nviews",
-              dest='nviews',
-              type=int,
-              default=8,
-              help="Number of views")
+flags.DEFINE_string('target_dir', '/home/ace19/dl_data/modelnet',
+                    'Output directory.')
 
-    parser.add_argument("-a", "--azimuth",
-              dest='azim',
-              type=float,
-              default=45,   # 360 / nviews
-              help="Azimuth angle of view in degrees.")
+flags.DEFINE_string('target_file_ext', '.obj',
+                    'target file extension')
 
-    parser.add_argument("-e", "--elevation",
-              dest='elevation',
-              type=float,
-              # default=-5,
-              help="Elevation angle of view in degrees.")
+flags.DEFINE_string('dataset_flag', 'test',
+                    'train or test')
 
-    parser.add_argument("-q", "--quality",
-              dest='quality',
-              default='LOW',
-              help="Image quality (HIGH,MEDIUM,LOW).  Default: LOW")
+flags.DEFINE_integer('num_views', 8, 'Number of views')
+flags.DEFINE_float('azim', 45, 'Azimuth angle of view in degrees.')
+flags.DEFINE_float('elevation', None, 'Elevation angle of view in degrees.')
+flags.DEFINE_string('quality', 'LOW', 'Image quality (HIGH,MEDIUM,LOW).  Default: LOW')
+flags.DEFINE_float('scale', 0.9,
+                   'Scale picture by descreasing boundaries. Lower than 1. gives a larger object.')
+flags.DEFINE_string('animate', None,
+                    'Animate instead of creating picture file as animation, from elevation -180:180 and azim -180:180')
 
-    parser.add_argument("-s", "--scale",
-              dest='scale',
-              type=float,
-              default=0.9,
-              help="Scale picture by descreasing boundaries. Lower than 1. gives a larger object.")
+# parser.add_argument("-v", "--view",
+#           dest='view',
+#           action='store_true',
+#           help="View instead of creating picture file.")
 
-    parser.add_argument("-v", "--view",
-              dest='view',
-              action='store_true',
-              help="View instead of creating picture file.")
 
-    parser.add_argument("-A", "--Animate",
-              dest='animate',
-              action='store_true',
-              help="Animate instead of creating picture file as animation, from elevation -180:180 and azim -180:180")
+def main(unused_argv):
+    tf.logging.set_verbosity(tf.logging.INFO)
 
-    args = parser.parse_args()
-
-    print (args)
-    
-    # objfiles=args.objfiles
-    # if '*' in objfiles[0]:
-    #     objfiles=glob.glob(objfiles[0])
-    objfiles = os.listdir(args.objfiles)
-    objfiles.sort()
-    
     res={'HIGH':1200,'MEDIUM':600,'LOW':300}
     dpi=None
-    if args.quality:
-        if type(args.quality)==int:
-            dpi=args.quality
-        elif args.quality.upper() in res:
-            dpi=res[args.quality.upper()]
+    if FLAGS.quality:
+        if type(FLAGS.quality)==int:
+            dpi=FLAGS.quality
+        elif FLAGS.quality.upper() in res:
+            dpi=res[FLAGS.quality.upper()]
 
     azim=None
-    if args.azim is not None:
-        azim=args.azim
+    if FLAGS.azim is not None:
+        azim=FLAGS.azim
 
     elevation=None
-    if args.elevation is not None:
-        elevation=args.elevation
+    if FLAGS.elevation is not None:
+        elevation=FLAGS.elevation
 
     scale=None
-    if args.scale:
-        scale=args.scale
+    if FLAGS.scale:
+        scale=FLAGS.scale
 
     animate=None
-    if args.animate:
-        animate=args.animate
-        
-    for objfile in objfiles:
-        objfilepath = os.path.join(args.objfiles, objfile)
-        if os.path.isfile(objfilepath) and '.obj' in objfile:
-            outdir = objfile.replace('.obj','.off')
-            # if args.outfile:
-            #     outfile=args.outfile
-            # if args.view:
-            #     outfile=None
+    if FLAGS.animate:
+        animate=FLAGS.animate
+
+
+    root = os.listdir(FLAGS.source_dir)
+    root.sort()
+    for cls in root:
+        if not os.path.isdir(os.path.join(FLAGS.source_dir, cls)):
+            continue
+
+        dataset = os.path.join(FLAGS.source_dir, cls, FLAGS.dataset_flag)
+        files = os.listdir(dataset)
+        files.sort()
+
+        for objfile in files:
+            obj_file_path = os.path.join(dataset, objfile)
+            if os.path.isfile(obj_file_path) and '.obj' in objfile:
+                target_path = objfile.replace('.obj','.off')
+                # if FLAGS.outfile:
+                #     outfile=FLAGS.outfile
+                # if FLAGS.view:
+                #     outfile=None
+                # else:
+                #     print('Converting %s to %s'%(objfile, outfile))
+
+                ob = data_utils.ObjFile.ObjFile(obj_file_path)
+
+                for i in range(FLAGS.num_views):
+                    new_output = objfile[:-4] + '.' + str(i) + '.png'
+                    print('Converting %s to %s' % (objfile, new_output))
+                    outfile_path = os.path.join(FLAGS.target_dir, cls, FLAGS.dataset_flag,
+                                                target_path, new_output)
+                    ob.Plot(outfile_path,
+                            elevation=elevation,
+                            azim=azim*(i+1),
+                            dpi=dpi,
+                            scale=scale,
+                            animate=animate)
             # else:
-            #     print('Converting %s to %s'%(objfile, outfile))
-
-            ob = data_utils.ObjFile.ObjFile(objfilepath)
-
-            for i in range(args.nviews):
-                new_output = objfile[:-4] + '.' + str(i) + '.png'
-                print('Converting %s to %s' % (objfile, new_output))
-                outfilepath = os.path.join(args.outdir, outdir, new_output)
-                ob.Plot(outfilepath,elevation=elevation,azim=azim*(i+1),dpi=dpi,scale=scale,animate=animate)
-        # else:
-        #     print('File %s not found or not file type .obj'%objfile)
-        #     sys.exit(1)
+            #     print('File %s not found or not file type .obj'%objfile)
+            #     sys.exit(1)
     
-    
-    
-    
+if __name__ == '__main__':
+    tf.app.run()

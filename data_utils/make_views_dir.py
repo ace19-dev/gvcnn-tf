@@ -6,23 +6,32 @@ flags = tf.app.flags
 
 FLAGS = flags.FLAGS
 
-flags.DEFINE_string('target_dir', '/home/ace19/dl_data/modelnet/cone/test',
-                    'target_dir')
+flags.DEFINE_string('source_dir', '/home/ace19/dl_data/ModelNet10',
+                    'source dir')
 
-flags.DEFINE_string('source', '/home/ace19/dl_data/ModelNet40/cone/test',
-                    'source')
+flags.DEFINE_string('target_dir', '/home/ace19/dl_data/modelnet',
+                    'target dir')
+
+flags.DEFINE_string('dataset_flag', 'train',
+                    'train or test')
 
 
 def main(unused_argv):
-    tf.logging.set_verbosity(tf.logging.INFO)
+    root = os.listdir(FLAGS.source_dir)
+    root.sort()
 
-    off_files = os.listdir(FLAGS.source)
-    off_files.sort()
+    for cls in root:
+        if not os.path.isdir(os.path.join(FLAGS.source_dir, cls)):
+            continue
 
-    for f in off_files:
-        if '.off' in f:
-            path = os.path.join(FLAGS.target_dir, f)
-            os.makedirs(path)
+        dataset = os.path.join(FLAGS.source_dir, cls, FLAGS.dataset_flag)
+        data_list = os.listdir(dataset)
+
+        for f in data_list:
+            if '.off' in f:
+                target_dir = os.path.join(FLAGS.target_dir, cls, FLAGS.dataset_flag)
+                p = os.path.join(target_dir, f)
+                os.makedirs(p)
 
 
 
