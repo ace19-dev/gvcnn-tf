@@ -50,7 +50,7 @@ flags.DEFINE_string('target_dir', '/home/ace19/dl_data/modelnet',
 flags.DEFINE_string('target_file_ext', '.obj',
                     'target file extension')
 
-flags.DEFINE_string('dataset_flag', 'test',
+flags.DEFINE_string('dataset_category', 'test',
                     'train or test')
 
 flags.DEFINE_integer('num_views', 8, 'Number of views')
@@ -102,7 +102,7 @@ def main(unused_argv):
         if not os.path.isdir(os.path.join(FLAGS.source_dir, cls)):
             continue
 
-        dataset = os.path.join(FLAGS.source_dir, cls, FLAGS.dataset_flag)
+        dataset = os.path.join(FLAGS.source_dir, cls, FLAGS.dataset_category)
         files = os.listdir(dataset)
         files.sort()
 
@@ -122,7 +122,7 @@ def main(unused_argv):
                 for i in range(FLAGS.num_views):
                     new_output = objfile[:-4] + '.' + str(i) + '.png'
                     print('Converting %s to %s' % (objfile, new_output))
-                    outfile_path = os.path.join(FLAGS.target_dir, cls, FLAGS.dataset_flag,
+                    outfile_path = os.path.join(FLAGS.target_dir, cls, FLAGS.dataset_category,
                                                 target_path, new_output)
                     ob.Plot(outfile_path,
                             elevation=elevation,

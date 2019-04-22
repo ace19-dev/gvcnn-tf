@@ -16,7 +16,7 @@ flags.DEFINE_string('target_dir', '/home/ace19/dl_data/ModelNet10',
 flags.DEFINE_string('target_file_ext', '.obj',
                     'target file extension')
 
-flags.DEFINE_string('dataset_flag', 'train',
+flags.DEFINE_string('dataset_category', 'train',
                     'train or test')
 
 
@@ -30,7 +30,7 @@ def main(unused_argv):
         if not os.path.isdir(os.path.join(FLAGS.source_dir, cls)):
             continue
 
-        dataset = os.path.join(FLAGS.source_dir, cls, FLAGS.dataset_flag)
+        dataset = os.path.join(FLAGS.source_dir, cls, FLAGS.dataset_category)
         off_files = os.listdir(dataset)
         off_files.sort()
 
@@ -40,7 +40,7 @@ def main(unused_argv):
                 tf.logging.info('\n\ncompleted \'%s\': %d/%d' % (cls, i, total))
 
             file_name = os.path.basename(file)[:-4]
-            output_file_path = os.path.join(FLAGS.target_dir, cls, FLAGS.dataset_flag, file_name + FLAGS.target_file_ext)
+            output_file_path = os.path.join(FLAGS.target_dir, cls, FLAGS.dataset_category, file_name + FLAGS.target_file_ext)
             cmd = 'ctmconv ' + os.path.join(dataset, file) + ' ' + output_file_path
             os.system(cmd)
 
