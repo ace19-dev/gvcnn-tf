@@ -2,7 +2,6 @@
 ![](assets/gvcnn_framework.png)
 
 ## Data
-- Download 10-Class Orientation-aligned Subset from http://modelnet.cs.princeton.edu/
 - Download [modelnet10-Class Orientation-aligned Subset](http://modelnet.cs.princeton.edu/) directly and You can create 2D dataset from 3D objects (.obj, .stl, and .off), using [BlenderPhong](https://github.com/WeiTang114/BlenderPhong)
 - https://drive.google.com/file/d/0B4v2jR3WsindMUE3N2xiLVpyLW8/view from https://github.com/RBirkeland/MVCNN-PyTorch/blob/master/README.md
 
