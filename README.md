@@ -2,7 +2,7 @@
 ![](assets/gvcnn_framework.png)
 
 ## Data
-- Download [modelnet10-Class Orientation-aligned Subset](http://modelnet.cs.princeton.edu/) directly
+- Download [modelnet10-Class Orientation-aligned Subset](http://modelnet.cs.princeton.edu/)
   - make .png images in order below
     - data_utils/make_views_dir.py
     - data_utils/off2obj.py (after 'sudo apt install openctm-tools')
