@@ -2,12 +2,13 @@
 ![](assets/gvcnn_framework.png)
 
 ## Data
-- Download [modelnet10-Class Orientation-aligned Subset](http://modelnet.cs.princeton.edu/) directly and You can create 2D dataset from 3D objects (.obj, .stl, and .off), using [BlenderPhong](https://github.com/WeiTang114/BlenderPhong)
-- Or https://drive.google.com/file/d/0B4v2jR3WsindMUE3N2xiLVpyLW8/view from https://github.com/RBirkeland/MVCNN-PyTorch/blob/master/README.md
+- Download [modelnet10-Class Orientation-aligned Subset](http://modelnet.cs.princeton.edu/) directly and You can create 2D dataset from 3D objects (.obj, .stl, and .off), using [BlenderPhong](https://github.com/WeiTang114/BlenderPhong).
 - make .png images in order below
   - data_utils/make_views_dir.py
   - data_utils/off2obj.py (after 'sudo apt install openctm-tools')
   - data_utils/obj2png.py
+Or
+- https://drive.google.com/file/d/0B4v2jR3WsindMUE3N2xiLVpyLW8/view from https://github.com/RBirkeland/MVCNN-PyTorch/blob/master/README.md
 
 ## Quick Start
 - make group-view image tfrecord file
