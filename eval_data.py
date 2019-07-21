@@ -7,6 +7,9 @@ import random
 import tensorflow as tf
 
 
+MEAN=[0.485, 0.456, 0.406]
+STD=[0.229, 0.224, 0.225]
+
 NUM_VIEWS = 8
 
 class Dataset(object):
@@ -95,11 +98,11 @@ class Dataset(object):
 
 
     def normalize(self, images, filenames):
-        """Convert `image` from [0, 255] -> [-0.5, 0.5] floats."""
+        # input[channel] = (input[channel] - mean[channel]) / std[channel]
         img_lst = []
         img_tensor_lst = tf.unstack(images)
         for i, image in enumerate(img_tensor_lst):
-            image = tf.cast(image, tf.float32) * (1. / 255) - 0.5
-            img_lst.append(image)
+            # image = tf.cast(image, tf.float32) * (1. / 255) - 0.5
+            img_lst.append(tf.div(tf.subtract(image, MEAN), STD))
 
         return img_lst, filenames
