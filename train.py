@@ -256,10 +256,10 @@ def main(unused_argv):
 
         # validation dateset
         val_dataset = val_data.Dataset(filenames,
-                                        FLAGS.num_views,
-                                        FLAGS.height,
-                                        FLAGS.width,
-                                        FLAGS.val_batch_size // FLAGS.num_gpu)
+                                       FLAGS.num_views,
+                                       FLAGS.height,
+                                       FLAGS.width,
+                                       FLAGS.val_batch_size // FLAGS.num_gpu)
         val_iterator = val_dataset.dataset.make_initializable_iterator()
         val_next_batch = val_iterator.get_next()
 
