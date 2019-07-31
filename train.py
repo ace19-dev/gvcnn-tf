@@ -4,6 +4,7 @@ import tensorflow as tf
 import numpy as np
 
 import train_data
+import val_data
 import gvcnn
 from utils import train_utils, train_helper
 
@@ -106,6 +107,27 @@ NUM_GROUP = 10
 # temporary constant
 MODELNET_TRAIN_DATA_SIZE = 908
 MODELNET_VALIDATE_DATA_SIZE = 350
+
+
+def show_batch_data(batch_x, batch_y, additional_path=None):
+    default_path = '/home/ace19/Pictures/'
+    if additional_path is not None:
+        default_path = os.path.join(default_path, additional_path)
+        if not os.path.exists(default_path):
+            os.makedirs(default_path)
+
+    assert not np.any(np.isnan(batch_x))
+
+    n_batch = batch_x.shape[0]
+    # n_view = batch_x.shape[1]
+    for i in range(n_batch):
+        img = batch_x[i]
+        # scipy.misc.toimage(img).show() Or
+        img = cv2.cvtColor(img.astype(np.uint8), cv2.COLOR_BGR2RGB)
+        cv2.imwrite(os.path.join(default_path, str(i) + '.png'), img)
+        # cv2.imshow(str(batch_y[idx]), img)
+        cv2.waitKey(100)
+        cv2.destroyAllWindows()
 
 
 def main(unused_argv):
@@ -220,9 +242,6 @@ def main(unused_argv):
 
         sync_op = train_helper.get_post_init_ops()
 
-
-        # # Grouping Module
-        # d_scores, _,
         ################
         # Prepare data
         ################
@@ -231,9 +250,18 @@ def main(unused_argv):
                                         FLAGS.num_views,
                                         FLAGS.height,
                                         FLAGS.width,
-                                        FLAGS.batch_size)
+                                        FLAGS.batch_size // FLAGS.num_gpu)
         iterator = tr_dataset.dataset.make_initializable_iterator()
         next_batch = iterator.get_next()
+
+        # validation dateset
+        val_dataset = val_data.Dataset(filenames,
+                                        FLAGS.num_views,
+                                        FLAGS.height,
+                                        FLAGS.width,
+                                        FLAGS.val_batch_size // FLAGS.num_gpu)
+        val_iterator = val_dataset.dataset.make_initializable_iterator()
+        val_next_batch = val_iterator.get_next()
 
         sess_config = tf.ConfigProto(gpu_options=tf.GPUOptions(allow_growth=True))
         with tf.Session(config=sess_config) as sess:
@@ -288,21 +316,8 @@ def main(unused_argv):
                 for step in range(tr_batches):
                     # Pull the image batch we'll use for training.
                     train_batch_xs, train_batch_ys = sess.run(next_batch)
-                    # # Verify image
-                    # assert not np.any(np.isnan(train_batch_xs))
-                    # n_batch = train_batch_xs.shape[0]
-                    # n_view = train_batch_xs.shape[1]
-                    # for i in range(n_batch):
-                    #     for j in range(n_view):
-                    #         img = train_batch_xs[i][j]
-                    #         # scipy.misc.toimage(img).show()
-                    #         # Or
-                    #         img = cv2.cvtColor(img.astype(np.uint8), cv2.COLOR_BGR2RGB)
-                    #         cv2.imwrite('/home/ace19/Pictures/' + str(i) +
-                    #                     '_' + str(j) + '.png', img)
-                    #         # cv2.imshow(str(train_batch_ys[idx]), img)
-                    #         cv2.waitKey(100)
-                    #         cv2.destroyAllWindows()
+                    # TODO: verify image display
+                    show_batch_data(train_batch_xs, train_batch_ys)
 
                     # Sets up a graph with feeds and fetches for partial run.
                     handle = sess.partial_run_setup([d_scores, final_desc, learning_rate, summary_op,
@@ -334,7 +349,7 @@ def main(unused_argv):
                                          )
 
                     train_writer.add_summary(train_summary, training_epoch)
-                    tf.compat.v1.logging.info('Epoch #%d, Step #%d, rate %.10f, accuracy %.3f%%, loss %.5f' %
+                    tf.compat.v1.logging.info('Epoch #%d, Step #%d, rate %.6f, top1_acc %.3f%%, loss %.5f' %
                                     (training_epoch, step, lr, train_accuracy, train_loss))
 
 
@@ -347,14 +362,13 @@ def main(unused_argv):
 
                 total_val_losses = 0.0
                 total_val_top1_acc = 0.0
-                # total_val_accuracy = 0
                 val_count = 0
                 total_conf_matrix = None
                 # Reinitialize iterator with the validation dataset
                 sess.run(iterator.initializer, feed_dict={filenames: validate_filenames})
 
                 for step in range(val_batches):
-                    validation_batch_xs, validation_batch_ys = sess.run(next_batch)
+                    validation_batch_xs, validation_batch_ys = sess.run(val_next_batch)
 
                     # Sets up a graph with feeds and fetches for partial run.
                     handle = sess.partial_run_setup([d_scores, final_desc,
@@ -373,9 +387,9 @@ def main(unused_argv):
                     weights = gvcnn.grouping_weight(scores, schemes)
 
                     # Run the graph with this batch of training data.
-                    val_summary, val_accuracy, conf_matrix = \
+                    val_summary, val_loss, val_accuracy, conf_matrix = \
                         sess.partial_run(handle,
-                                         [summary_op, top1_acc, confusion_matrix],
+                                         [summary_op, loss, top1_acc, confusion_matrix],
                                          feed_dict={
                                              final_X: final,
                                              ground_truth: validation_batch_ys,
@@ -387,6 +401,7 @@ def main(unused_argv):
 
                     validation_writer.add_summary(val_summary, training_epoch)
 
+                    total_val_losses += val_loss
                     total_val_top1_acc += val_accuracy
                     val_count += 1
                     if total_conf_matrix is None:
@@ -394,11 +409,16 @@ def main(unused_argv):
                     else:
                         total_conf_matrix += conf_matrix
 
-
+                total_val_losses /= val_count
                 total_val_top1_acc /= val_count
-                tf.compat.v1.logging.info('Confusion Matrix:\n %s' % (total_conf_matrix))
-                tf.compat.v1.logging.info('Validation accuracy = %.1f%% (N=%d)' %
-                                (total_val_top1_acc * 100, MODELNET_VALIDATE_DATA_SIZE))
+
+                tf.compat.v1.logging.info('Confusion Matrix:\n %s' % total_conf_matrix)
+                tf.compat.v1.logging.info('Validation loss = %.5f' % total_val_losses)
+                tf.compat.v1.logging.info('Validation accuracy = %.3f%% (N=%d)' %
+                                (total_val_top1_acc, MODELNET_VALIDATE_DATA_SIZE))
+
+                # periodic synchronization
+                sess.run(sync_op)
 
                 # Save the model checkpoint periodically.
                 if (training_epoch <= FLAGS.how_many_training_epochs-1):
