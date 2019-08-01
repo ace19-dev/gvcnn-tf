@@ -9,10 +9,10 @@ FLAGS = flags.FLAGS
 flags.DEFINE_string('source_dir', '/home/ace19/dl_data/ModelNet10',
                     'source dir')
 
-flags.DEFINE_string('target_dir', '/home/ace19/dl_data/modelnet',
+flags.DEFINE_string('target_dir', '/home/ace19/dl_data/modelnet10',
                     'target dir')
 
-flags.DEFINE_string('dataset_category', 'train',
+flags.DEFINE_string('dataset_category', 'test',
                     'train or test')
 
 
@@ -36,4 +36,4 @@ def main(unused_argv):
 
 
 if __name__ == '__main__':
-    tf.app.run()
+    tf.compat.v1.app.run()
