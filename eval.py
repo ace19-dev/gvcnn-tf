@@ -12,7 +12,7 @@ import csv
 
 import tensorflow as tf
 
-import data
+import eval_data
 import gvcnn
 
 slim = tf.contrib.slim
@@ -91,10 +91,11 @@ def main(unused_argv):
     # Prepare data
     ################
     filenames = tf.placeholder(tf.string, shape=[])
-    eval_dataset = data.Dataset(filenames,
-                                FLAGS.height,
-                                FLAGS.width,
-                                FLAGS.batch_size)
+    eval_dataset = eval_data.Dataset(filenames,
+                                     FLAGS.num_views,
+                                     FLAGS.height,
+                                     FLAGS.width,
+                                     FLAGS.batch_size)
     iterator = eval_dataset.dataset.make_initializable_iterator()
     next_batch = iterator.get_next()
 

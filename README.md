@@ -1,3 +1,5 @@
+# On modifying..
+
 ## GVCNN (Group-View Convolutional Neural Networks for 3D Shape Recognition)
 ![](assets/gvcnn_framework.png)
 
