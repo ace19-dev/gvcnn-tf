@@ -161,7 +161,7 @@ def discrimination_score(inputs,
             raw_desc, net, end_points = \
                 inception_v4.inception_v4(batch_view, v_scope='_view' + str(index),
                                           is_training=is_training,
-                                          reuse=reuse, scope=scope)
+                                          reuse=reuse, scope=scope + '-' + str(index))
 
         raw_view_descriptors.append(raw_desc['raw_desc'])
         final_view_descriptors.append(net)
