@@ -104,7 +104,7 @@ venv.bak/
 .mypy_cache/
 
 *.pyc
-models/
+tfmodels/
 _temp/
 _nets/
 pre-trained/

@@ -73,7 +73,7 @@ def get_model_learning_rate(
     (1) The learning policy for "step" is computed as follows:
       current_learning_rate = base_learning_rate *
         learning_rate_decay_factor ^ (global_step / learning_rate_decay_step)
-    See tf.train.exponential_decay for details.
+    See tf.compat.v1.train.exponential_decay for details.
     (2) The learning policy for "poly" is computed as follows:
       current_learning_rate = base_learning_rate *
         (1 - global_step / training_number_of_steps) ^ learning_power
@@ -95,16 +95,16 @@ def get_model_learning_rate(
     Raises:
       ValueError: If learning policy is not recognized.
     """
-    global_step = tf.train.get_or_create_global_step()
+    global_step = tf.compat.v1.train.get_or_create_global_step()
     if learning_policy == 'step':
-        learning_rate = tf.train.exponential_decay(
+        learning_rate = tf.compat.v1.train.exponential_decay(
             base_learning_rate,
             global_step,
             learning_rate_decay_step,
             learning_rate_decay_factor,
             staircase=True)
     elif learning_policy == 'poly':
-        learning_rate = tf.train.polynomial_decay(
+        learning_rate = tf.compat.v1.train.polynomial_decay(
             base_learning_rate,
             global_step,
             training_number_of_steps,
@@ -312,7 +312,7 @@ def restore_fn(flags):
     #     return None
 
     # Warn the user if a checkpoint exists in the train_dir. Then ignore.
-    # if tf.train.latest_checkpoint(flags.train_dir):
+    # if tf.compat.v1.train.latest_checkpoint(flags.train_dir):
     #     tf.logging.info(
     #         'Ignoring --checkpoint_path because a checkpoint already exists in %s'
     #         % flags.train_dir)

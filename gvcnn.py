@@ -130,7 +130,7 @@ def group_fusion(group_descriptors, group_weight):
 def discrimination_score(inputs,
                          num_classes,
                          is_training=True,
-                         reuse=tf.AUTO_REUSE,
+                         reuse=tf.compat.v1.AUTO_REUSE,
                          scope='InceptionV4'):
     """
     Raw View Descriptor Generation
@@ -159,8 +159,8 @@ def discrimination_score(inputs,
         batch_view = tf.gather(views, index)  # N x H x W x C
         with slim.arg_scope(inception_v4.inception_v4_arg_scope()):
             raw_desc, net, end_points = \
-                inception_v4.inception_v4(batch_view, v_scope='_view' + str(index),
-                                          is_training=is_training, reuse=reuse, scope=scope)
+                inception_v4.inception_v4(batch_view, is_training=is_training,
+                                          reuse=reuse, scope=scope)
 
         raw_view_descriptors.append(raw_desc['raw_desc'])
         final_view_descriptors.append(net)
@@ -169,7 +169,7 @@ def discrimination_score(inputs,
         raw = tf.reduce_mean(raw_desc['raw_desc'], [1, 2], keepdims=True)
         raw = slim.conv2d(raw, num_classes, [1, 1], activation_fn=None)
         raw = tf.reduce_max(raw, axis=[1, 2, 3])
-        batch_view_score = tf.nn.sigmoid(tf.log(tf.abs(raw)))
+        batch_view_score = tf.nn.sigmoid(tf.math.log(tf.abs(raw)))
         view_discrimination_scores.append(batch_view_score)
 
     # # Print name and shape of parameter nodes  (values not yet initialized)

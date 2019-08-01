@@ -15,7 +15,7 @@ FLAGS = flags.FLAGS
 
 
 # Multi GPU
-flags.DEFINE_integer('num_gpu', 2, 'number of GPU')
+flags.DEFINE_integer('num_gpu', 4, 'number of GPU')
 
 # Settings for logging.
 flags.DEFINE_string('train_logdir', './tfmodels',
@@ -60,6 +60,10 @@ flags.DEFINE_float('slow_start_learning_rate', 1e-5,
                    'Learning rate employed during slow start.')
 
 # Settings for fine-tuning the network.
+flags.DEFINE_string('saved_checkpoint_dir',
+                    # './tfmodels',
+                    None,
+                    'Saved checkpoint dir.')
 flags.DEFINE_string('pre_trained_checkpoint',
                     # './pre-trained/inception_v4.ckpt',
                     None,
@@ -85,7 +89,7 @@ flags.DEFINE_boolean('ignore_missing_vars',
                      'When restoring a checkpoint would ignore missing variables.')
 
 # Dataset settings.
-flags.DEFINE_string('dataset_dir', '/home/ace19/dl_data/modelnet',
+flags.DEFINE_string('dataset_dir', '/home/ace19/dl_data/modelnet40/tfrecords',
                     'Where the dataset reside.')
 
 flags.DEFINE_integer('how_many_training_epochs', 100,
@@ -93,7 +97,7 @@ flags.DEFINE_integer('how_many_training_epochs', 100,
 # Currently only 1 batch size is available.
 flags.DEFINE_integer('batch_size', 1, 'batch size')
 flags.DEFINE_integer('val_batch_size', 1, 'val batch size')
-flags.DEFINE_integer('num_views', 8, 'number of views')
+flags.DEFINE_integer('num_views', 12, 'number of views')
 flags.DEFINE_integer('height', 299, 'height')
 flags.DEFINE_integer('width', 299, 'width')
 flags.DEFINE_string('labels',
@@ -102,12 +106,22 @@ flags.DEFINE_string('labels',
 
 
 # relate to grouping_scheme func.
-NUM_GROUP = 10
+NUM_GROUP = 12
 
 # temporary constant
-MODELNET_TRAIN_DATA_SIZE = 908
-MODELNET_VALIDATE_DATA_SIZE = 350
+MODELNET_TRAIN_DATA_SIZE = 9756
+MODELNET_VALIDATE_DATA_SIZE = 2468
 
+
+def get_filenames(dataset_category):
+    filenames = []
+
+    tfrecord_files = os.listdir(FLAGS.dataset_dir)
+    for f in tfrecord_files:
+        if f in dataset_category:
+            filenames.append(f)
+
+    return filenames
 
 def show_batch_data(batch_x, batch_y, additional_path=None):
     default_path = '/home/ace19/Pictures/'
@@ -140,19 +154,19 @@ def main(unused_argv):
         global_step = tf.train.get_or_create_global_step()
 
         # Define the model
-        X = tf.placeholder(tf.float32,
+        X = tf.compat.v1.placeholder(tf.float32,
                            [None, FLAGS.num_views, FLAGS.height, FLAGS.width, 3],
                            name='X')
-        # for 299 size, otherwise you should modify shape for ur size.
-        final_X = tf.placeholder(tf.float32,
+        # for 299 size, otherwise you should modify shape for your size.
+        final_X = tf.compat.v1.placeholder(tf.float32,
                                  [FLAGS.num_views, None, 8, 8, 1536],
                                  name='final_X')
-        ground_truth = tf.placeholder(tf.int64, [None], name='ground_truth')
-        is_training = tf.placeholder(tf.bool)
-        is_training2 = tf.placeholder(tf.bool)
-        dropout_keep_prob = tf.placeholder(tf.float32)
-        grouping_scheme = tf.placeholder(tf.bool, [NUM_GROUP, FLAGS.num_views])
-        grouping_weight = tf.placeholder(tf.float32, [NUM_GROUP, 1])
+        ground_truth = tf.compat.v1.placeholder(tf.int64, [None], name='ground_truth')
+        is_training = tf.compat.v1.placeholder(tf.bool)
+        is_training2 = tf.compat.v1.placeholder(tf.bool)
+        dropout_keep_prob = tf.compat.v1.placeholder(tf.float32)
+        grouping_scheme = tf.compat.v1.placeholder(tf.bool, [NUM_GROUP, FLAGS.num_views])
+        grouping_weight = tf.compat.v1.placeholder(tf.float32, [NUM_GROUP, 1])
 
         # Gather initial summaries.
         summaries = set(tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.SUMMARIES))
@@ -179,7 +193,7 @@ def main(unused_argv):
             gt_batch.append(ground_truth)
 
             scope_name = 'tower%d' % gpu_idx
-            with tf.device(tf.DeviceSpec(device_type="GPU", device_index=gpu_idx)), tf.variable_scope(scope_name):
+            with tf.device(tf.DeviceSpec(device_type="GPU", device_index=gpu_idx)), tf.compat.v1.variable_scope(scope_name):
                 # Grouping Module
                 d_scores, _, final_desc = gvcnn.discrimination_score(X, num_classes, is_training)
 
@@ -228,7 +242,7 @@ def main(unused_argv):
         for idx, grad_and_vars in enumerate(grads):
             # apply_gradients may create variables. Make them LOCAL_VARIABLESZ¸¸¸¸¸¸
             with tf.name_scope('apply_gradients'), tf.device(tf.DeviceSpec(device_type="GPU", device_index=idx)):
-                update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS, scope='tower%d' % idx)
+                update_ops = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.UPDATE_OPS, scope='tower%d' % idx)
                 with tf.control_dependencies(update_ops):
                     train_ops.append(
                         optimizers[idx].apply_gradients(grad_and_vars, name='apply_grad_{}'.format(idx),
@@ -245,7 +259,7 @@ def main(unused_argv):
         ################
         # Prepare data
         ################
-        filenames = tf.placeholder(tf.string, shape=[])
+        filenames = tf.compat.v1.placeholder(tf.string, shape=[])
         tr_dataset = train_data.Dataset(filenames,
                                         FLAGS.num_views,
                                         FLAGS.height,
@@ -278,7 +292,7 @@ def main(unused_argv):
 
             # TODO:
             # Create a saver object which will save all the variables
-            saver = tf.train.Saver(keep_checkpoint_every_n_hours=1.0)
+            saver = tf.compat.v1.train.Saver(keep_checkpoint_every_n_hours=1.0)
             if FLAGS.pre_trained_checkpoint:
                 train_utils.restore_fn(FLAGS)
 
@@ -302,8 +316,10 @@ def main(unused_argv):
 
             # The filenames argument to the TFRecordDataset initializer can either be a string,
             # a list of strings, or a tf.Tensor of strings.
-            training_filenames = os.path.join(FLAGS.dataset_dir, 'train.record')
-            validate_filenames = os.path.join(FLAGS.dataset_dir, 'validate.record')
+            # training_filenames = os.path.join(FLAGS.dataset_dir, 'train.record')
+            # validate_filenames = os.path.join(FLAGS.dataset_dir, 'validate.record')
+            training_filenames = get_filenames('train')
+            validate_filenames = get_filenames('test')
             ##################
             # Training loop.
             ##################
@@ -429,6 +445,6 @@ def main(unused_argv):
 
 if __name__ == '__main__':
     tf.compat.v1.logging.info('Creating train logdir: %s', FLAGS.train_logdir)
-    tf.io.gfile.MakeDirs(FLAGS.train_logdir)
+    tf.io.gfile.makedirs(FLAGS.train_logdir)
 
     tf.compat.v1.app.run()
