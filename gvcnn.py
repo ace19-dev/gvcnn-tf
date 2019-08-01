@@ -159,7 +159,8 @@ def discrimination_score(inputs,
         batch_view = tf.gather(views, index)  # N x H x W x C
         with slim.arg_scope(inception_v4.inception_v4_arg_scope()):
             raw_desc, net, end_points = \
-                inception_v4.inception_v4(batch_view, is_training=is_training,
+                inception_v4.inception_v4(batch_view, v_scope='_view' + str(index),
+                                          is_training=is_training,
                                           reuse=reuse, scope=scope)
 
         raw_view_descriptors.append(raw_desc['raw_desc'])
