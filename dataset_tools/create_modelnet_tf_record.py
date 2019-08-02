@@ -29,7 +29,7 @@ flags.DEFINE_string('output_dir',
                     '/home/ace19/dl_data/modelnet12/tfrecords',
                     'Path to output TFRecord')
 flags.DEFINE_string('dataset_category',
-                    'train',
+                    'test',
                     'dataset category, train|validate|test')
 
 FLAGS = flags.FLAGS
@@ -139,6 +139,9 @@ def main(_):
             label_to_index[cls] = i
 
     label_map_dict, view_map_dict = get_data_map_dict(label_to_index)
+
+    if not os.path.exists(FLAGS.output_dir):
+        os.makedirs(FLAGS.output_dir)
 
     tf.compat.v1.logging.info('Reading from modelnet dataset.')
     cls_lst = os.listdir(FLAGS.dataset_dir)

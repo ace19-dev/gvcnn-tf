@@ -3,6 +3,8 @@ import cv2
 from random import randrange
 
 import tensorflow as tf
+from tensorflow.python.client import device_lib
+
 import numpy as np
 
 import train_data
@@ -155,6 +157,8 @@ def show_batch_data(step, batch_x, batch_y, additional_path=None):
 def main(unused_argv):
     tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.INFO)
 
+    # device = device_lib.list_local_devices()
+
     labels = FLAGS.labels.split(',')
     num_classes = len(labels)
 
@@ -257,12 +261,15 @@ def main(unused_argv):
                                                         global_step=global_step)
                     )
                     # https://github.com/tensorflow/tensorflow/issues/1899
-                    dummy = tf.constant(0)
+                    # dummy = tf.constant(0)
                 # TODO:
                 # TensorBoard: How to plot histogram for gradients
                 # grad_summ_op = tf.summary.merge([tf.summary.histogram("%s-grad" % g[1].name, g[0]) for g in grads_and_vars])
-
         optimize_op = tf.group(*train_ops, name='train_op')
+        # https://github.com/tensorflow/tensorflow/issues/1899
+        with tf.control_dependencies([optimize_op]):
+            dummy = tf.constant(0)
+
 
         sync_op = train_helper.get_post_init_ops()
 
@@ -287,7 +294,8 @@ def main(unused_argv):
         val_iterator = val_dataset.dataset.make_initializable_iterator()
         val_next_batch = val_iterator.get_next()
 
-        sess_config = tf.compat.v1.ConfigProto(gpu_options=tf.compat.v1.GPUOptions(allow_growth=True))
+        sess_config = tf.compat.v1.ConfigProto(allow_soft_placement=True,
+                                               gpu_options=tf.compat.v1.GPUOptions(allow_growth=True))
         with tf.compat.v1.Session(config=sess_config) as sess:
             sess.run(tf.compat.v1.global_variables_initializer())
 
@@ -350,13 +358,13 @@ def main(unused_argv):
 
                     # Sets up a graph with feeds and fetches for partial run.
                     handle = sess.partial_run_setup([d_scores, final_desc, learning_rate, summary_op,
-                                                     top1_acc, loss, optimize_op],
+                                                     top1_acc, loss, dummy],
                                                     [X, final_X, ground_truth,
                                                      grouping_scheme, grouping_weight, is_training,
                                                      is_training2, dropout_keep_prob])
 
-                    scores, final, _ = sess.partial_run(handle,
-                                                     [d_scores, final_desc, dummy],
+                    scores, final = sess.partial_run(handle,
+                                                     [d_scores, final_desc],
                                                      feed_dict={
                                                         X: train_batch_xs,
                                                         is_training: True}
@@ -365,9 +373,9 @@ def main(unused_argv):
                     weights = gvcnn.grouping_weight(scores, schemes)
 
                     # Run the graph with this batch of training data.
-                    lr, train_summary, train_accuracy, train_loss, _, _ = \
+                    lr, train_summary, train_accuracy, train_loss, _ = \
                         sess.partial_run(handle,
-                                         [learning_rate, summary_op, top1_acc, loss, optimize_op, dummy],
+                                         [learning_rate, summary_op, top1_acc, loss, dummy],
                                          feed_dict={
                                              final_X: final,
                                              ground_truth: train_batch_ys,
