@@ -58,9 +58,9 @@ flags.DEFINE_boolean('initialize_last_layer', True,
                      'Initialize the last layer.')
 flags.DEFINE_boolean('last_layers_contain_logits_only', False,
                      'Only consider logits as last layers or not.')
-flags.DEFINE_integer('slow_start_step', 5050,   # customize
+flags.DEFINE_integer('slow_start_step', 5764,
                      'Training model with small learning rate for few steps.')
-flags.DEFINE_float('slow_start_learning_rate', 1e-5,
+flags.DEFINE_float('slow_start_learning_rate', 1e-4,
                    'Learning rate employed during slow start.')
 
 # Settings for fine-tuning the network.
@@ -294,8 +294,9 @@ def main(unused_argv):
         val_iterator = val_dataset.dataset.make_initializable_iterator()
         val_next_batch = val_iterator.get_next()
 
-        sess_config = tf.compat.v1.ConfigProto(allow_soft_placement=True,
-                                               gpu_options=tf.compat.v1.GPUOptions(allow_growth=True))
+        # sess_config = tf.compat.v1.ConfigProto(allow_soft_placement=True, log_device_placement=True,
+        #                                        gpu_options=tf.compat.v1.GPUOptions(allow_growth=True))
+        sess_config = tf.compat.v1.ConfigProto(gpu_options=tf.compat.v1.GPUOptions(allow_growth=True))
         with tf.compat.v1.Session(config=sess_config) as sess:
             sess.run(tf.compat.v1.global_variables_initializer())
 
