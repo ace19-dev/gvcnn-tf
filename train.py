@@ -355,7 +355,7 @@ def main(unused_argv):
                                                      grouping_scheme, grouping_weight, is_training,
                                                      is_training2, dropout_keep_prob])
 
-                    scores, final = sess.partial_run(handle,
+                    scores, final, _ = sess.partial_run(handle,
                                                      [d_scores, final_desc, dummy],
                                                      feed_dict={
                                                         X: train_batch_xs,
@@ -365,7 +365,7 @@ def main(unused_argv):
                     weights = gvcnn.grouping_weight(scores, schemes)
 
                     # Run the graph with this batch of training data.
-                    lr, train_summary, train_accuracy, train_loss, _ = \
+                    lr, train_summary, train_accuracy, train_loss, _, _ = \
                         sess.partial_run(handle,
                                          [learning_rate, summary_op, top1_acc, loss, optimize_op, dummy],
                                          feed_dict={
