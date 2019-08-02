@@ -348,7 +348,7 @@ def main(unused_argv):
                 print("-------------------------------------")
 
                 # sess.run(iterator.initializer,
-                #          feed_dict={filenames: random.shuffle(training_filenames)[0]})
+                #          feed_dict={filenames: training_filenames})
                 for step in range(tr_batches):
                     index = randrange(12)
                     sess.run(iterator.initializer, feed_dict={filenames: training_filenames[index]})
