@@ -14,6 +14,7 @@
     - data_utils/obj2png.py
   - Or You can create 2D dataset from 3D objects (.obj, .stl, and .off), using [BlenderPhong](https://github.com/WeiTang114/BlenderPhong).
 - Directly you get dataset https://drive.google.com/file/d/0B4v2jR3WsindMUE3N2xiLVpyLW8/view from https://github.com/RBirkeland/MVCNN-PyTorch/blob/master/README.md
+- Downsized modelnet40(https://drive.google.com/file/d/0B4v2jR3WsindMUE3N2xiLVpyLW8/view) to modelnet12/6-view. 
 
 ## Quick Start
 - make group-view image tfrecord file
