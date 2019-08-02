@@ -23,18 +23,18 @@ from dataset_tools import dataset_util
 
 flags = tf.app.flags
 flags.DEFINE_string('dataset_dir',
-                    '/home/ace19/dl_data/modelnet40/view/classes',
+                    '/home/ace19/dl_data/modelnet12/view/classes',
                     'Root Directory to raw modelnet dataset.')
 flags.DEFINE_string('output_dir',
-                    '/home/ace19/dl_data/modelnet40/tfrecords',
+                    '/home/ace19/dl_data/modelnet12/tfrecords',
                     'Path to output TFRecord')
 flags.DEFINE_string('dataset_category',
-                    'test',
+                    'train',
                     'dataset category, train|validate|test')
 
 FLAGS = flags.FLAGS
 
-_FILE_PATTERN = 'modelnet40_%s_%s.tfrecord'
+_FILE_PATTERN = 'modelnet12_%s_%s.tfrecord'
 
 
 def get_data_map_dict(label_to_index):

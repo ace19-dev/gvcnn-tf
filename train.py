@@ -97,20 +97,19 @@ flags.DEFINE_integer('how_many_training_epochs', 100,
 # Currently only 1 batch size is available.
 flags.DEFINE_integer('batch_size', 1, 'batch size')
 flags.DEFINE_integer('val_batch_size', 1, 'val batch size')
-flags.DEFINE_integer('num_views', 12, 'number of views')
+flags.DEFINE_integer('num_views', 6, 'number of views')
 flags.DEFINE_integer('height', 299, 'height')
 flags.DEFINE_integer('width', 299, 'width')
 flags.DEFINE_string('labels',
-                    'bathtub,bed,chair,desk,dresser,monitor,night_stand,sofa,table,toilet',
+                    'airplane,bed,bookshelf,bottle,chair,monitor,piano,plant,sofa,table,toilet,vase',
                     'number of classes')
 
 
 # relate to grouping_scheme func.
 NUM_GROUP = 12
 
-# temporary constant
-MODELNET_TRAIN_DATA_SIZE = 9756
-MODELNET_VALIDATE_DATA_SIZE = 2468
+MODELNET_TRAIN_DATA_SIZE = 5764
+MODELNET_VALIDATE_DATA_SIZE = 1200
 
 
 def get_filenames(dataset_category):
