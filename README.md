@@ -1,7 +1,7 @@
 # On modifying..
 - Multi GPU
-- N batch size
-- verify logic
+- N batch
+- Bugfix
 
 ## GVCNN (Group-View Convolutional Neural Networks for 3D Shape Recognition)
 ![](assets/gvcnn_framework.png)

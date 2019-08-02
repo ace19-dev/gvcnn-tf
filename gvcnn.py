@@ -126,7 +126,7 @@ def group_fusion(group_descriptors, group_weight):
 
     return shape_descriptor
 
-
+# TODO: keep_prob
 def discrimination_score(inputs,
                          num_classes,
                          is_training=True,
@@ -148,7 +148,7 @@ def discrimination_score(inputs,
     inputs: N x V x H x W x C tensor
     scope:
     """
-    raw_view_descriptors = []
+    fcn_view_descriptors = []
     final_view_descriptors = []
     view_discrimination_scores = []
 
@@ -158,29 +158,25 @@ def discrimination_score(inputs,
     for index in range(n_views):
         batch_view = tf.gather(views, index)  # N x H x W x C
         with slim.arg_scope(inception_v4.inception_v4_arg_scope()):
-            raw_desc, net, end_points = \
+            fcn, net, end_points = \
                 inception_v4.inception_v4(batch_view, v_scope='_view' + str(index),
                                           is_training=is_training,
                                           reuse=reuse, scope=scope + '-' + str(index))
-
-        raw_view_descriptors.append(raw_desc['raw_desc'])
+        # (?,35,35,384)
+        fcn_view_descriptors.append(fcn['fcn'])
+        # (?,8,8,1536)
         final_view_descriptors.append(net)
 
         # GAP layer to obtain the discrimination scores from raw view descriptors.
-        raw = tf.reduce_mean(raw_desc['raw_desc'], [1, 2], keepdims=True)
-        raw = slim.conv2d(raw, num_classes, [1, 1], activation_fn=None)
-        raw = tf.reduce_max(raw, axis=[1, 2, 3])
+        raw = tf.reduce_mean(fcn['fcn'], [1, 2], keepdims=True)
+        raw = slim.flatten(raw)
+        raw = slim.dropout(raw, keep_prob=0.8)
+        raw = slim.fully_connected(raw, num_classes)
+        raw = tf.reduce_mean(raw)
         batch_view_score = tf.nn.sigmoid(tf.math.log(tf.abs(raw)))
         view_discrimination_scores.append(batch_view_score)
 
-    # # Print name and shape of parameter nodes  (values not yet initialized)
-    # tf.logging.info("++++++++++++++++++++++++++++++++++")
-    # tf.logging.info("Parameters")
-    # tf.logging.info("++++++++++++++++++++++++++++++++++")
-    # for v in slim.get_model_variables():
-    #     tf.logging.info('name = %s, shape = %s' % (v.name, v.get_shape()))
-
-    return view_discrimination_scores, raw_view_descriptors, final_view_descriptors
+    return view_discrimination_scores, fcn_view_descriptors, final_view_descriptors
 
 
 def gvcnn(final_view_descriptors,

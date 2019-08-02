@@ -256,6 +256,8 @@ def main(unused_argv):
                         optimizers[idx].apply_gradients(grad_and_vars, name='apply_grad_{}'.format(idx),
                                                         global_step=global_step)
                     )
+                    # https://github.com/tensorflow/tensorflow/issues/1899
+                    dummy = tf.constant(0)
                 # TODO:
                 # TensorBoard: How to plot histogram for gradients
                 # grad_summ_op = tf.summary.merge([tf.summary.histogram("%s-grad" % g[1].name, g[0]) for g in grads_and_vars])
@@ -354,7 +356,7 @@ def main(unused_argv):
                                                      is_training2, dropout_keep_prob])
 
                     scores, final = sess.partial_run(handle,
-                                                     [d_scores, final_desc],
+                                                     [d_scores, final_desc, dummy],
                                                      feed_dict={
                                                         X: train_batch_xs,
                                                         is_training: True}
@@ -365,7 +367,7 @@ def main(unused_argv):
                     # Run the graph with this batch of training data.
                     lr, train_summary, train_accuracy, train_loss, _ = \
                         sess.partial_run(handle,
-                                         [learning_rate, summary_op, top1_acc, loss, optimize_op],
+                                         [learning_rate, summary_op, top1_acc, loss, optimize_op, dummy],
                                          feed_dict={
                                              final_X: final,
                                              ground_truth: train_batch_ys,
