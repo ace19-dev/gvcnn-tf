@@ -44,7 +44,7 @@ class Dataset(object):
 
     def decode(self, serialized_example):
         """Parses an image and label from the given `serialized_example`."""
-        features = tf.parse_single_example(
+        features = tf.io.parse_single_example(
             serialized_example,
             # Defaults are not specified since both keys are required.
             features={
@@ -79,7 +79,7 @@ class Dataset(object):
         img_tensor_lst = tf.unstack(images)
         for i, image in enumerate(img_tensor_lst):
             image = tf.image.random_flip_left_right(image)
-            image = tf.image.rot90(image, k=random.randint(0, 1))
+            image = tf.image.rot90(image, k=random.randint(0, 4))
             image = tf.image.random_brightness(image, max_delta=1.3)
             image = tf.image.random_contrast(image, lower=0.7, upper=1.3)
             # image = tf.image.random_hue(image, max_delta=0.04)

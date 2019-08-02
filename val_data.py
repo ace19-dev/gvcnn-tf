@@ -44,7 +44,7 @@ class Dataset(object):
 
     def decode(self, serialized_example):
         """Parses an image and label from the given `serialized_example`."""
-        features = tf.parse_single_example(
+        features = tf.io.parse_single_example(
             serialized_example,
             # Defaults are not specified since both keys are required.
             features={

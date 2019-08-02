@@ -68,7 +68,7 @@ def get_post_init_ops():
     Copy values of variables on GPU 0 to other GPUs.
     """
     # literally all variables, because it's better to sync optimizer-internal variables as well
-    all_vars = tf.global_variables() + tf.local_variables()
+    all_vars = tf.compat.v1.global_variables() + tf.compat.v1.local_variables()
     var_by_name = dict([(v.name, v) for v in all_vars])
     post_init_ops = []
     for v in all_vars:
