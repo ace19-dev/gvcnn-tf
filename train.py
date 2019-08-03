@@ -98,7 +98,7 @@ flags.DEFINE_string('dataset_dir', '/home/ace19/dl_data/modelnet12',
 
 flags.DEFINE_integer('how_many_training_epochs', 100,
                      'How many training loops to run')
-# Currently only 1 batch size is available.
+
 # TODO: batch size must be multiple of num_gpu
 flags.DEFINE_integer('batch_size', 1, 'batch size')
 flags.DEFINE_integer('val_batch_size', 1, 'val batch size')
