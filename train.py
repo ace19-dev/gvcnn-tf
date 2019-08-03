@@ -19,7 +19,7 @@ FLAGS = flags.FLAGS
 
 
 # Multi GPU
-flags.DEFINE_integer('num_gpu', 1, 'number of GPU')
+flags.DEFINE_integer('num_gpu', 4, 'number of GPU')
 
 # Settings for logging.
 flags.DEFINE_string('train_logdir', './tfmodels',
@@ -93,15 +93,15 @@ flags.DEFINE_boolean('ignore_missing_vars',
                      'When restoring a checkpoint would ignore missing variables.')
 
 # Dataset settings.
-flags.DEFINE_string('dataset_dir', '/home/ace19/dl_data/modelnet12/tfrecords',
+flags.DEFINE_string('dataset_dir', '/home/ace19/dl_data/modelnet12',
                     'Where the dataset reside.')
 
 flags.DEFINE_integer('how_many_training_epochs', 100,
                      'How many training loops to run')
 # Currently only 1 batch size is available.
-# batch size must be multiple of num_gpu
-flags.DEFINE_integer('batch_size', 2, 'batch size')
-flags.DEFINE_integer('val_batch_size', 2, 'val batch size')
+# TODO: batch size must be multiple of num_gpu
+flags.DEFINE_integer('batch_size', 1, 'batch size')
+flags.DEFINE_integer('val_batch_size', 1, 'val batch size')
 flags.DEFINE_integer('num_views', 6, 'number of views')
 flags.DEFINE_integer('height', 299, 'height')
 flags.DEFINE_integer('width', 299, 'width')
@@ -331,11 +331,10 @@ def main(unused_argv):
 
             # The filenames argument to the TFRecordDataset initializer can either be a string,
             # a list of strings, or a tf.Tensor of strings.
-            # training_filenames = os.path.join(FLAGS.dataset_dir, 'train.record')
-            # validate_filenames = os.path.join(FLAGS.dataset_dir, 'validate.record')
-
-            training_filenames = get_filenames('train')
-            validate_filenames = get_filenames('test')
+            training_filenames = os.path.join(FLAGS.dataset_dir, 'modelnet12_train.record')
+            validate_filenames = os.path.join(FLAGS.dataset_dir, 'modelnet12_validate.record')
+            # training_filenames = get_filenames('train')
+            # validate_filenames = get_filenames('test')
             ##################
             # Training loop.
             ##################
@@ -344,11 +343,10 @@ def main(unused_argv):
                 print(" Epoch {} ".format(training_epoch))
                 print("-------------------------------------")
 
-                # sess.run(iterator.initializer,
-                #          feed_dict={filenames: training_filenames})
+                sess.run(iterator.initializer, feed_dict={filenames: training_filenames})
                 for step in range(tr_batches):
-                    index = randrange(12)
-                    sess.run(iterator.initializer, feed_dict={filenames: training_filenames[index]})
+                    # index = randrange(12)
+                    # sess.run(iterator.initializer, feed_dict={filenames: training_filenames[index]})
                     # Pull the image batch we'll use for training.
                     train_batch_xs, train_batch_ys = sess.run(next_batch)
                     # show_batch_data(step, train_batch_xs, train_batch_ys)
@@ -399,11 +397,11 @@ def main(unused_argv):
                 val_count = 0
                 total_conf_matrix = None
 
-                # # Reinitialize iterator with the validation dataset
-                # sess.run(iterator.initializer, feed_dict={filenames: validate_filenames})
+                # Reinitialize iterator with the validation dataset
+                sess.run(iterator.initializer, feed_dict={filenames: validate_filenames})
                 for step in range(val_batches):
-                    index = randrange(12)
-                    sess.run(iterator.initializer, feed_dict={filenames: validate_filenames[index]})
+                    # index = randrange(12)
+                    # sess.run(iterator.initializer, feed_dict={filenames: validate_filenames[index]})
                     validation_batch_xs, validation_batch_ys = sess.run(val_next_batch)
                     # show_batch_data(step, validation_batch_xs, validation_batch_ys)
 
