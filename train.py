@@ -345,7 +345,7 @@ def main(unused_argv):
 
                 sess.run(iterator.initializer, feed_dict={filenames: training_filenames})
                 for step in range(tr_batches):
-                    # index = randrange(12)
+                    # index = randrange(num_classes)
                     # sess.run(iterator.initializer, feed_dict={filenames: training_filenames[index]})
                     # Pull the image batch we'll use for training.
                     train_batch_xs, train_batch_ys = sess.run(next_batch)
@@ -400,7 +400,7 @@ def main(unused_argv):
                 # Reinitialize iterator with the validation dataset
                 sess.run(iterator.initializer, feed_dict={filenames: validate_filenames})
                 for step in range(val_batches):
-                    # index = randrange(12)
+                    # index = randrange(num_classes)
                     # sess.run(iterator.initializer, feed_dict={filenames: validate_filenames[index]})
                     validation_batch_xs, validation_batch_ys = sess.run(val_next_batch)
                     # show_batch_data(step, validation_batch_xs, validation_batch_ys)
