@@ -88,7 +88,8 @@ def view_pooling(final_view_descriptors, group_scheme):
     group_descriptors = {}
     empty = tf.zeros_like(final_view_descriptors[0])
 
-    scheme_list = tf.unstack(group_scheme)
+    scheme_list = tf.unstack(tf.cast(group_scheme, dtype=tf.float32))
+    # TODO: check logic
     indices = [tf.squeeze(tf.where(elem), axis=1) for elem in scheme_list]
     for i, ind in enumerate(indices):
         view_descs = tf.cond(tf.not_equal(tf.size(ind), 0),

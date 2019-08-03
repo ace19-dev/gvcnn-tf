@@ -260,16 +260,14 @@ def main(unused_argv):
                         optimizers[idx].apply_gradients(grad_and_vars, name='apply_grad_{}'.format(idx),
                                                         global_step=global_step)
                     )
-                    # https://github.com/tensorflow/tensorflow/issues/1899
-                    # dummy = tf.constant(0)
                 # TODO:
                 # TensorBoard: How to plot histogram for gradients
                 # grad_summ_op = tf.summary.merge([tf.summary.histogram("%s-grad" % g[1].name, g[0]) for g in grads_and_vars])
         optimize_op = tf.group(*train_ops, name='train_op')
         # https://github.com/tensorflow/tensorflow/issues/1899
+        # TODO: check
         with tf.control_dependencies([optimize_op]):
             dummy = tf.constant(0)
-
 
         sync_op = train_helper.get_post_init_ops()
 
@@ -294,8 +292,6 @@ def main(unused_argv):
         val_iterator = val_dataset.dataset.make_initializable_iterator()
         val_next_batch = val_iterator.get_next()
 
-        # sess_config = tf.compat.v1.ConfigProto(allow_soft_placement=True, log_device_placement=True,
-        #                                        gpu_options=tf.compat.v1.GPUOptions(allow_growth=True))
         sess_config = tf.compat.v1.ConfigProto(gpu_options=tf.compat.v1.GPUOptions(allow_growth=True))
         with tf.compat.v1.Session(config=sess_config) as sess:
             sess.run(tf.compat.v1.global_variables_initializer())
@@ -359,7 +355,7 @@ def main(unused_argv):
 
                     # Sets up a graph with feeds and fetches for partial run.
                     handle = sess.partial_run_setup([d_scores, final_desc, learning_rate, summary_op,
-                                                     top1_acc, loss, dummy],
+                                                     top1_acc, loss, optimize_op, dummy],
                                                     [X, final_X, ground_truth,
                                                      grouping_scheme, grouping_weight, is_training,
                                                      is_training2, dropout_keep_prob])
