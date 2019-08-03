@@ -23,10 +23,8 @@
 ## Retrieval
 - For training efficiency, it was implemented at the [other repository.](https://github.com/ace19-dev/mvcnn-tf) 
 
-## Notice
-- It had better use lighter model or decrease image size because it needs a big resources.
-- Only 1 batch size is available now.  
-- There is some bug(NAN) during training.
+## Caution.
+- It had better use lighter model or decrease view number because it needs a big resources.
 
 ## References from
 - http://openaccess.thecvf.com/content_cvpr_2018/papers/Feng_GVCNN_Group-View_Convolutional_CVPR_2018_paper.pdf
