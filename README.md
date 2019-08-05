@@ -1,5 +1,5 @@
 # On modifying..
-- [completion] Multi GPU.
+- [complete] Multi GPU.
 - N batch
 - Bugfix
 
