@@ -279,7 +279,7 @@ def main(unused_argv):
                                         FLAGS.num_views,
                                         FLAGS.height,
                                         FLAGS.width,
-                                        FLAGS.batch_size // FLAGS.num_gpu)
+                                        FLAGS.batch_size)
         iterator = tr_dataset.dataset.make_initializable_iterator()
         next_batch = iterator.get_next()
 
@@ -288,7 +288,7 @@ def main(unused_argv):
                                        FLAGS.num_views,
                                        FLAGS.height,
                                        FLAGS.width,
-                                       FLAGS.val_batch_size // FLAGS.num_gpu)
+                                       FLAGS.val_batch_size)
         val_iterator = val_dataset.dataset.make_initializable_iterator()
         val_next_batch = val_iterator.get_next()
 
@@ -322,11 +322,11 @@ def main(unused_argv):
 
             start_epoch = 0
             # Get the number of training/validation steps per epoch
-            tr_batches = int(MODELNET_TRAIN_DATA_SIZE / (FLAGS.batch_size // FLAGS.num_gpu))
-            if MODELNET_TRAIN_DATA_SIZE % (FLAGS.batch_size // FLAGS.num_gpu) > 0:
+            tr_batches = int(MODELNET_TRAIN_DATA_SIZE / (FLAGS.batch_size))
+            if MODELNET_TRAIN_DATA_SIZE % (FLAGS.batch_size) > 0:
                 tr_batches += 1
-            val_batches = int(MODELNET_VALIDATE_DATA_SIZE / (FLAGS.val_batch_size // FLAGS.num_gpu))
-            if MODELNET_VALIDATE_DATA_SIZE % (FLAGS.val_batch_size // FLAGS.num_gpu) > 0:
+            val_batches = int(MODELNET_VALIDATE_DATA_SIZE / (FLAGS.val_batch_size))
+            if MODELNET_VALIDATE_DATA_SIZE % (FLAGS.val_batch_size) > 0:
                 val_batches += 1
 
             # The filenames argument to the TFRecordDataset initializer can either be a string,
