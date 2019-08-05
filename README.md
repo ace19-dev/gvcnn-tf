@@ -1,5 +1,5 @@
 # On modifying..
-- Multi GPU
+- [completion] Multi GPU.
 - N batch
 - Bugfix
 
@@ -18,7 +18,8 @@
 ## Quick Start
 - make group-view image tfrecord file
   - dataset_tools/create_modelnet_tf_record.py
-- train.py
+- train.py 
+  - Note that the value (batch_size // num_gpu) should not be 0.
 
 ## Retrieval
 - For training efficiency, it was implemented at the [other repository.](https://github.com/ace19-dev/mvcnn-tf) 
