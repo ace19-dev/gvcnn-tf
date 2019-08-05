@@ -332,7 +332,7 @@ def main(unused_argv):
             # The filenames argument to the TFRecordDataset initializer can either be a string,
             # a list of strings, or a tf.Tensor of strings.
             training_filenames = os.path.join(FLAGS.dataset_dir, 'modelnet12_train.record')
-            validate_filenames = os.path.join(FLAGS.dataset_dir, 'modelnet12_validate.record')
+            validate_filenames = os.path.join(FLAGS.dataset_dir, 'modelnet12_test.record')
             # training_filenames = get_filenames('train')
             # validate_filenames = get_filenames('test')
             ##################
@@ -397,11 +397,11 @@ def main(unused_argv):
                 val_count = 0
                 total_conf_matrix = None
 
-                # Reinitialize iterator with the validation dataset
-                sess.run(iterator.initializer, feed_dict={filenames: validate_filenames})
+                # Reinitialize val_iterator with the validation dataset
+                sess.run(val_iterator.initializer, feed_dict={filenames: validate_filenames})
                 for step in range(val_batches):
                     # index = randrange(num_classes)
-                    # sess.run(iterator.initializer, feed_dict={filenames: validate_filenames[index]})
+                    # sess.run(val_iterator.initializer, feed_dict={filenames: validate_filenames[index]})
                     validation_batch_xs, validation_batch_ys = sess.run(val_next_batch)
                     # show_batch_data(step, validation_batch_xs, validation_batch_ys)
 
