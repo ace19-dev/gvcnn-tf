@@ -406,8 +406,8 @@ def main(unused_argv):
                     # show_batch_data(step, validation_batch_xs, validation_batch_ys)
 
                     # Sets up a graph with feeds and fetches for partial run.
-                    handle = sess.partial_run_setup([d_scores, final_desc,
-                                                     summary_op, top1_acc, confusion_matrix],
+                    handle = sess.partial_run_setup([d_scores, final_desc, summary_op,
+                                                     loss, top1_acc, confusion_matrix],
                                                     [X, final_X, ground_truth, learning_rate,
                                                      grouping_scheme, grouping_weight, is_training,
                                                      is_training2, dropout_keep_prob])
