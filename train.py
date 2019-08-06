@@ -58,7 +58,7 @@ flags.DEFINE_boolean('initialize_last_layer', True,
                      'Initialize the last layer.')
 flags.DEFINE_boolean('last_layers_contain_logits_only', False,
                      'Only consider logits as last layers or not.')
-flags.DEFINE_integer('slow_start_step', 5764,
+flags.DEFINE_integer('slow_start_step', 0,
                      'Training model with small learning rate for few steps.')
 flags.DEFINE_float('slow_start_learning_rate', 1e-4,
                    'Learning rate employed during slow start.')
@@ -73,7 +73,7 @@ flags.DEFINE_string('pre_trained_checkpoint',
                     None,
                     'The pre-trained checkpoint in tensorflow format.')
 flags.DEFINE_string('checkpoint_exclude_scopes',
-                    # 'gvcnn/AuxLogits, gvcnn/Logits',
+                    # 'gvcnn/AuxLogits,gvcnn/Logits',
                     None,
                     'Comma-separated list of scopes of variables to exclude '
                     'when restoring from a checkpoint.')
@@ -331,8 +331,8 @@ def main(unused_argv):
 
             # The filenames argument to the TFRecordDataset initializer can either be a string,
             # a list of strings, or a tf.Tensor of strings.
-            training_filenames = os.path.join(FLAGS.dataset_dir, 'modelnet12_train.record')
-            validate_filenames = os.path.join(FLAGS.dataset_dir, 'modelnet12_test.record')
+            training_filenames = os.path.join(FLAGS.dataset_dir, 'modelnet2_train.record')
+            validate_filenames = os.path.join(FLAGS.dataset_dir, 'modelnet2_test.record')
             # training_filenames = get_filenames('train')
             # validate_filenames = get_filenames('test')
             ##################
@@ -392,7 +392,7 @@ def main(unused_argv):
                 tf.compat.v1.logging.info(' Start validation ')
                 tf.compat.v1.logging.info('--------------------------')
 
-                total_val_losses = 0.0
+                # total_val_losses = 0.0
                 total_val_top1_acc = 0.0
                 val_count = 0
                 total_conf_matrix = None
@@ -407,8 +407,8 @@ def main(unused_argv):
 
                     # Sets up a graph with feeds and fetches for partial run.
                     handle = sess.partial_run_setup([d_scores, final_desc, summary_op,
-                                                     loss, top1_acc, confusion_matrix],
-                                                    [X, final_X, ground_truth, learning_rate,
+                                                     top1_acc, confusion_matrix],
+                                                    [X, final_X, ground_truth,
                                                      grouping_scheme, grouping_weight, is_training,
                                                      is_training2, dropout_keep_prob])
 
@@ -422,9 +422,9 @@ def main(unused_argv):
                     weights = gvcnn.grouping_weight(scores, schemes)
 
                     # Run the graph with this batch of training data.
-                    val_summary, val_loss, val_accuracy, conf_matrix = \
+                    val_summary, val_accuracy, conf_matrix = \
                         sess.partial_run(handle,
-                                         [summary_op, loss, top1_acc, confusion_matrix],
+                                         [summary_op, top1_acc, confusion_matrix],
                                          feed_dict={
                                              final_X: final,
                                              ground_truth: validation_batch_ys,
@@ -436,7 +436,7 @@ def main(unused_argv):
 
                     validation_writer.add_summary(val_summary, training_epoch)
 
-                    total_val_losses += val_loss
+                    # total_val_losses += val_loss
                     total_val_top1_acc += val_accuracy
                     val_count += 1
                     if total_conf_matrix is None:
@@ -444,11 +444,11 @@ def main(unused_argv):
                     else:
                         total_conf_matrix += conf_matrix
 
-                total_val_losses /= val_count
+                # total_val_losses /= val_count
                 total_val_top1_acc /= val_count
 
                 tf.compat.v1.logging.info('Confusion Matrix:\n %s' % total_conf_matrix)
-                tf.compat.v1.logging.info('Validation loss = %.5f' % total_val_losses)
+                # tf.compat.v1.logging.info('Validation loss = %.5f' % total_val_losses)
                 tf.compat.v1.logging.info('Validation accuracy = %.3f%% (N=%d)' %
                                 (total_val_top1_acc, MODELNET_VALIDATE_DATA_SIZE))
 
