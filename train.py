@@ -331,8 +331,8 @@ def main(unused_argv):
 
             # The filenames argument to the TFRecordDataset initializer can either be a string,
             # a list of strings, or a tf.Tensor of strings.
-            training_filenames = os.path.join(FLAGS.dataset_dir, 'modelnet2_train.record')
-            validate_filenames = os.path.join(FLAGS.dataset_dir, 'modelnet2_test.record')
+            training_filenames = os.path.join(FLAGS.dataset_dir, 'modelnet_train.record')
+            validate_filenames = os.path.join(FLAGS.dataset_dir, 'modelnet_test.record')
             # training_filenames = get_filenames('train')
             # validate_filenames = get_filenames('test')
             ##################
