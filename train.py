@@ -239,6 +239,7 @@ def main(unused_argv):
         confusion_matrix = tf.math.confusion_matrix(gt_batch,
                                                     prediction,
                                                     num_classes=num_classes)
+        confusion_matrix = tf.div(confusion_matrix, FLAGS.num_gpu)
 
         loss = tf.reduce_mean(losses)
         loss = tf.compat.v1.check_numerics(loss, 'Loss is inf or nan.')
