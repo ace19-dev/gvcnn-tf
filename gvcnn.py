@@ -44,7 +44,7 @@ def grouping_scheme(view_discrimination_score, num_group, num_views):
 
     return schemes
 
-
+# TODO: check logic
 def grouping_weight(view_discrimination_score, grouping_scheme):
     num_group = grouping_scheme.shape[0]
     num_views = grouping_scheme.shape[1]
