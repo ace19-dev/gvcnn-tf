@@ -1,5 +1,6 @@
 # On modifying..
-- [complete] Multi GPU.
+- Multi GPU.
+- balance sampler
 - N batch
 - Bugfix
 

@@ -12,55 +12,35 @@ from nets import inception_v4
 slim = tf.contrib.slim
 
 
-# What is a relationship between group count and accuracy?
-def grouping_scheme(view_discrimination_score, num_group, num_views):
+# find best group count for accuracy?
+def group_scheme(view_discrimination_score, num_group, num_views):
     '''
-    Note that 1 ≤ M ≤ N because there
-    may exist sub-ranges that have no views falling into it.
+    Note that 1 ≤ M ≤ N because there may exist sub-ranges
+    that have no views falling into it.
     '''
-    schemes = np.full((num_group, num_views), False)
-
-    for idx, s in enumerate(view_discrimination_score):
-        if 0.0 <= s < 0.1:  # 0 group
-            schemes[0,idx] = True
-        elif 0.1 <= s < 0.2:    # 1 group
-            schemes[1,idx] = True
-        elif 0.2 <= s < 0.3:    # 2 group
-            schemes[2,idx] = True
-        elif 0.3 <= s < 0.4:    # 3 group
-            schemes[3,idx] = True
-        elif 0.4 <= s < 0.5:    # 4 group
-            schemes[4,idx] = True
-        elif 0.5 <= s < 0.6:    # 5 group
-            schemes[5,idx] = True
-        elif 0.6 <= s < 0.7:    # 6 group
-            schemes[6,idx] = True
-        elif 0.7 <= s < 0.8:    # 7 group
-            schemes[7,idx] = True
-        elif 0.8 <= s < 0.9:    # 8 group
-            schemes[8,idx] = True
-        elif 0.9 <= s < 1.0:    # 9 group
-            schemes[9,idx] = True
+    schemes = np.full((num_group, num_views), 0, dtype=np.int)
+    for idx, score in enumerate(view_discrimination_score):
+        schemes[int(score*10), idx] = 1
 
     return schemes
 
-# TODO: check logic
-def grouping_weight(view_discrimination_score, grouping_scheme):
-    num_group = grouping_scheme.shape[0]
-    num_views = grouping_scheme.shape[1]
 
-    weights = np.zeros(shape=(num_group, 1), dtype=np.float32)
+# TODO: recheck the formula of the paper.
+def group_weight(g_schemes):
+    num_group = g_schemes.shape[0]
+    num_views = g_schemes.shape[1]
+
+    weights = np.zeros(shape=(num_group), dtype=np.float32)
     for i in range(num_group):
         n = 0
         sum = 0
         for j in range(num_views):
-            if grouping_scheme[i][j]:
-                sum += view_discrimination_score[j]
+            if g_schemes[i][j] == 1:
+                sum += g_schemes[i][j]
                 n += 1
 
         if n != 0:
-            weights[i][0] = sum / n
-            # weights[i][0] = tf.cast(tf.div(sum, n), dtype=tf.float32)
+            weights[i] = sum / n
 
     return weights
 
@@ -79,23 +59,24 @@ def view_pooling(final_view_descriptors, group_scheme):
     the views in the same group have the similar discrimination,
     which are assigned the same weight.
 
-    mean pooling or max pooling?
+    TODO: max pooling ??
 
     :param group_scheme:
     :param final_view_descriptors:
     :return: group_descriptors
     '''
-    group_descriptors = {}
-    empty = tf.zeros_like(final_view_descriptors[0])
 
-    scheme_list = tf.unstack(tf.cast(group_scheme, dtype=tf.float32))
-    # TODO: check logic
+    group_descriptors = {}
+    dummy = tf.zeros_like(final_view_descriptors[0])
+
+    scheme_list = tf.unstack(group_scheme)
+    ####### TODO:checkpoint 2 -> correct group_descriptors ?
     indices = [tf.squeeze(tf.where(elem), axis=1) for elem in scheme_list]
     for i, ind in enumerate(indices):
-        view_descs = tf.cond(tf.not_equal(tf.size(ind), 0),
+        view_descs = tf.cond(tf.greater(tf.size(ind), 0),
                             lambda : tf.gather(final_view_descriptors, ind),
-                            lambda : tf.expand_dims(empty, 0))
-        group_descriptors[i] = tf.squeeze(tf.reduce_mean(view_descs, axis=0, keepdims=True), [0])
+                            lambda : tf.expand_dims(dummy, 0))
+        group_descriptors[i] = tf.reduce_mean(view_descs, axis=0)
 
     return group_descriptors
 
@@ -119,6 +100,7 @@ def group_fusion(group_descriptors, group_weight):
     '''
     group_weight_list = tf.unstack(group_weight)
     numerator = []  # numerator
+    ####### TODO:checkpoint 3 -> correct logic ?
     for key, value in group_descriptors.items():
         numerator.append(tf.multiply(group_weight_list[key], group_descriptors[key]))
 
@@ -127,9 +109,9 @@ def group_fusion(group_descriptors, group_weight):
 
     return shape_descriptor
 
-# TODO: keep_prob
-def discrimination_score(inputs,
-                         num_classes,
+
+def discrimination_score_and_view_descriptor(inputs,
+                         # num_classes,
                          is_training=True,
                          reuse=tf.compat.v1.AUTO_REUSE,
                          scope='InceptionV4'):
@@ -168,11 +150,10 @@ def discrimination_score(inputs,
         # (?,8,8,1536)
         final_view_descriptors.append(net)
 
+        ####### TODO:checkpoint 1 -> correct FCN?
         # GAP layer to obtain the discrimination scores from raw view descriptors.
-        raw = tf.reduce_mean(fcn['fcn'], [1, 2], keepdims=True)
-        raw = slim.flatten(raw)
-        raw = slim.dropout(raw, keep_prob=0.8)
-        raw = slim.fully_connected(raw, num_classes)
+        raw = tf.keras.layers.GlobalAveragePooling2D()(fcn['fcn'])
+        raw = tf.keras.layers.Dense(1)(raw)
         raw = tf.reduce_mean(raw)
         batch_view_score = tf.nn.sigmoid(tf.math.log(tf.abs(raw)))
         view_discrimination_scores.append(batch_view_score)
@@ -193,13 +174,12 @@ def gvcnn(final_view_descriptors,
     # Group Fusion
     shape_descriptor = group_fusion(group_descriptors, grouping_weight)
 
+    ### TODO: edit
     # GlobalAveragePooling
     # (?,8,8,1536)
-    net = tf.reduce_mean(shape_descriptor, axis=[1, 2], keepdims=True)
-    # (?,1,1,1536)
-    net = slim.dropout(net, keep_prob, is_training=is_training, scope='dropout')
-    net = slim.flatten(net, scope='pre_logits_flatten')
+    # net = tf.reduce_mean(shape_descriptor, axis=[1, 2], keepdims=True)
+    net = tf.keras.layers.GlobalAveragePooling2D()(shape_descriptor)
     # (?,1536)
-    logits = slim.fully_connected(net, num_classes, activation_fn=None, scope='logits')
+    logits = tf.keras.layers.Dense(num_classes)(net)
 
     return logits, shape_descriptor # use it for 3D shape retrieval.

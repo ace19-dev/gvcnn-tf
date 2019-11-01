@@ -8,12 +8,11 @@
 
 import datetime
 import os
-import csv
 
 import tensorflow as tf
 
 import eval_data
-import gvcnn
+from nets import gvcnn
 
 slim = tf.contrib.slim
 
