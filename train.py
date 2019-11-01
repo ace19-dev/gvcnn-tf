@@ -163,16 +163,21 @@ def main(unused_argv):
 
         # Define the model
         X = tf.compat.v1.placeholder(tf.float32,
-                           [None, FLAGS.num_views, FLAGS.height, FLAGS.width, 3],
-                           name='X')
+                                     [None, FLAGS.num_views, FLAGS.height, FLAGS.width, 3],
+                                     name='X')
+        # Define the model
+        X2 = tf.compat.v1.placeholder(tf.float32,
+                                     [None, FLAGS.num_views, FLAGS.height, FLAGS.width, 3],
+                                     name='X')
         # for final-level representation of 299 size on inception v4
-        final_x = tf.compat.v1.placeholder(tf.float32,
-                                 [FLAGS.num_views, None, 8, 8, 1536],
-                                 name='final_view')
+        # final_x = tf.compat.v1.placeholder(tf.float32,
+        #                          [FLAGS.num_views, None, 8, 8, 1536],
+        #                          name='final_net')
         ground_truth = tf.compat.v1.placeholder(tf.int64, [None], name='ground_truth')
         is_training = tf.compat.v1.placeholder(tf.bool)
         is_training2 = tf.compat.v1.placeholder(tf.bool)
         dropout_keep_prob = tf.compat.v1.placeholder(tf.float32)
+        dropout_keep_prob2 = tf.compat.v1.placeholder(tf.float32)
         g_scheme = tf.compat.v1.placeholder(tf.int32, [FLAGS.num_group, FLAGS.num_views])
         g_weight = tf.compat.v1.placeholder(tf.float32, [FLAGS.num_group,])
 
@@ -202,17 +207,13 @@ def main(unused_argv):
 
             scope_name = 'tower%d' % gpu_idx
             with tf.device(tf.DeviceSpec(device_type="GPU", device_index=gpu_idx)), tf.compat.v1.variable_scope(scope_name):
-                # Grouping Module
-                view_disc_scores, raw_view_desc, final_view_desc = \
-                    gvcnn.discrimination_score_and_view_descriptor(X, is_training)
+                # # Grouping Module
+                # view_disc_scores, final_view_descriptors = \
+                #     gvcnn.discrimination_score_and_view_descriptor(X, is_training, dropout_keep_prob)
 
                 # GVCNN
-                logit, _ = gvcnn.gvcnn(final_x,
-                                       g_scheme,
-                                       g_weight,
-                                       num_classes,
-                                       is_training,
-                                       dropout_keep_prob)
+                view_disc_scores, logit, _ = \
+                    gvcnn.gvcnn(X, num_classes, g_scheme, g_weight, is_training, dropout_keep_prob)
 
                 logits.append(logit)
 
@@ -263,7 +264,6 @@ def main(unused_argv):
                 # grad_summ_op = tf.summary.merge([tf.summary.histogram("%s-grad" % g[1].name, g[0]) for g in grads_and_vars])
         optimize_op = tf.group(*train_ops, name='train_op')
         # https://github.com/tensorflow/tensorflow/issues/1899
-        # TODO: check
         with tf.control_dependencies([optimize_op]):
             dummy = tf.constant(0)
 
@@ -350,18 +350,18 @@ def main(unused_argv):
                     # show_batch_data(step, train_batch_xs, train_batch_ys)
 
                     # Sets up a graph with feeds and fetches for partial run.
-                    handle = sess.partial_run_setup([view_disc_scores, final_view_desc, learning_rate, summary_op,
-                                                     top1_acc, loss, optimize_op, dummy],
-                                                    [X, final_x, ground_truth,
-                                                     g_scheme, g_weight, is_training,
-                                                     is_training2, dropout_keep_prob])
+                    handle = sess.partial_run_setup([learning_rate, view_disc_scores,
+                                                     summary_op, top1_acc, loss, optimize_op, dummy],
+                                                    [X, X2, ground_truth, g_scheme, g_weight,
+                                                     is_training, dropout_keep_prob, is_training2, dropout_keep_prob2])
 
-                    view_scores, final_view = sess.partial_run(handle,
-                                                     [view_disc_scores, final_view_desc],
-                                                     feed_dict={
-                                                        X: train_batch_xs,
-                                                        is_training: True}
-                                                     )
+                    view_scores = sess.partial_run(handle,
+                                                   [view_disc_scores],
+                                                   feed_dict={
+                                                       X: train_batch_xs,
+                                                       is_training: True,
+                                                       dropout_keep_prob: 0.8}
+                                                   )
                     _g_schemes = gvcnn.group_scheme(view_scores, FLAGS.num_group, FLAGS.num_views)
                     _g_weights = gvcnn.group_weight(_g_schemes)
 
@@ -370,12 +370,12 @@ def main(unused_argv):
                         sess.partial_run(handle,
                                          [learning_rate, summary_op, top1_acc, loss, dummy],
                                          feed_dict={
-                                             final_x: final_view,
+                                             X2: train_batch_xs,
                                              ground_truth: train_batch_ys,
                                              g_scheme: _g_schemes,
                                              g_weight: _g_weights,
                                              is_training2: True,
-                                             dropout_keep_prob: 0.8}
+                                             dropout_keep_prob2: 0.8}
                                          )
 
                     train_writer.add_summary(train_summary, training_epoch)
@@ -404,18 +404,17 @@ def main(unused_argv):
                     # show_batch_data(step, validation_batch_xs, validation_batch_ys)
 
                     # Sets up a graph with feeds and fetches for partial run.
-                    handle = sess.partial_run_setup([view_disc_scores, final_view_desc, summary_op,
-                                                     top1_acc, confusion_matrix],
-                                                    [X, final_x, ground_truth,
-                                                     g_scheme, g_weight, is_training,
-                                                     is_training2, dropout_keep_prob])
+                    handle = sess.partial_run_setup([view_disc_scores, summary_op, top1_acc, confusion_matrix],
+                                                    [X, X2, ground_truth, g_scheme, g_weight,
+                                                     is_training, dropout_keep_prob, is_training2, dropout_keep_prob2])
 
-                    view_scores, final_view = sess.partial_run(handle,
-                                                     [view_disc_scores, final_view_desc],
-                                                     feed_dict={
+                    view_scores = sess.partial_run(handle,
+                                                   [view_disc_scores],
+                                                   feed_dict={
                                                          X: validation_batch_xs,
-                                                         is_training: False}
-                                                     )
+                                                         is_training: False,
+                                                         dropout_keep_prob: 1.0}
+                                                   )
                     _g_schemes = gvcnn.group_scheme(view_scores, FLAGS.num_group, FLAGS.num_views)
                     _g_weights = gvcnn.group_weight(_g_schemes)
 
@@ -424,12 +423,12 @@ def main(unused_argv):
                         sess.partial_run(handle,
                                          [summary_op, top1_acc, confusion_matrix],
                                          feed_dict={
-                                             final_x: final_view,
+                                             X2: validation_batch_xs,
                                              ground_truth: validation_batch_ys,
                                              g_scheme: _g_schemes,
                                              g_weight: _g_weights,
                                              is_training2: False,
-                                             dropout_keep_prob: 1.0}
+                                             dropout_keep_prob2: 1.0}
                                          )
 
                     validation_writer.add_summary(val_summary, training_epoch)

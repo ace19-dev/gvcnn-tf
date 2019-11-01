@@ -7,7 +7,7 @@ import tensorflow as tf
 import numpy as np
 import math
 
-from nets import inception_v4
+from nets import inception
 
 slim = tf.contrib.slim
 
@@ -19,7 +19,7 @@ def group_scheme(view_discrimination_score, num_group, num_views):
     that have no views falling into it.
     '''
     schemes = np.full((num_group, num_views), 0, dtype=np.int)
-    for idx, score in enumerate(view_discrimination_score):
+    for idx, score in enumerate(view_discrimination_score[0]):
         schemes[int(score*10), idx] = 1
 
     return schemes
@@ -110,11 +110,66 @@ def group_fusion(group_descriptors, group_weight):
     return shape_descriptor
 
 
-def discrimination_score_and_view_descriptor(inputs,
-                         # num_classes,
-                         is_training=True,
-                         reuse=tf.compat.v1.AUTO_REUSE,
-                         scope='InceptionV4'):
+# def discrimination_score_and_view_descriptor(inputs,
+#                                              num_classes,
+#                                              is_training=True,
+#                                              dropout_keep_prob=0.8,
+#                                              reuse=tf.compat.v1.AUTO_REUSE,
+#                                              scope='InceptionV4'):
+#     """
+#     Raw View Descriptor Generation
+#
+#     first part of the network (FCN) to get the raw descriptor in the view level.
+#     The “FCN” part is the top five convolutional layers of GoogLeNet.
+#     (mid-level representation)
+#
+#     Extract the raw view descriptors.
+#     Compared with deeper CNN, shallow FCN could have more position information,
+#     which is needed for the followed grouping module and the deeper CNN will have
+#     the content information which could represent the view feature better.
+#
+#     Args:
+#     inputs: N x V x H x W x C tensor
+#     scope:
+#     """
+#     view_discrimination_scores = []
+#     final_view_descriptor = []
+#
+#     n_views = inputs.get_shape().as_list()[1]
+#     # transpose views: (NxVxHxWxC) -> (VxNxHxWxC)
+#     views = tf.transpose(inputs, perm=[1, 0, 2, 3, 4])
+#     for index in range(n_views):
+#         batch_view = tf.gather(views, index)  # N x H x W x C
+#         with slim.arg_scope(inception.inception_v4_arg_scope()):
+#             _, end_points = inception.inception_v4(batch_view,
+#                                                    is_training=is_training,
+#                                                    dropout_keep_prob=dropout_keep_prob,
+#                                                    reuse=reuse,
+#                                                    scope=scope + '-' + str(index),
+#                                                    create_aux_logits=False)
+#         final_view_descriptor.append(end_points['Mixed_7d'])
+#
+#         ####### TODO:checkpoint 1
+#         # GAP layer to obtain the discrimination scores from raw view descriptors.
+#         # (? x 17 x 17 x 1024)
+#         raw = tf.keras.layers.GlobalAveragePooling2D()(end_points['Mixed_6a'])
+#         raw = tf.keras.layers.Dense(1)(raw)
+#         raw = tf.reduce_mean(raw)
+#         batch_view_score = tf.nn.sigmoid(tf.math.log(tf.abs(raw)))
+#         view_discrimination_scores.append(batch_view_score)
+#
+#     return view_discrimination_scores, final_view_descriptor
+
+
+def gvcnn(inputs,
+          num_classes,
+          grouping_scheme,
+          grouping_weight,
+          is_training=True,
+          dropout_keep_prob=0.8,
+          reuse=tf.compat.v1.AUTO_REUSE,
+          scope='InceptionV4'):
+
     """
     Raw View Descriptor Generation
 
@@ -131,50 +186,38 @@ def discrimination_score_and_view_descriptor(inputs,
     inputs: N x V x H x W x C tensor
     scope:
     """
-    fcn_view_descriptors = []
-    final_view_descriptors = []
     view_discrimination_scores = []
+    final_view_descriptors = []
 
     n_views = inputs.get_shape().as_list()[1]
     # transpose views: (NxVxHxWxC) -> (VxNxHxWxC)
     views = tf.transpose(inputs, perm=[1, 0, 2, 3, 4])
     for index in range(n_views):
         batch_view = tf.gather(views, index)  # N x H x W x C
-        with slim.arg_scope(inception_v4.inception_v4_arg_scope()):
-            fcn, net, end_points = \
-                inception_v4.inception_v4(batch_view, v_scope='_view' + str(index),
-                                          is_training=is_training,
-                                          reuse=reuse, scope=scope + '-' + str(index))
-        # (?,35,35,384)
-        fcn_view_descriptors.append(fcn['fcn'])
-        # (?,8,8,1536)
-        final_view_descriptors.append(net)
+        with slim.arg_scope(inception.inception_v4_arg_scope()):
+            _, end_points = inception.inception_v4(batch_view,
+                                                   is_training=is_training,
+                                                   dropout_keep_prob=dropout_keep_prob,
+                                                   reuse=reuse,
+                                                   scope=scope + '-' + str(index),
+                                                   create_aux_logits=False)
+        final_view_descriptors.append(end_points['Mixed_7d'])
 
-        ####### TODO:checkpoint 1 -> correct FCN?
+        ####### TODO:checkpoint 1
         # GAP layer to obtain the discrimination scores from raw view descriptors.
-        raw = tf.keras.layers.GlobalAveragePooling2D()(fcn['fcn'])
+        # (? x 17 x 17 x 1024)
+        raw = tf.keras.layers.GlobalAveragePooling2D()(end_points['Mixed_6a'])
         raw = tf.keras.layers.Dense(1)(raw)
         raw = tf.reduce_mean(raw)
         batch_view_score = tf.nn.sigmoid(tf.math.log(tf.abs(raw)))
         view_discrimination_scores.append(batch_view_score)
-
-    return view_discrimination_scores, fcn_view_descriptors, final_view_descriptors
-
-
-def gvcnn(final_view_descriptors,
-          grouping_scheme,
-          grouping_weight,
-          num_classes,
-          is_training=True,
-          keep_prob=0.8,
-          create_aux_logits=False):
 
     # Intra-Group View Pooling
     group_descriptors = view_pooling(final_view_descriptors, grouping_scheme)
     # Group Fusion
     shape_descriptor = group_fusion(group_descriptors, grouping_weight)
 
-    ### TODO: edit
+    ### TODO: check
     # GlobalAveragePooling
     # (?,8,8,1536)
     # net = tf.reduce_mean(shape_descriptor, axis=[1, 2], keepdims=True)
@@ -182,4 +225,4 @@ def gvcnn(final_view_descriptors,
     # (?,1536)
     logits = tf.keras.layers.Dense(num_classes)(net)
 
-    return logits, shape_descriptor # use it for 3D shape retrieval.
+    return view_discrimination_scores, logits, shape_descriptor # use shape_descriptor for 3D shape retrieval.
