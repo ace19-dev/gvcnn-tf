@@ -98,7 +98,7 @@ class Dataset(object):
         img_tensor_lst = tf.unstack(images)
         for i, image in enumerate(img_tensor_lst):
             # image = tf.cast(image, tf.float32) * (1. / 255) - 0.5
-            # img_lst.append(tf.cast(image, tf.float32) * (1. / 255) - 0.5)
-            img_lst.append(tf.div(tf.subtract(image, MEAN), STD))
+            img_lst.append(tf.cast(image, tf.float32) * (1. / 255) - 0.5)
+            # img_lst.append(tf.div(tf.subtract(image, MEAN), STD))
 
         return img_lst, label

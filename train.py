@@ -40,7 +40,7 @@ flags.DEFINE_float('base_learning_rate', .001,
                    'The base learning rate for model training.')
 flags.DEFINE_float('learning_rate_decay_factor', 1e-3,
                    'The rate to decay the base learning rate.')
-flags.DEFINE_float('learning_rate_decay_step', .6000,
+flags.DEFINE_float('learning_rate_decay_step', .3000,
                    'Decay the base learning rate at a fixed step.')
 flags.DEFINE_float('learning_power', 0.9,
                    'The power value used in the poly learning policy.')
@@ -67,7 +67,7 @@ flags.DEFINE_string('saved_checkpoint_dir',
                     None,
                     'Saved checkpoint dir.')
 flags.DEFINE_string('pre_trained_checkpoint',
-                    # './pre-trained/inception_v4.ckpt',
+                    # 'pre-trained/inception_v4.ckpt',
                     None,
                     'The pre-trained checkpoint in tensorflow format.')
 flags.DEFINE_string('checkpoint_exclude_scopes',
