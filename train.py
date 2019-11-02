@@ -214,7 +214,7 @@ def main(unused_argv):
                     model.discrimination_score_and_view_descriptor(X, is_training, dropout_keep_prob)
 
                 # GVCNN
-                logit, _ = model.gvcnn(final_view_descriptors, num_classes, g_scheme, g_weight)
+                logit, _ = model.gvcnn(final_X, num_classes, g_scheme, g_weight)
 
                 logits.append(logit)
 
