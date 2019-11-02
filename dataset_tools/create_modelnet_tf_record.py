@@ -29,14 +29,14 @@ flags.DEFINE_string('output_dir',
                     '/home/ace19/dl_data/modelnet10',
                     'Path to output TFRecord')
 flags.DEFINE_string('dataset_category',
-                    'test',
+                    'train',
                     'dataset category, train|validate|test')
 
 FLAGS = flags.FLAGS
 
 _FILE_PATTERN = 'modelnet10_%dview_%s.record'
 
-filter = ['1','2','4','5','7','8','10','11']
+filter = ['1','2','4','7','8','10']
 
 
 def get_data_map_dict(label_to_index):

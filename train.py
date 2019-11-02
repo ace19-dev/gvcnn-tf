@@ -7,7 +7,7 @@ import numpy as np
 
 import train_data
 import val_data
-from nets import gvcnn
+from nets import model
 from utils import train_utils, train_helper
 
 slim = tf.contrib.slim
@@ -91,7 +91,7 @@ flags.DEFINE_boolean('ignore_missing_vars',
                      'When restoring a checkpoint would ignore missing variables.')
 
 # Dataset settings.
-flags.DEFINE_string('dataset_dir', '/home/ace19/dl_data/modelnet10',
+flags.DEFINE_string('dataset_dir', '/home/ace19/dl_data/modelnet3',
                     'Where the dataset reside.')
 
 flags.DEFINE_integer('how_many_training_epochs', 100,
@@ -100,54 +100,56 @@ flags.DEFINE_integer('how_many_training_epochs', 100,
 # caution: batch size must be multiple of num_gpu
 flags.DEFINE_integer('batch_size', 1, 'batch size')
 flags.DEFINE_integer('val_batch_size', 1, 'val batch size')
-flags.DEFINE_integer('num_views', 4, 'number of views')
+flags.DEFINE_integer('num_views', 6, 'number of views')
 flags.DEFINE_integer('num_group', 10, 'number of group')
 flags.DEFINE_integer('height', 299, 'height')
 flags.DEFINE_integer('width', 299, 'width')
 flags.DEFINE_string('labels',
-                    'airplane,bed,bookshelf,bottle,chair,monitor,sofa,table,toilet,vase',
+                    # 'airplane,bed,bookshelf,bottle,chair,monitor,sofa,table,toilet,vase',
+                    'bottle,table,toilet',   # to
                     'number of classes')
 
 # check total count before training
-MODELNET_TRAIN_DATA_SIZE = 5293
-MODELNET_VALIDATE_DATA_SIZE = 1000
+# MODELNET_TRAIN_DATA_SIZE = 5293   # 10 class
+MODELNET_TRAIN_DATA_SIZE = 385+442+394    # 3 class
+MODELNET_VALIDATE_DATA_SIZE = 150
 
 
-def get_filenames(dataset_category):
-    filenames = []
+# def get_filenames(dataset_category):
+#     filenames = []
+#
+#     tfrecord_files = os.listdir(FLAGS.dataset_dir)
+#     for f in tfrecord_files:
+#         if dataset_category in f:
+#             filenames.append(os.path.join(FLAGS.dataset_dir, f))
+#
+#     return filenames
 
-    tfrecord_files = os.listdir(FLAGS.dataset_dir)
-    for f in tfrecord_files:
-        if dataset_category in f:
-            filenames.append(os.path.join(FLAGS.dataset_dir, f))
-
-    return filenames
-
-def show_batch_data(step, batch_x, batch_y, additional_path=None):
-    default_path = '/home/ace19/Pictures/'
-    if additional_path is not None:
-        default_path = os.path.join(default_path, additional_path)
-        if not os.path.exists(default_path):
-            os.makedirs(default_path)
-
-    assert not np.any(np.isnan(batch_x))
-
-    n_batch = batch_x.shape[0]
-    # n_view = batch_x.shape[1]
-    for i in range(n_batch):
-        batch_imgs = batch_x[i]
-        n_img = batch_imgs.shape[0]
-        for k in range(n_img):
-            img = batch_imgs[k]
-            # scipy.misc.toimage(img).show() Or
-            img = cv2.cvtColor(img.astype(np.uint8), cv2.COLOR_BGR2RGB)
-            cv2.imwrite(
-                os.path.join(default_path, str(step) + '-step_' + str(batch_y[i]) + '-lable_' +
-                             str(i) + '-batch_' + str(k) + '-image' + '.png'),
-                img)
-            # cv2.imshow(str(batch_y[idx]), img)
-            cv2.waitKey(10)
-            cv2.destroyAllWindows()
+# def show_batch_data(step, batch_x, batch_y, additional_path=None):
+#     default_path = '/home/ace19/Pictures/'
+#     if additional_path is not None:
+#         default_path = os.path.join(default_path, additional_path)
+#         if not os.path.exists(default_path):
+#             os.makedirs(default_path)
+#
+#     assert not np.any(np.isnan(batch_x))
+#
+#     n_batch = batch_x.shape[0]
+#     # n_view = batch_x.shape[1]
+#     for i in range(n_batch):
+#         batch_imgs = batch_x[i]
+#         n_img = batch_imgs.shape[0]
+#         for k in range(n_img):
+#             img = batch_imgs[k]
+#             # scipy.misc.toimage(img).show() Or
+#             img = cv2.cvtColor(img.astype(np.uint8), cv2.COLOR_BGR2RGB)
+#             cv2.imwrite(
+#                 os.path.join(default_path, str(step) + '-step_' + str(batch_y[i]) + '-lable_' +
+#                              str(i) + '-batch_' + str(k) + '-image' + '.png'),
+#                 img)
+#             # cv2.imshow(str(batch_y[idx]), img)
+#             cv2.waitKey(10)
+#             cv2.destroyAllWindows()
 
 
 def main(unused_argv):
@@ -165,19 +167,19 @@ def main(unused_argv):
         X = tf.compat.v1.placeholder(tf.float32,
                                      [None, FLAGS.num_views, FLAGS.height, FLAGS.width, 3],
                                      name='X')
-        # Define the model
-        X2 = tf.compat.v1.placeholder(tf.float32,
-                                     [None, FLAGS.num_views, FLAGS.height, FLAGS.width, 3],
-                                     name='X')
+        # # Define the model
+        # X2 = tf.compat.v1.placeholder(tf.float32,
+        #                              [None, FLAGS.num_views, FLAGS.height, FLAGS.width, 3],
+        #                              name='X2')
         # for final-level representation of 299 size on inception v4
-        # final_x = tf.compat.v1.placeholder(tf.float32,
-        #                          [FLAGS.num_views, None, 8, 8, 1536],
-        #                          name='final_net')
+        final_X = tf.compat.v1.placeholder(tf.float32,
+                                 [FLAGS.num_views, None, 8, 8, 1536],
+                                 name='final_X')
         ground_truth = tf.compat.v1.placeholder(tf.int64, [None], name='ground_truth')
         is_training = tf.compat.v1.placeholder(tf.bool)
-        is_training2 = tf.compat.v1.placeholder(tf.bool)
+        # is_training2 = tf.compat.v1.placeholder(tf.bool)
         dropout_keep_prob = tf.compat.v1.placeholder(tf.float32)
-        dropout_keep_prob2 = tf.compat.v1.placeholder(tf.float32)
+        # dropout_keep_prob2 = tf.compat.v1.placeholder(tf.float32)
         g_scheme = tf.compat.v1.placeholder(tf.int32, [FLAGS.num_group, FLAGS.num_views])
         g_weight = tf.compat.v1.placeholder(tf.float32, [FLAGS.num_group,])
 
@@ -198,22 +200,21 @@ def main(unused_argv):
         losses = []
         grad_list = []
         filename_batch = []
-        image_batch = []
+        # image_batch = []
         gt_batch = []
         for gpu_idx in range(FLAGS.num_gpu):
             tf.compat.v1.logging.info('creating gpu tower @ %d' % (gpu_idx + 1))
-            image_batch.append(X)
+            # image_batch.append(X)
             gt_batch.append(ground_truth)
 
             scope_name = 'tower%d' % gpu_idx
             with tf.device(tf.DeviceSpec(device_type="GPU", device_index=gpu_idx)), tf.compat.v1.variable_scope(scope_name):
-                # # Grouping Module
-                # view_disc_scores, final_view_descriptors = \
-                #     gvcnn.discrimination_score_and_view_descriptor(X, is_training, dropout_keep_prob)
+                # Grouping Module
+                view_disc_scores, final_view_descriptors = \
+                    model.discrimination_score_and_view_descriptor(X, is_training, dropout_keep_prob)
 
                 # GVCNN
-                view_disc_scores, logit, _ = \
-                    gvcnn.gvcnn(X, num_classes, g_scheme, g_weight, is_training, dropout_keep_prob)
+                logit, _ = model.gvcnn(final_view_descriptors, num_classes, g_scheme, g_weight)
 
                 logits.append(logit)
 
@@ -226,7 +227,7 @@ def main(unused_argv):
                     [x for x in optimizers[gpu_idx].compute_gradients(loss_w_reg) if x[0] is not None])
 
         y_hat = tf.concat(logits, axis=0)
-        image_batch = tf.concat(image_batch, axis=0)
+        # image_batch = tf.concat(image_batch, axis=0)
         gt_batch = tf.concat(gt_batch, axis=0)
 
         top1_acc = tf.reduce_mean(
@@ -329,16 +330,16 @@ def main(unused_argv):
 
             # The filenames argument to the TFRecordDataset initializer can either be a string,
             # a list of strings, or a tf.Tensor of strings.
-            training_filenames = os.path.join(FLAGS.dataset_dir, 'modelnet10_4view_train.record')
-            validate_filenames = os.path.join(FLAGS.dataset_dir, 'modelnet10_4view_test.record')
+            training_filenames = os.path.join(FLAGS.dataset_dir, 'modelnet3_6view_train.record')
+            validate_filenames = os.path.join(FLAGS.dataset_dir, 'modelnet3_6view_test.record')
             # training_filenames = get_filenames('train')
             # validate_filenames = get_filenames('test')
             ##################
             # Training loop.
             ##################
-            for training_epoch in range(start_epoch, FLAGS.how_many_training_epochs):
+            for num_epoch in range(start_epoch, FLAGS.how_many_training_epochs):
                 print("-------------------------------------")
-                print(" Epoch {} ".format(training_epoch))
+                print(" Epoch {} ".format(num_epoch))
                 print("-------------------------------------")
 
                 sess.run(iterator.initializer, feed_dict={filenames: training_filenames})
@@ -350,37 +351,36 @@ def main(unused_argv):
                     # show_batch_data(step, train_batch_xs, train_batch_ys)
 
                     # Sets up a graph with feeds and fetches for partial run.
-                    handle = sess.partial_run_setup([learning_rate, view_disc_scores,
+                    handle = sess.partial_run_setup([learning_rate, view_disc_scores, final_view_descriptors,
                                                      summary_op, top1_acc, loss, optimize_op, dummy],
-                                                    [X, X2, ground_truth, g_scheme, g_weight,
-                                                     is_training, dropout_keep_prob, is_training2, dropout_keep_prob2])
+                                                    [X, final_X, ground_truth, g_scheme, g_weight,
+                                                     is_training, dropout_keep_prob])
 
-                    view_scores = sess.partial_run(handle,
-                                                   [view_disc_scores],
-                                                   feed_dict={
-                                                       X: train_batch_xs,
-                                                       is_training: True,
-                                                       dropout_keep_prob: 0.8}
-                                                   )
-                    _g_schemes = gvcnn.group_scheme(view_scores, FLAGS.num_group, FLAGS.num_views)
-                    _g_weights = gvcnn.group_weight(_g_schemes)
+                    view_scores, final_view_descs = sess.partial_run(handle,
+                                                                     [view_disc_scores, final_view_descriptors],
+                                                                     feed_dict={
+                                                                         X: train_batch_xs,
+                                                                         is_training: True,
+                                                                         dropout_keep_prob: 0.8}
+                                                                     )
+                    _g_schemes = model.group_scheme(view_scores, FLAGS.num_group, FLAGS.num_views)
+                    _g_weights = model.group_weight(_g_schemes)
+                    # ------------------------------------------ checked..
 
                     # Run the graph with this batch of training data.
                     lr, train_summary, train_accuracy, train_loss, _ = \
                         sess.partial_run(handle,
                                          [learning_rate, summary_op, top1_acc, loss, dummy],
                                          feed_dict={
-                                             X2: train_batch_xs,
+                                             final_X: final_view_descs,
                                              ground_truth: train_batch_ys,
                                              g_scheme: _g_schemes,
-                                             g_weight: _g_weights,
-                                             is_training2: True,
-                                             dropout_keep_prob2: 0.8}
+                                             g_weight: _g_weights}
                                          )
 
-                    train_writer.add_summary(train_summary, training_epoch)
+                    train_writer.add_summary(train_summary, num_epoch)
                     tf.compat.v1.logging.info('Epoch #%d, Step #%d, rate %.6f, top1_acc %.3f%%, loss %.5f' %
-                                    (training_epoch, step, lr, train_accuracy, train_loss))
+                                    (num_epoch, step, lr, train_accuracy, train_loss))
 
 
                 ###################################################
@@ -390,7 +390,7 @@ def main(unused_argv):
                 tf.compat.v1.logging.info(' Start validation ')
                 tf.compat.v1.logging.info('--------------------------')
 
-                # total_val_losses = 0.0
+                total_val_losses = 0.0
                 total_val_top1_acc = 0.0
                 val_count = 0
                 total_conf_matrix = None
@@ -404,36 +404,35 @@ def main(unused_argv):
                     # show_batch_data(step, validation_batch_xs, validation_batch_ys)
 
                     # Sets up a graph with feeds and fetches for partial run.
-                    handle = sess.partial_run_setup([view_disc_scores, summary_op, top1_acc, confusion_matrix],
-                                                    [X, X2, ground_truth, g_scheme, g_weight,
-                                                     is_training, dropout_keep_prob, is_training2, dropout_keep_prob2])
+                    handle = sess.partial_run_setup([view_disc_scores, final_view_descriptors,
+                                                     summary_op, top1_acc, loss, confusion_matrix],
+                                                    [X, final_X, ground_truth, g_scheme, g_weight,
+                                                     is_training, dropout_keep_prob])
 
-                    view_scores = sess.partial_run(handle,
-                                                   [view_disc_scores],
-                                                   feed_dict={
-                                                         X: validation_batch_xs,
-                                                         is_training: False,
-                                                         dropout_keep_prob: 1.0}
-                                                   )
-                    _g_schemes = gvcnn.group_scheme(view_scores, FLAGS.num_group, FLAGS.num_views)
-                    _g_weights = gvcnn.group_weight(_g_schemes)
+                    view_scores, final_view_descs = sess.partial_run(handle,
+                                                                     [view_disc_scores, final_view_descriptors],
+                                                                     feed_dict={
+                                                                           X: validation_batch_xs,
+                                                                           is_training: False,
+                                                                           dropout_keep_prob: 1.0}
+                                                                     )
+                    _g_schemes = model.group_scheme(view_scores, FLAGS.num_group, FLAGS.num_views)
+                    _g_weights = model.group_weight(_g_schemes)
 
                     # Run the graph with this batch of training data.
-                    val_summary, val_accuracy, conf_matrix = \
+                    val_summary, val_accuracy, val_loss, conf_matrix = \
                         sess.partial_run(handle,
-                                         [summary_op, top1_acc, confusion_matrix],
+                                         [summary_op, top1_acc, loss, confusion_matrix],
                                          feed_dict={
-                                             X2: validation_batch_xs,
+                                             final_X: final_view_descs,
                                              ground_truth: validation_batch_ys,
                                              g_scheme: _g_schemes,
-                                             g_weight: _g_weights,
-                                             is_training2: False,
-                                             dropout_keep_prob2: 1.0}
+                                             g_weight: _g_weights}
                                          )
 
-                    validation_writer.add_summary(val_summary, training_epoch)
+                    validation_writer.add_summary(val_summary, num_epoch)
 
-                    # total_val_losses += val_loss
+                    total_val_losses += val_loss
                     total_val_top1_acc += val_accuracy
                     val_count += 1
                     if total_conf_matrix is None:
@@ -441,11 +440,11 @@ def main(unused_argv):
                     else:
                         total_conf_matrix += conf_matrix
 
-                # total_val_losses /= val_count
+                total_val_losses /= val_count
                 total_val_top1_acc /= val_count
 
                 tf.compat.v1.logging.info('Confusion Matrix:\n %s' % total_conf_matrix)
-                # tf.compat.v1.logging.info('Validation loss = %.5f' % total_val_losses)
+                tf.compat.v1.logging.info('Validation loss = %.5f' % total_val_losses)
                 tf.compat.v1.logging.info('Validation accuracy = %.3f%% (N=%d)' %
                                 (total_val_top1_acc, MODELNET_VALIDATE_DATA_SIZE))
 
@@ -453,10 +452,10 @@ def main(unused_argv):
                 sess.run(sync_op)
 
                 # Save the model checkpoint periodically.
-                if (training_epoch <= FLAGS.how_many_training_epochs-1):
+                if (num_epoch <= FLAGS.how_many_training_epochs-1):
                     checkpoint_path = os.path.join(FLAGS.train_logdir, FLAGS.ckpt_name_to_save)
-                    tf.compat.v1.logging.info('Saving to "%s-%d"', checkpoint_path, training_epoch)
-                    saver.save(sess, checkpoint_path, global_step=training_epoch)
+                    tf.compat.v1.logging.info('Saving to "%s-%d"', checkpoint_path, num_epoch)
+                    saver.save(sess, checkpoint_path, global_step=num_epoch)
 
 
 if __name__ == '__main__':
