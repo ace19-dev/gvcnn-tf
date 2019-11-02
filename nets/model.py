@@ -19,7 +19,7 @@ def group_scheme(view_discrimination_score, num_group, num_views):
     that have no views falling into it.
     '''
     schemes = np.full((num_group, num_views), 0, dtype=np.int)
-    for idx, score in enumerate(view_discrimination_score):
+    for idx, score in enumerate(view_discrimination_score[0]):
         schemes[int(score*10), idx] = 1 # 10 group
 
     return schemes

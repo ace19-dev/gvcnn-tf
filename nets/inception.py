@@ -273,7 +273,7 @@ def inception_v4(inputs, num_classes=1001, is_training=True,
       end_points: the set of end_points from the inception model.
     """
     end_points = {}
-    with tf.variable_scope(scope, 'InceptionV4', [inputs], reuse=reuse) as scope:
+    with tf.compat.v1.variable_scope(scope, 'InceptionV4', [inputs], reuse=reuse) as scope:
         with slim.arg_scope([slim.batch_norm, slim.dropout],
                             is_training=is_training):
             net, end_points = inception_v4_base(inputs, scope=scope)
@@ -282,7 +282,7 @@ def inception_v4(inputs, num_classes=1001, is_training=True,
                                 stride=1, padding='SAME'):
                 # Auxiliary Head logits
                 if create_aux_logits and num_classes:
-                    with tf.variable_scope('AuxLogits'):
+                    with tf.compat.v1.variable_scope('AuxLogits'):
                         # 17 x 17 x 1024
                         aux_logits = end_points['Mixed_6h']
                         aux_logits = slim.avg_pool2d(aux_logits, [5, 5], stride=3,
@@ -302,7 +302,7 @@ def inception_v4(inputs, num_classes=1001, is_training=True,
                 # Final pooling and prediction
                 # TODO(sguada,arnoegw): Consider adding a parameter global_pool which
                 # can be set to False to disable pooling here (as in resnet_*()).
-                with tf.variable_scope('Logits'):
+                with tf.compat.v1.variable_scope('Logits'):
                     # 8 x 8 x 1536
                     kernel_size = net.get_shape()[1:3]
                     if kernel_size.is_fully_defined():

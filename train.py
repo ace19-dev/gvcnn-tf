@@ -172,9 +172,9 @@ def main(unused_argv):
         #                              [None, FLAGS.num_views, FLAGS.height, FLAGS.width, 3],
         #                              name='X2')
         # for final-level representation of 299 size on inception v4
-        final_X = tf.compat.v1.placeholder(tf.float32,
-                                 [FLAGS.num_views, None, 8, 8, 1536],
-                                 name='final_X')
+        # final_X = tf.compat.v1.placeholder(tf.float32,
+        #                          [FLAGS.num_views, None, 8, 8, 1536],
+        #                          name='final_X')
         ground_truth = tf.compat.v1.placeholder(tf.int64, [None], name='ground_truth')
         is_training = tf.compat.v1.placeholder(tf.bool)
         # is_training2 = tf.compat.v1.placeholder(tf.bool)
@@ -214,7 +214,7 @@ def main(unused_argv):
                     model.discrimination_score_and_view_descriptor(X, is_training, dropout_keep_prob)
 
                 # GVCNN
-                logit, _ = model.gvcnn(final_X, num_classes, g_scheme, g_weight)
+                logit, _ = model.gvcnn(final_view_descriptors, num_classes, g_scheme, g_weight)
 
                 logits.append(logit)
 
@@ -351,18 +351,18 @@ def main(unused_argv):
                     # show_batch_data(step, train_batch_xs, train_batch_ys)
 
                     # Sets up a graph with feeds and fetches for partial run.
-                    handle = sess.partial_run_setup([learning_rate, view_disc_scores, final_view_descriptors,
+                    handle = sess.partial_run_setup([learning_rate, view_disc_scores,
                                                      summary_op, top1_acc, loss, optimize_op, dummy],
-                                                    [X, final_X, ground_truth, g_scheme, g_weight,
+                                                    [X, ground_truth, g_scheme, g_weight,
                                                      is_training, dropout_keep_prob])
 
-                    view_scores, final_view_descs = sess.partial_run(handle,
-                                                                     [view_disc_scores, final_view_descriptors],
-                                                                     feed_dict={
-                                                                         X: train_batch_xs,
-                                                                         is_training: True,
-                                                                         dropout_keep_prob: 0.8}
-                                                                     )
+                    view_scores = sess.partial_run(handle,
+                                                     [view_disc_scores],
+                                                     feed_dict={
+                                                         X: train_batch_xs,
+                                                         is_training: True,
+                                                         dropout_keep_prob: 0.8}
+                                                     )
                     _g_schemes = model.group_scheme(view_scores, FLAGS.num_group, FLAGS.num_views)
                     _g_weights = model.group_weight(_g_schemes)
                     # ------------------------------------------ checked..
@@ -372,7 +372,7 @@ def main(unused_argv):
                         sess.partial_run(handle,
                                          [learning_rate, summary_op, top1_acc, loss, dummy],
                                          feed_dict={
-                                             final_X: final_view_descs,
+                                             # final_X: final_view_descs,
                                              ground_truth: train_batch_ys,
                                              g_scheme: _g_schemes,
                                              g_weight: _g_weights}
@@ -404,18 +404,18 @@ def main(unused_argv):
                     # show_batch_data(step, validation_batch_xs, validation_batch_ys)
 
                     # Sets up a graph with feeds and fetches for partial run.
-                    handle = sess.partial_run_setup([view_disc_scores, final_view_descriptors,
-                                                     summary_op, top1_acc, loss, confusion_matrix],
-                                                    [X, final_X, ground_truth, g_scheme, g_weight,
+                    handle = sess.partial_run_setup([view_disc_scores, summary_op, top1_acc,
+                                                     loss, confusion_matrix],
+                                                    [X, ground_truth, g_scheme, g_weight,
                                                      is_training, dropout_keep_prob])
 
-                    view_scores, final_view_descs = sess.partial_run(handle,
-                                                                     [view_disc_scores, final_view_descriptors],
-                                                                     feed_dict={
-                                                                           X: validation_batch_xs,
-                                                                           is_training: False,
-                                                                           dropout_keep_prob: 1.0}
-                                                                     )
+                    view_scores = sess.partial_run(handle,
+                                                     [view_disc_scores],
+                                                     feed_dict={
+                                                           X: validation_batch_xs,
+                                                           is_training: False,
+                                                           dropout_keep_prob: 1.0}
+                                                     )
                     _g_schemes = model.group_scheme(view_scores, FLAGS.num_group, FLAGS.num_views)
                     _g_weights = model.group_weight(_g_schemes)
 
@@ -424,7 +424,7 @@ def main(unused_argv):
                         sess.partial_run(handle,
                                          [summary_op, top1_acc, loss, confusion_matrix],
                                          feed_dict={
-                                             final_X: final_view_descs,
+                                             # final_X: final_view_descs,
                                              ground_truth: validation_batch_ys,
                                              g_scheme: _g_schemes,
                                              g_weight: _g_weights}
