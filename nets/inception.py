@@ -165,7 +165,7 @@ def inception_v4_base(inputs, final_endpoint='Mixed_7d', scope=None):
         end_points[name] = net
         return name == final_endpoint
 
-    with tf.variable_scope(scope, 'InceptionV4', [inputs]):
+    with tf.compat.v1.variable_scope(scope, 'InceptionV4', [inputs]):
         with slim.arg_scope([slim.conv2d, slim.max_pool2d, slim.avg_pool2d],
                             stride=1, padding='SAME'):
             # 299 x 299 x 3
@@ -180,23 +180,23 @@ def inception_v4_base(inputs, final_endpoint='Mixed_7d', scope=None):
             net = slim.conv2d(net, 64, [3, 3], scope='Conv2d_2b_3x3')
             if add_and_check_final('Conv2d_2b_3x3', net): return net, end_points
             # 147 x 147 x 64
-            with tf.variable_scope('Mixed_3a'):
-                with tf.variable_scope('Branch_0'):
+            with tf.compat.v1.variable_scope('Mixed_3a'):
+                with tf.compat.v1.variable_scope('Branch_0'):
                     branch_0 = slim.max_pool2d(net, [3, 3], stride=2, padding='VALID',
                                                scope='MaxPool_0a_3x3')
-                with tf.variable_scope('Branch_1'):
+                with tf.compat.v1.variable_scope('Branch_1'):
                     branch_1 = slim.conv2d(net, 96, [3, 3], stride=2, padding='VALID',
                                            scope='Conv2d_0a_3x3')
                 net = tf.concat(axis=3, values=[branch_0, branch_1])
                 if add_and_check_final('Mixed_3a', net): return net, end_points
 
             # 73 x 73 x 160
-            with tf.variable_scope('Mixed_4a'):
-                with tf.variable_scope('Branch_0'):
+            with tf.compat.v1.variable_scope('Mixed_4a'):
+                with tf.compat.v1.variable_scope('Branch_0'):
                     branch_0 = slim.conv2d(net, 64, [1, 1], scope='Conv2d_0a_1x1')
                     branch_0 = slim.conv2d(branch_0, 96, [3, 3], padding='VALID',
                                            scope='Conv2d_1a_3x3')
-                with tf.variable_scope('Branch_1'):
+                with tf.compat.v1.variable_scope('Branch_1'):
                     branch_1 = slim.conv2d(net, 64, [1, 1], scope='Conv2d_0a_1x1')
                     branch_1 = slim.conv2d(branch_1, 64, [1, 7], scope='Conv2d_0b_1x7')
                     branch_1 = slim.conv2d(branch_1, 64, [7, 1], scope='Conv2d_0c_7x1')
@@ -206,11 +206,11 @@ def inception_v4_base(inputs, final_endpoint='Mixed_7d', scope=None):
                 if add_and_check_final('Mixed_4a', net): return net, end_points
 
             # 71 x 71 x 192
-            with tf.variable_scope('Mixed_5a'):
-                with tf.variable_scope('Branch_0'):
+            with tf.compat.v1.variable_scope('Mixed_5a'):
+                with tf.compat.v1.variable_scope('Branch_0'):
                     branch_0 = slim.conv2d(net, 192, [3, 3], stride=2, padding='VALID',
                                            scope='Conv2d_1a_3x3')
-                with tf.variable_scope('Branch_1'):
+                with tf.compat.v1.variable_scope('Branch_1'):
                     branch_1 = slim.max_pool2d(net, [3, 3], stride=2, padding='VALID',
                                                scope='MaxPool_1a_3x3')
                 net = tf.concat(axis=3, values=[branch_0, branch_1])

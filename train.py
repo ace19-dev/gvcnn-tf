@@ -91,7 +91,7 @@ flags.DEFINE_boolean('ignore_missing_vars',
                      'When restoring a checkpoint would ignore missing variables.')
 
 # Dataset settings.
-flags.DEFINE_string('dataset_dir', '/home/ace19/dl_data/modelnet3',
+flags.DEFINE_string('dataset_dir', '/home/ace19/dl_data/modelnet2',
                     'Where the dataset reside.')
 
 flags.DEFINE_integer('how_many_training_epochs', 100,
@@ -106,13 +106,13 @@ flags.DEFINE_integer('height', 299, 'height')
 flags.DEFINE_integer('width', 299, 'width')
 flags.DEFINE_string('labels',
                     # 'airplane,bed,bookshelf,bottle,chair,monitor,sofa,table,toilet,vase',
-                    'bottle,table,toilet',   # to
+                    'table,toilet',
                     'number of classes')
 
 # check total count before training
 # MODELNET_TRAIN_DATA_SIZE = 5293   # 10 class
-MODELNET_TRAIN_DATA_SIZE = 385+442+394    # 3 class
-MODELNET_VALIDATE_DATA_SIZE = 150
+MODELNET_TRAIN_DATA_SIZE = 462+414    # 2 class
+MODELNET_VALIDATE_DATA_SIZE = 60
 
 
 # def get_filenames(dataset_category):
@@ -167,14 +167,10 @@ def main(unused_argv):
         X = tf.compat.v1.placeholder(tf.float32,
                                      [None, FLAGS.num_views, FLAGS.height, FLAGS.width, 3],
                                      name='X')
-        # # Define the model
-        # X2 = tf.compat.v1.placeholder(tf.float32,
-        #                              [None, FLAGS.num_views, FLAGS.height, FLAGS.width, 3],
-        #                              name='X2')
-        # for final-level representation of 299 size on inception v4
-        # final_X = tf.compat.v1.placeholder(tf.float32,
-        #                          [FLAGS.num_views, None, 8, 8, 1536],
-        #                          name='final_X')
+        # for final-level representation of 299 size on inception v4 - 'Mixed_7d' layer
+        final_desc = tf.compat.v1.placeholder(tf.float32,
+                                 [FLAGS.num_views, None, 8, 8, 1536],
+                                 name='final_desc')
         ground_truth = tf.compat.v1.placeholder(tf.int64, [None], name='ground_truth')
         is_training = tf.compat.v1.placeholder(tf.bool)
         # is_training2 = tf.compat.v1.placeholder(tf.bool)
@@ -209,12 +205,14 @@ def main(unused_argv):
 
             scope_name = 'tower%d' % gpu_idx
             with tf.device(tf.DeviceSpec(device_type="GPU", device_index=gpu_idx)), tf.compat.v1.variable_scope(scope_name):
-                # Grouping Module
-                view_disc_scores, final_view_descriptors = \
-                    model.discrimination_score_and_view_descriptor(X, is_training, dropout_keep_prob)
+                # # Grouping Module
+                # view_disc_scores, final_view_descriptors = \
+                #     model.discrimination_score_and_view_descriptor(X, is_training, dropout_keep_prob)
 
                 # GVCNN
-                logit, _ = model.gvcnn(final_view_descriptors, num_classes, g_scheme, g_weight)
+                logit, view_scores, view_descriptors, _ = \
+                    model.gvcnn(X, final_desc, num_classes, g_scheme, g_weight,
+                                is_training, dropout_keep_prob)
 
                 logits.append(logit)
 
@@ -330,13 +328,14 @@ def main(unused_argv):
 
             # The filenames argument to the TFRecordDataset initializer can either be a string,
             # a list of strings, or a tf.Tensor of strings.
-            training_filenames = os.path.join(FLAGS.dataset_dir, 'modelnet3_6view_train.record')
-            validate_filenames = os.path.join(FLAGS.dataset_dir, 'modelnet3_6view_test.record')
+            training_filenames = os.path.join(FLAGS.dataset_dir, 'modelnet2_6view_train.record')
+            validate_filenames = os.path.join(FLAGS.dataset_dir, 'modelnet2_6view_test.record')
             # training_filenames = get_filenames('train')
             # validate_filenames = get_filenames('test')
-            ##################
+
+            ###################################
             # Training loop.
-            ##################
+            ###################################
             for num_epoch in range(start_epoch, FLAGS.how_many_training_epochs):
                 print("-------------------------------------")
                 print(" Epoch {} ".format(num_epoch))
@@ -351,28 +350,27 @@ def main(unused_argv):
                     # show_batch_data(step, train_batch_xs, train_batch_ys)
 
                     # Sets up a graph with feeds and fetches for partial run.
-                    handle = sess.partial_run_setup([learning_rate, view_disc_scores,
+                    handle = sess.partial_run_setup([view_scores, view_descriptors, learning_rate,
                                                      summary_op, top1_acc, loss, optimize_op, dummy],
-                                                    [X, ground_truth, g_scheme, g_weight,
+                                                    [X, final_desc, ground_truth, g_scheme, g_weight,
                                                      is_training, dropout_keep_prob])
 
-                    view_scores = sess.partial_run(handle,
-                                                     [view_disc_scores],
-                                                     feed_dict={
-                                                         X: train_batch_xs,
-                                                         is_training: True,
-                                                         dropout_keep_prob: 0.8}
-                                                     )
-                    _g_schemes = model.group_scheme(view_scores, FLAGS.num_group, FLAGS.num_views)
+                    _view_scores, _view_descriptors = \
+                        sess.partial_run(handle,
+                                         [view_scores, view_descriptors],
+                                         feed_dict={X: train_batch_xs,
+                                                    is_training: True,
+                                                    dropout_keep_prob: 0.8}
+                                         )
+                    _g_schemes = model.group_scheme(_view_scores, FLAGS.num_group, FLAGS.num_views)
                     _g_weights = model.group_weight(_g_schemes)
-                    # ------------------------------------------ checked..
 
                     # Run the graph with this batch of training data.
                     lr, train_summary, train_accuracy, train_loss, _ = \
                         sess.partial_run(handle,
                                          [learning_rate, summary_op, top1_acc, loss, dummy],
                                          feed_dict={
-                                             # final_X: final_view_descs,
+                                             final_desc: _view_descriptors,
                                              ground_truth: train_batch_ys,
                                              g_scheme: _g_schemes,
                                              g_weight: _g_weights}
@@ -404,19 +402,19 @@ def main(unused_argv):
                     # show_batch_data(step, validation_batch_xs, validation_batch_ys)
 
                     # Sets up a graph with feeds and fetches for partial run.
-                    handle = sess.partial_run_setup([view_disc_scores, summary_op, top1_acc,
-                                                     loss, confusion_matrix],
-                                                    [X, ground_truth, g_scheme, g_weight,
+                    handle = sess.partial_run_setup([view_scores, view_descriptors, summary_op,
+                                                     top1_acc, loss, confusion_matrix],
+                                                    [X, final_desc, ground_truth, g_scheme, g_weight,
                                                      is_training, dropout_keep_prob])
 
-                    view_scores = sess.partial_run(handle,
-                                                     [view_disc_scores],
-                                                     feed_dict={
-                                                           X: validation_batch_xs,
-                                                           is_training: False,
-                                                           dropout_keep_prob: 1.0}
-                                                     )
-                    _g_schemes = model.group_scheme(view_scores, FLAGS.num_group, FLAGS.num_views)
+                    _view_scores, _view_descriptors = \
+                        sess.partial_run(handle,
+                                         [view_scores, view_descriptors],
+                                         feed_dict={X: validation_batch_xs,
+                                                    is_training: False,
+                                                    dropout_keep_prob: 1.0}
+                                         )
+                    _g_schemes = model.group_scheme(_view_scores, FLAGS.num_group, FLAGS.num_views)
                     _g_weights = model.group_weight(_g_schemes)
 
                     # Run the graph with this batch of training data.
@@ -424,7 +422,7 @@ def main(unused_argv):
                         sess.partial_run(handle,
                                          [summary_op, top1_acc, loss, confusion_matrix],
                                          feed_dict={
-                                             # final_X: final_view_descs,
+                                             final_desc: _view_descriptors,
                                              ground_truth: validation_batch_ys,
                                              g_scheme: _g_schemes,
                                              g_weight: _g_weights}

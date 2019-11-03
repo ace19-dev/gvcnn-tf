@@ -37,7 +37,7 @@ class Dataset(object):
         # in memory. The parameter is the number of elements in the buffer. For
         # completely uniform shuffling, set the parameter to be the same as the
         # number of elements in the dataset.
-        self.dataset = self.dataset.shuffle(1000 + 3 * batch_size)
+        # self.dataset = self.dataset.shuffle(1000 + 3 * batch_size)
         self.dataset = self.dataset.repeat()
         self.dataset = self.dataset.batch(batch_size)
 
