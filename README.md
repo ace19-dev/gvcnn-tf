@@ -1,4 +1,4 @@
-# On modifying..
+# On debugging.
 - Multi GPU.
 - balance sampler
 - N batch
