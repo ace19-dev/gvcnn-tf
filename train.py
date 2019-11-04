@@ -168,9 +168,9 @@ def main(unused_argv):
                                      [None, FLAGS.num_views, FLAGS.height, FLAGS.width, 3],
                                      name='X')
         # for final-level representation of 299 size on inception v4 - 'Mixed_7d' layer
-        final_desc = tf.compat.v1.placeholder(tf.float32,
-                                 [FLAGS.num_views, None, 8, 8, 1536],
-                                 name='final_desc')
+        # final_desc = tf.compat.v1.placeholder(tf.float32,
+        #                          [FLAGS.num_views, None, 8, 8, 1536],
+        #                          name='final_desc')
         ground_truth = tf.compat.v1.placeholder(tf.int64, [None], name='ground_truth')
         is_training = tf.compat.v1.placeholder(tf.bool)
         # is_training2 = tf.compat.v1.placeholder(tf.bool)
@@ -210,8 +210,8 @@ def main(unused_argv):
                 #     model.discrimination_score_and_view_descriptor(X, is_training, dropout_keep_prob)
 
                 # GVCNN
-                logit, view_scores, view_descriptors, _ = \
-                    model.gvcnn(X, final_desc, num_classes, g_scheme, g_weight,
+                view_scores, view_descriptors, _, logit = \
+                    model.gvcnn(X, num_classes, g_scheme, g_weight,
                                 is_training, dropout_keep_prob)
 
                 logits.append(logit)
@@ -352,8 +352,8 @@ def main(unused_argv):
                     # Sets up a graph with feeds and fetches for partial run.
                     handle = sess.partial_run_setup([view_scores, view_descriptors, learning_rate,
                                                      summary_op, top1_acc, loss, optimize_op, dummy],
-                                                    [X, final_desc, ground_truth, g_scheme, g_weight,
-                                                     is_training, dropout_keep_prob])
+                                                    [X, is_training, dropout_keep_prob,
+                                                     ground_truth, g_scheme, g_weight])
 
                     _view_scores, _view_descriptors = \
                         sess.partial_run(handle,
@@ -370,7 +370,7 @@ def main(unused_argv):
                         sess.partial_run(handle,
                                          [learning_rate, summary_op, top1_acc, loss, dummy],
                                          feed_dict={
-                                             final_desc: _view_descriptors,
+                                             # final_desc: _view_descriptors,
                                              ground_truth: train_batch_ys,
                                              g_scheme: _g_schemes,
                                              g_weight: _g_weights}
@@ -404,8 +404,8 @@ def main(unused_argv):
                     # Sets up a graph with feeds and fetches for partial run.
                     handle = sess.partial_run_setup([view_scores, view_descriptors, summary_op,
                                                      top1_acc, loss, confusion_matrix],
-                                                    [X, final_desc, ground_truth, g_scheme, g_weight,
-                                                     is_training, dropout_keep_prob])
+                                                    [X, is_training, dropout_keep_prob,
+                                                     ground_truth, g_scheme, g_weight])
 
                     _view_scores, _view_descriptors = \
                         sess.partial_run(handle,
@@ -422,7 +422,7 @@ def main(unused_argv):
                         sess.partial_run(handle,
                                          [summary_op, top1_acc, loss, confusion_matrix],
                                          feed_dict={
-                                             final_desc: _view_descriptors,
+                                             # final_desc: _view_descriptors,
                                              ground_truth: validation_batch_ys,
                                              g_scheme: _g_schemes,
                                              g_weight: _g_weights}

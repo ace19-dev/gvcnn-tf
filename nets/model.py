@@ -177,7 +177,7 @@ def group_fusion(group_descriptors, group_weight):
 
 
 def gvcnn(inputs,
-          final_view_desc,
+          # final_view_desc,
           num_classes,
           group_scheme,
           group_weight,
@@ -216,8 +216,6 @@ def gvcnn(inputs,
                                                    reuse=reuse,
                                                    scope=scope + '-' + str(index),
                                                    create_aux_logits=False)
-        final_view_descriptors.append(end_points['Mixed_7d'])
-
         ####### TODO:check-point 1
         # GAP layer to obtain the discrimination scores from raw view descriptors.
         raw = tf.keras.layers.GlobalAveragePooling2D()(end_points['Mixed_6a'])
@@ -225,12 +223,10 @@ def gvcnn(inputs,
         raw = tf.reduce_mean(raw)
         batch_view_score = tf.nn.sigmoid(tf.math.log(tf.abs(raw)))
         view_discrimination_scores.append(batch_view_score)
-
-    view_scores = tf.convert_to_tensor(view_discrimination_scores)
-    view_descriptors = tf.convert_to_tensor(final_view_descriptors)
+        final_view_descriptors.append(end_points['Mixed_7d'])
 
     # Intra-Group View Pooling
-    group_descriptors = view_pooling(final_view_desc, group_scheme)
+    group_descriptors = view_pooling(final_view_descriptors, group_scheme)
     # Group Fusion
     shape_descriptor = group_fusion(group_descriptors, group_weight)
 
@@ -240,24 +236,4 @@ def gvcnn(inputs,
     # (?,1536)
     logits = tf.keras.layers.Dense(num_classes)(net)
 
-    return logits, view_scores, view_descriptors, shape_descriptor
-
-
-# def gvcnn(inputs,
-#           num_classes,
-#           group_scheme,
-#           group_weight):
-#
-#     # Intra-Group View Pooling
-#     group_descriptors = view_pooling(inputs, group_scheme)
-#     # Group Fusion
-#     shape_descriptor = group_fusion(group_descriptors, group_weight)
-#
-#     ### TODO: check
-#     # (?,8,8,1536)
-#     # net = tf.reduce_mean(shape_descriptor, axis=[1, 2], keepdims=True)
-#     net = tf.keras.layers.GlobalAveragePooling2D()(shape_descriptor)
-#     # (?,1536)
-#     logits = tf.keras.layers.Dense(num_classes)(net)
-#
-#     return logits, shape_descriptor
+    return view_discrimination_scores, final_view_descriptors, shape_descriptor, logits
