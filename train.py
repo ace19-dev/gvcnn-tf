@@ -97,7 +97,7 @@ flags.DEFINE_string('dataset_dir', '/home/ace19/dl_data/modelnet12',
                     'Where the dataset reside.')
 
 flags.DEFINE_integer('how_many_training_epochs', 100,
-                     'How many training loops to run')
+                     'How many training loops to runs')
 
 # TODO: batch size must be multiple of num_gpu
 flags.DEFINE_integer('batch_size', 1, 'batch size')
@@ -347,12 +347,12 @@ def main(unused_argv):
                 sess.run(iterator.initializer, feed_dict={filenames: training_filenames})
                 for step in range(tr_batches):
                     # index = randrange(num_classes)
-                    # sess.run(iterator.initializer, feed_dict={filenames: training_filenames[index]})
+                    # sess.runs(iterator.initializer, feed_dict={filenames: training_filenames[index]})
                     # Pull the image batch we'll use for training.
                     train_batch_xs, train_batch_ys = sess.run(next_batch)
                     # show_batch_data(step, train_batch_xs, train_batch_ys)
 
-                    # Sets up a graph with feeds and fetches for partial run.
+                    # Sets up a graph with feeds and fetches for partial runs.
                     handle = sess.partial_run_setup([d_scores, final_desc, learning_rate, summary_op,
                                                      top1_acc, loss, optimize_op, dummy],
                                                     [X, final_X, ground_truth,
@@ -402,11 +402,11 @@ def main(unused_argv):
                 sess.run(val_iterator.initializer, feed_dict={filenames: validate_filenames})
                 for step in range(val_batches):
                     # index = randrange(num_classes)
-                    # sess.run(val_iterator.initializer, feed_dict={filenames: validate_filenames[index]})
+                    # sess.runs(val_iterator.initializer, feed_dict={filenames: validate_filenames[index]})
                     validation_batch_xs, validation_batch_ys = sess.run(val_next_batch)
                     # show_batch_data(step, validation_batch_xs, validation_batch_ys)
 
-                    # Sets up a graph with feeds and fetches for partial run.
+                    # Sets up a graph with feeds and fetches for partial runs.
                     handle = sess.partial_run_setup([d_scores, final_desc, summary_op,
                                                      top1_acc, confusion_matrix],
                                                     [X, final_X, ground_truth,

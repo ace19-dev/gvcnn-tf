@@ -303,8 +303,8 @@ def add_variables_summaries(learning_rate):
 
 
 def restore_fn(flags):
-    """Returns a function run by the chief worker to warm-start the training.
-    Note that the init_fn is only run when initializing the model during the very
+    """Returns a function runs by the chief worker to warm-start the training.
+    Note that the init_fn is only runs when initializing the model during the very
     first global step.
 
     """

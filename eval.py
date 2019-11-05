@@ -144,7 +144,7 @@ def main(unused_argv):
             #     cv2.waitKey(100)
             #     cv2.destroyAllWindows()
 
-            # Sets up a graph with feeds and fetches for partial run.
+            # Sets up a graph with feeds and fetches for partial runs.
             handle = sess.partial_run_setup([d_scores, final_desc,
                                              accuracy, confusion_matrix],
                                             [X, final_X, ground_truth,
