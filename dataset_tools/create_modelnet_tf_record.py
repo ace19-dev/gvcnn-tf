@@ -21,12 +21,12 @@ from dataset_tools import dataset_util
 
 # RANDOM_SEED = 8045
 
-flags = tf.app.flags
+flags = tf.compat.v1.app.flags
 flags.DEFINE_string('dataset_dir',
-                    '/home/ace19/dl_data/modelnet12/view/classes',
+                    '/home/ace19/dl_data/modelnet2/view/classes',
                     'Root Directory to raw modelnet dataset.')
 flags.DEFINE_string('output_dir',
-                    '/home/ace19/dl_data/modelnet12',
+                    '/home/ace19/dl_data/modelnet2',
                     'Path to output TFRecord')
 flags.DEFINE_string('dataset_category',
                     'test',
@@ -34,7 +34,9 @@ flags.DEFINE_string('dataset_category',
 
 FLAGS = flags.FLAGS
 
-_FILE_PATTERN = 'modelnet_%s.record'
+_FILE_PATTERN = 'modelnet2_%dview_%s.record'
+
+filter = ['1','2','4','7','8','10']
 
 
 def get_data_map_dict(label_to_index):
@@ -91,9 +93,13 @@ def dict_to_tf_example(image,
     view_lst = view_map_dict[image]
     label = label_map_dict[image]
     for i, view_path in enumerate(view_lst):
+        # Make fast training and verifying
+        if view_path.split('/')[-1].split('.')[1] in filter:
+            continue
+
         filenames.append(view_path.encode('utf8'))
         sourceids.append(view_path.encode('utf8'))
-        with tf.gfile.GFile(view_path, 'rb') as fid:
+        with tf.io.gfile.GFile(view_path, 'rb') as fid:
             encoded_png = fid.read()
             encoded_pngs.append(encoded_png)
         encoded_png_io = io.BytesIO(encoded_png)
@@ -128,8 +134,8 @@ def main(_):
     tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.INFO)
 
     tfrecord_name = os.path.join(FLAGS.output_dir,
-                                 _FILE_PATTERN % (FLAGS.dataset_category))
-    options = tf.io.TFRecordOptions(tf.python_io.TFRecordCompressionType.GZIP)
+                                 _FILE_PATTERN % (12-len(filter), FLAGS.dataset_category))
+    options = tf.io.TFRecordOptions(tf.compat.v1.io.TFRecordCompressionType.GZIP)
     writer = tf.io.TFRecordWriter(tfrecord_name, options=options)
 
     dataset_lst = os.listdir(FLAGS.dataset_dir)
@@ -159,4 +165,4 @@ def main(_):
 
 
 if __name__ == '__main__':
-    tf.app.run()
+    tf.compat.v1.app.run()

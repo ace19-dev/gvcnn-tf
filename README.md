@@ -1,5 +1,5 @@
-# On modifying..
-- [complete] Multi GPU.
+# On debugging.
+- balance sampler
 - N batch
 - Bugfix
 
@@ -31,6 +31,4 @@
 - http://openaccess.thecvf.com/content_cvpr_2018/papers/Feng_GVCNN_Group-View_Convolutional_CVPR_2018_paper.pdf
 - https://github.com/WeiTang114/MVCNN-TensorFlow
 - https://github.com/pclausen/obj2png
-- https://github.com/ildoonet/tf-mobilenet-v2
-- http://openresearch.ai/t/nccl-efficient-tensorflow-multigpu-training/159
 

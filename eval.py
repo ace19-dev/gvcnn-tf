@@ -8,12 +8,11 @@
 
 import datetime
 import os
-import csv
 
 import tensorflow as tf
 
 import eval_data
-import gvcnn
+from nets import model
 
 slim = tf.contrib.slim
 
@@ -66,12 +65,12 @@ def main(unused_argv):
     grouping_weight = tf.placeholder(tf.float32, [NUM_GROUP, 1])
 
     # Grouping Module
-    d_scores, _, final_desc = gvcnn.discrimination_score(X,
+    d_scores, _, final_desc = model.discrimination_score(X,
                                                          num_classes,
                                                          is_training)
 
     # GVCNN
-    logits, _ = gvcnn.gvcnn(final_X,
+    logits, _ = model.gvcnn(final_X,
                             grouping_scheme,
                             grouping_weight,
                             num_classes,
@@ -157,8 +156,8 @@ def main(unused_argv):
                                                  X: batch_xs,
                                                  is_training: False}
                                              )
-            schemes = gvcnn.grouping_scheme(scores, NUM_GROUP, FLAGS.num_views)
-            weights = gvcnn.grouping_weight(scores, schemes)
+            schemes = model.grouping_scheme(scores, NUM_GROUP, FLAGS.num_views)
+            weights = model.grouping_weight(scores, schemes)
 
             # Run the graph with this batch of training data.
             acc, conf_matrix  = \
