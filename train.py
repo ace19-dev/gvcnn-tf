@@ -133,7 +133,7 @@ def main(unused_argv):
         g_weight = tf.compat.v1.placeholder(tf.float32, [FLAGS.num_group,])
 
         # GVCNN
-        view_scores, view_descriptors, _, logits = model.gvcnn(X,
+        view_scores, view_descriptors, _, logits=model.gvcnn(X,
                                                               num_classes,
                                                               g_scheme,
                                                               g_weight,
@@ -277,10 +277,10 @@ def main(unused_argv):
                     _g_weights = model.group_weight(_g_schemes)
 
                     # Run the graph with this batch of training data.
-                    lr, train_summary, train_accuracy, train_loss = \
+                    lr, train_summary, train_accuracy, train_loss, _ = \
                         sess.partial_run(handle,
                                          # [learning_rate, summary_op, accuracy, loss, dummy],
-                                         [learning_rate, summary_op, accuracy, loss],
+                                         [learning_rate, summary_op, accuracy, loss, train_op],
                                          feed_dict={
                                              ground_truth: train_batch_ys,
                                              g_scheme: _g_schemes,

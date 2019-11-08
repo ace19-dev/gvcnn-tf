@@ -154,10 +154,13 @@ def gvcnn(inputs,
         view_discrimination_scores.append(batch_view_score)
         final_view_descriptors.append(end_points['Mixed_7c'])
 
-    # Intra-Group View Pooling
-    group_descriptors = view_pooling(final_view_descriptors, group_scheme)
-    # Group Fusion
-    shape_descriptor = group_fusion(group_descriptors, group_weight)
+    # # Intra-Group View Pooling
+    # group_descriptors = view_pooling(final_view_descriptors, group_scheme)
+    # # Group Fusion
+    # shape_descriptor = group_fusion(group_descriptors, group_weight)
+
+    # for test
+    shape_descriptor = end_points['Mixed_7c']
 
     # (?,8,8,1536)
     # net = tf.reduce_mean(shape_descriptor, axis=[1, 2], keepdims=True)
