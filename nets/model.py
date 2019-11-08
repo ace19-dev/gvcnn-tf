@@ -138,34 +138,36 @@ def gvcnn(inputs,
     views = tf.transpose(inputs, perm=[1, 0, 2, 3, 4])
     for index in range(n_views):
         batch_view = tf.gather(views, index)  # N x H x W x C
-        with slim.arg_scope(inception_v3.inception_v3_arg_scope()):
-            _, end_points = inception_v3.inception_v3(batch_view,
-                                                      num_classes=num_classes,
-                                                      is_training=is_training,
-                                                      dropout_keep_prob=dropout_keep_prob,
-                                                      reuse=reuse)
-        # with slim.arg_scope(resnet_v2.resnet_arg_scope()):
-        #     _, end_points = resnet_v2.resnet_v2_50(batch_view,
-        #                                            num_classes=num_classes,
-        #                                            is_training=is_training,
-        #                                            reuse=reuse)
+        # with slim.arg_scope(inception_v3.inception_v3_arg_scope()):
+        #     _, end_points = inception_v3.inception_v3(batch_view,
+        #                                               num_classes=num_classes,
+        #                                               is_training=is_training,
+        #                                               dropout_keep_prob=dropout_keep_prob,
+        #                                               reuse=reuse)
+        with slim.arg_scope(resnet_v2.resnet_arg_scope()):
+            _, end_points = resnet_v2.resnet_v2_50(batch_view,
+                                                   num_classes=num_classes,
+                                                   is_training=is_training,
+                                                   reuse=reuse)
 
         # GAP layer to obtain the discrimination scores from raw view descriptors.
-        raw = tf.keras.layers.GlobalAveragePooling2D()(end_points['Mixed_5d'])
+        raw = tf.keras.layers.GlobalAveragePooling2D()(end_points['resnet_v2_50/block3'])
         raw = tf.keras.layers.Dense(1)(raw)
         raw = tf.reduce_mean(raw)
         batch_view_score = tf.nn.sigmoid(tf.math.log(tf.abs(raw)))
         view_discrimination_scores.append(batch_view_score)
-        final_view_descriptors.append(end_points['Mixed_7c'])
-        # final_view_descriptors.append(end_points['resnet_v2_50/block4'])
+        final_view_descriptors.append(end_points['resnet_v2_50/block4'])
 
-    # # Intra-Group View Pooling
-    # group_descriptors = view_pooling(final_view_descriptors, group_scheme)
-    # # Group Fusion
-    # shape_descriptor = group_fusion(group_descriptors, group_weight)
+    # TODO: checkpoint - debug
+    # -----------------------------
+    # Intra-Group View Pooling
+    group_descriptors = view_pooling(final_view_descriptors, group_scheme)
+    # Group Fusion
+    shape_descriptor = group_fusion(group_descriptors, group_weight)
+    # -----------------------------
 
-    # for test
-    shape_descriptor = tf.reduce_max(final_view_descriptors, axis=0)
+    # # for debug
+    # shape_descriptor = tf.reduce_max(final_view_descriptors, axis=0)
 
     # (?,8,8,1536)
     # net = tf.reduce_mean(shape_descriptor, axis=[1, 2], keepdims=True)
