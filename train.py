@@ -100,14 +100,14 @@ flags.DEFINE_integer('height', 299, 'height')
 flags.DEFINE_integer('width', 299, 'width')
 flags.DEFINE_string('labels',
                     # 'airplane,bed,bookshelf,bottle,chair,monitor,sofa,table,toilet,vase',
-                    '05,11',
+                    'monitor,toilet',
                     'number of classes')
 
 # check total count before training
 # MODELNET_TRAIN_DATA_SIZE = 626+515+572+335+889+465+680+392+344+475   # 5293, 10 class
 # MODELNET_VALIDATE_DATA_SIZE = 1000
-MODELNET_TRAIN_DATA_SIZE = 1361+1425    # 2 class
-MODELNET_VALIDATE_DATA_SIZE = 309
+MODELNET_TRAIN_DATA_SIZE = 515+394    # 2 class
+MODELNET_VALIDATE_DATA_SIZE = 100
 
 
 

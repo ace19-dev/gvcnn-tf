@@ -29,7 +29,7 @@ flags.DEFINE_string('output_dir',
                     '/home/ace19/dl_data/modelnet2',
                     'Path to output TFRecord')
 flags.DEFINE_string('dataset_category',
-                    'test',
+                    'train',
                     'dataset category, train|validate|test')
 
 FLAGS = flags.FLAGS

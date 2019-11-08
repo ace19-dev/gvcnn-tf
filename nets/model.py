@@ -147,7 +147,7 @@ def gvcnn(inputs,
                                                       scope=scope + '-' + str(index))
 
         # GAP layer to obtain the discrimination scores from raw view descriptors.
-        raw = tf.keras.layers.GlobalAveragePooling2D()(end_points['Mixed_6e'])
+        raw = tf.keras.layers.GlobalAveragePooling2D()(end_points['Mixed_5d'])
         raw = tf.keras.layers.Dense(1)(raw)
         raw = tf.reduce_mean(raw)
         batch_view_score = tf.nn.sigmoid(tf.math.log(tf.abs(raw)))
@@ -181,4 +181,4 @@ def gvcnn(inputs,
 #                                                        dropout_keep_prob=dropout_keep_prob,
 #                                                        reuse=reuse)
 #
-#     return end_points['Mixed_6e'], logits
+#     return end_points['Mixed_5d'], logits
