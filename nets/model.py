@@ -113,8 +113,7 @@ def gvcnn(inputs,
           group_weight,
           is_training=True,
           dropout_keep_prob=0.8,
-          reuse=tf.compat.v1.AUTO_REUSE,
-          scope='InceptionV3'):
+          reuse=tf.compat.v1.AUTO_REUSE):
     """
     Raw View Descriptor Generation
 
@@ -141,10 +140,15 @@ def gvcnn(inputs,
         batch_view = tf.gather(views, index)  # N x H x W x C
         with slim.arg_scope(inception_v3.inception_v3_arg_scope()):
             _, end_points = inception_v3.inception_v3(batch_view,
+                                                      num_classes=num_classes,
                                                       is_training=is_training,
                                                       dropout_keep_prob=dropout_keep_prob,
-                                                      reuse=reuse,
-                                                      scope=scope + '-' + str(index))
+                                                      reuse=reuse)
+        # with slim.arg_scope(resnet_v2.resnet_arg_scope()):
+        #     _, end_points = resnet_v2.resnet_v2_50(batch_view,
+        #                                            num_classes=num_classes,
+        #                                            is_training=is_training,
+        #                                            reuse=reuse)
 
         # GAP layer to obtain the discrimination scores from raw view descriptors.
         raw = tf.keras.layers.GlobalAveragePooling2D()(end_points['Mixed_5d'])
@@ -153,6 +157,7 @@ def gvcnn(inputs,
         batch_view_score = tf.nn.sigmoid(tf.math.log(tf.abs(raw)))
         view_discrimination_scores.append(batch_view_score)
         final_view_descriptors.append(end_points['Mixed_7c'])
+        # final_view_descriptors.append(end_points['resnet_v2_50/block4'])
 
     # # Intra-Group View Pooling
     # group_descriptors = view_pooling(final_view_descriptors, group_scheme)
@@ -160,7 +165,7 @@ def gvcnn(inputs,
     # shape_descriptor = group_fusion(group_descriptors, group_weight)
 
     # for test
-    shape_descriptor = end_points['Mixed_7c']
+    shape_descriptor = tf.reduce_max(final_view_descriptors, axis=0)
 
     # (?,8,8,1536)
     # net = tf.reduce_mean(shape_descriptor, axis=[1, 2], keepdims=True)
