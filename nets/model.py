@@ -169,10 +169,7 @@ def gvcnn(inputs,
     # # for debug
     # shape_descriptor = tf.reduce_max(final_view_descriptors, axis=0)
 
-    # (?,8,8,1536)
-    # net = tf.reduce_mean(shape_descriptor, axis=[1, 2], keepdims=True)
     net = tf.keras.layers.GlobalAveragePooling2D()(shape_descriptor)
-    # (?,1536)
     logits = tf.keras.layers.Dense(num_classes)(net)
 
     return view_discrimination_scores, final_view_descriptors, shape_descriptor, logits
