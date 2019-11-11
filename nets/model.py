@@ -19,28 +19,25 @@ def group_scheme(view_discrimination_score, num_group, num_views):
     that have no views falling into it.
     '''
     schemes = np.full((num_group, num_views), 0, dtype=np.int)
-    for idx, score in enumerate(view_discrimination_score):
+    for idx, score in enumerate(view_discrimination_score[0]):
         schemes[int(score*10), idx] = 1 # 10 group
 
     return schemes
 
 
-# TODO: recheck the paper.
+# TODO: check.
 def group_weight(g_schemes):
     num_group = g_schemes.shape[0]
     num_views = g_schemes.shape[1]
 
     weights = np.zeros(shape=(num_group), dtype=np.float32)
     for i in range(num_group):
-        n = 0
         sum = 0
         for j in range(num_views):
             if g_schemes[i][j] == 1:
                 sum += g_schemes[i][j]
-                n += 1
 
-        if n != 0:
-            weights[i] = sum / n
+        weights[i] = sum
 
     return weights
 
@@ -158,7 +155,7 @@ def gvcnn(inputs,
         view_discrimination_scores.append(batch_view_score)
         final_view_descriptors.append(end_points['resnet_v2_50/block4'])
 
-    # TODO: checkpoint - debug
+    # TODO: debugging checkpoint
     # -----------------------------
     # Intra-Group View Pooling
     group_descriptors = view_pooling(final_view_descriptors, group_scheme)
@@ -172,7 +169,7 @@ def gvcnn(inputs,
     net = tf.keras.layers.GlobalAveragePooling2D()(shape_descriptor)
     logits = tf.keras.layers.Dense(num_classes)(net)
 
-    return view_discrimination_scores, final_view_descriptors, shape_descriptor, logits
+    return view_discrimination_scores, shape_descriptor, logits
 
 
 # def basic(inputs,
