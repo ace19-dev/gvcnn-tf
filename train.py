@@ -85,7 +85,7 @@ flags.DEFINE_boolean('ignore_missing_vars',
                      'When restoring a checkpoint would ignore missing variables.')
 
 # Dataset settings.
-flags.DEFINE_string('dataset_dir', '/home/ace19/dl_data/modelnet2',
+flags.DEFINE_string('dataset_dir', '/home/ace19/dl_data/modelnet3',
                     'Where the dataset reside.')
 
 flags.DEFINE_integer('how_many_training_epochs', 100,
@@ -100,14 +100,14 @@ flags.DEFINE_integer('height', 299, 'height')
 flags.DEFINE_integer('width', 299, 'width')
 flags.DEFINE_string('labels',
                     # 'airplane,bed,bookshelf,bottle,chair,monitor,sofa,table,toilet,vase',
-                    'monitor,toilet',
+                    'bottle,table,toilet',
                     'number of classes')
 
 # check total count before training
 # MODELNET_TRAIN_DATA_SIZE = 626+515+572+335+889+465+680+392+344+475   # 5293, 10 class
 # MODELNET_VALIDATE_DATA_SIZE = 1000
-MODELNET_TRAIN_DATA_SIZE = 515+394    # 2 class
-MODELNET_VALIDATE_DATA_SIZE = 100
+MODELNET_TRAIN_DATA_SIZE = 405+462+414    # 2 class
+MODELNET_VALIDATE_DATA_SIZE = 90
 
 
 
@@ -124,6 +124,10 @@ def main(unused_argv):
         X = tf.compat.v1.placeholder(tf.float32,
                                      [None, FLAGS.num_views, FLAGS.height, FLAGS.width, 3],
                                      name='X')
+        # Define the model - resnet_v2_50/block3
+        fcn_inputs = tf.compat.v1.placeholder(tf.float32,
+                                             [FLAGS.num_views, None, 10, 10, 2048],
+                                             name='fcn')
         ground_truth = tf.compat.v1.placeholder(tf.int64, [None], name='ground_truth')
         is_training = tf.compat.v1.placeholder(tf.bool)
         dropout_keep_prob = tf.compat.v1.placeholder(tf.float32)
@@ -241,8 +245,8 @@ def main(unused_argv):
 
             # The filenames argument to the TFRecordDataset initializer can either be a string,
             # a list of strings, or a tf.Tensor of strings.
-            training_filenames = os.path.join(FLAGS.dataset_dir, 'modelnet2_6view_train.record')
-            validate_filenames = os.path.join(FLAGS.dataset_dir, 'modelnet2_6view_test.record')
+            training_filenames = os.path.join(FLAGS.dataset_dir, 'modelnet3_6view_train.record')
+            validate_filenames = os.path.join(FLAGS.dataset_dir, 'modelnet3_6view_test.record')
 
             ###################################
             # Training loop.
@@ -320,7 +324,7 @@ def main(unused_argv):
                     # Sets up a graph with feeds and fetches for partial run.
                     handle = sess.partial_run_setup([view_scores, summary_op,
                                                      accuracy, loss, confusion_matrix],
-                                                    [X, is_training, dropout_keep_prob,
+                                                    [X, fcn_inputs, is_training, dropout_keep_prob,
                                                      ground_truth, g_scheme, g_weight])
 
                     _view_scores = sess.partial_run(handle,

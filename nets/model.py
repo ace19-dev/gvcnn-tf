@@ -104,29 +104,24 @@ def group_fusion(group_descriptors, group_weight):
     return shape_descriptor
 
 
-def gvcnn(inputs,
-          num_classes,
-          group_scheme,
-          group_weight,
-          is_training=True,
-          dropout_keep_prob=0.8,
-          reuse=tf.compat.v1.AUTO_REUSE):
+def gvcnn(inputs, num_classes, group_scheme, group_weight,
+          is_training=True, dropout_keep_prob=0.8, reuse=tf.compat.v1.AUTO_REUSE):
     """
-    Raw View Descriptor Generation
+        Raw View Descriptor Generation
 
-    first part of the network (FCN) to get the raw descriptor in the view level.
-    The “FCN” part is the top five convolutional layers of GoogLeNet.
-    (mid-level representation)
+        first part of the network (FCN) to get the raw descriptor in the view level.
+        The “FCN” part is the top five convolutional layers of GoogLeNet.
+        (mid-level representation)
 
-    Extract the raw view descriptors.
-    Compared with deeper CNN, shallow FCN could have more position information,
-    which is needed for the followed grouping module and the deeper CNN will have
-    the content information which could represent the view feature better.
+        Extract the raw view descriptors.
+        Compared with deeper CNN, shallow FCN could have more position information,
+        which is needed for the followed grouping module and the deeper CNN will have
+        the content information which could represent the view feature better.
 
-    Args:
-    inputs: N x V x H x W x C tensor
-    scope:
-    """
+        Args:
+        inputs: N x V x H x W x C tensor
+        scope:
+        """
     view_discrimination_scores = []
     final_view_descriptors = []
 
@@ -155,7 +150,7 @@ def gvcnn(inputs,
         view_discrimination_scores.append(batch_view_score)
         final_view_descriptors.append(end_points['resnet_v2_50/block4'])
 
-    # TODO: debugging checkpoint
+# TODO: checkpoint - debug
     # -----------------------------
     # Intra-Group View Pooling
     group_descriptors = view_pooling(final_view_descriptors, group_scheme)
@@ -164,12 +159,13 @@ def gvcnn(inputs,
     # -----------------------------
 
     # # for debug
-    # shape_descriptor = tf.reduce_max(final_view_descriptors, axis=0)
+    # shape_descriptor = tf.reduce_max(fcn_inputs, axis=0)
 
     net = tf.keras.layers.GlobalAveragePooling2D()(shape_descriptor)
     logits = tf.keras.layers.Dense(num_classes)(net)
 
     return view_discrimination_scores, shape_descriptor, logits
+
 
 
 # def basic(inputs,
