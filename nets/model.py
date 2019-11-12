@@ -56,22 +56,29 @@ def view_pooling(final_view_descriptors, group_scheme):
     the views in the same group have the similar discrimination,
     which are assigned the same weight.
 
-    :param group_scheme:
+    :param group_scheme: shape [num_group, num_view]
     :param final_view_descriptors:
     :return: group_descriptors
     '''
-
     group_descriptors = {}
     dummy = tf.zeros_like(final_view_descriptors[0])
 
+    # TODO: checkpoint-0
     scheme_list = tf.unstack(group_scheme)
     indices = [tf.squeeze(tf.where(elem), axis=1) for elem in scheme_list]
     for i, ind in enumerate(indices):
-        view_descs = tf.cond(tf.greater(tf.size(ind), 0),
+        pooled_view = tf.cond(tf.greater(tf.size(ind), 0),
                             lambda : tf.gather(final_view_descriptors, ind),
                             lambda : tf.expand_dims(dummy, 0))
-        # TODO: max pooling ??
-        group_descriptors[i] = tf.reduce_mean(view_descs, axis=0)
+
+        group_descriptors[i] = tf.reduce_max(pooled_view, axis=0)
+        # descriptor = pooled_view
+        # for i in range(1, 6):
+        #     try:
+        #         descriptor = tf.maximum(descriptor, pooled_view[i])
+        #     except tf.errors.InvalidArgumentError:
+        #         break
+        # group_descriptors[i] = descriptor
 
     return group_descriptors
 
@@ -107,21 +114,21 @@ def group_fusion(group_descriptors, group_weight):
 def gvcnn(inputs, num_classes, group_scheme, group_weight,
           is_training=True, dropout_keep_prob=0.8, reuse=tf.compat.v1.AUTO_REUSE):
     """
-        Raw View Descriptor Generation
+    Raw View Descriptor Generation
 
-        first part of the network (FCN) to get the raw descriptor in the view level.
-        The “FCN” part is the top five convolutional layers of GoogLeNet.
-        (mid-level representation)
+    first part of the network (FCN) to get the raw descriptor in the view level.
+    The “FCN” part is the top five convolutional layers of GoogLeNet.
+    (mid-level representation)
 
-        Extract the raw view descriptors.
-        Compared with deeper CNN, shallow FCN could have more position information,
-        which is needed for the followed grouping module and the deeper CNN will have
-        the content information which could represent the view feature better.
+    Extract the raw view descriptors.
+    Compared with deeper CNN, shallow FCN could have more position information,
+    which is needed for the followed grouping module and the deeper CNN will have
+    the content information which could represent the view feature better.
 
-        Args:
-        inputs: N x V x H x W x C tensor
-        scope:
-        """
+    Args:
+    inputs: N x V x H x W x C tensor
+    scope:
+    """
     view_discrimination_scores = []
     final_view_descriptors = []
 
@@ -150,7 +157,7 @@ def gvcnn(inputs, num_classes, group_scheme, group_weight,
         view_discrimination_scores.append(batch_view_score)
         final_view_descriptors.append(end_points['resnet_v2_50/block4'])
 
-# TODO: checkpoint - debug
+    # TODO: checkpoint - debug
     # -----------------------------
     # Intra-Group View Pooling
     group_descriptors = view_pooling(final_view_descriptors, group_scheme)
@@ -158,27 +165,48 @@ def gvcnn(inputs, num_classes, group_scheme, group_weight,
     shape_descriptor = group_fusion(group_descriptors, group_weight)
     # -----------------------------
 
-    # # for debug
-    # shape_descriptor = tf.reduce_max(fcn_inputs, axis=0)
-
     net = tf.keras.layers.GlobalAveragePooling2D()(shape_descriptor)
     logits = tf.keras.layers.Dense(num_classes)(net)
 
     return view_discrimination_scores, shape_descriptor, logits
 
 
+def basic(inputs,
+          num_classes,
+          is_training=True,
+          dropout_keep_prob=0.8,
+          reuse=tf.compat.v1.AUTO_REUSE):
+    '''
+    Args:
+    inputs: N x V x H x W x C tensor
+    scope:
+    '''
+    final_view_descriptors = []
 
-# def basic(inputs,
-#           num_classes,
-#           is_training=True,
-#           dropout_keep_prob=0.8,
-#           reuse=tf.compat.v1.AUTO_REUSE):
-#
-#     with slim.arg_scope(inception_v3.inception_v3_arg_scope()):
-#         logits, end_points = inception_v3.inception_v3(inputs,
-#                                                        num_classes = num_classes,
-#                                                        is_training=is_training,
-#                                                        dropout_keep_prob=dropout_keep_prob,
-#                                                        reuse=reuse)
-#
-#     return end_points['Mixed_5d'], logits
+    n_views = inputs.get_shape().as_list()[1]
+    # transpose views: (NxVxHxWxC) -> (VxNxHxWxC)
+    views = tf.transpose(inputs, perm=[1, 0, 2, 3, 4])
+    for index in range(n_views):
+        batch_view = tf.gather(views, index)  # N x H x W x C
+
+        # with slim.arg_scope(inception_v3.inception_v3_arg_scope()):
+        #     logits, end_points = inception_v3.inception_v3(batch_view,
+        #                                                    num_classes = num_classes,
+        #                                                    is_training=is_training,
+        #                                                    dropout_keep_prob=dropout_keep_prob,
+        #                                                    reuse=reuse)
+        with slim.arg_scope(resnet_v2.resnet_arg_scope()):
+            logits, end_points = resnet_v2.resnet_v2_50(batch_view,
+                                                       num_classes=num_classes,
+                                                       is_training=is_training,
+                                                       reuse=reuse)
+            final_view_descriptors.append(end_points['resnet_v2_50/block4'])
+
+    shape_descriptor = final_view_descriptors[0]
+    for i in range(1, len(final_view_descriptors)):
+        shape_descriptor = tf.maximum(shape_descriptor, final_view_descriptors[i])
+
+    net = tf.keras.layers.GlobalAveragePooling2D()(shape_descriptor)
+    logits = tf.keras.layers.Dense(num_classes)(net)
+
+    return shape_descriptor, logits
