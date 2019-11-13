@@ -27,7 +27,7 @@ class Dataset(object):
         # The map transformation takes a function and applies it to every element
         # of the dataset.
         self.dataset = self.dataset.map(self.decode, num_parallel_calls=8)
-        self.dataset = self.dataset.map(self.augment, num_parallel_calls=8)
+        # self.dataset = self.dataset.map(self.augment, num_parallel_calls=8)
         self.dataset = self.dataset.map(self.normalize, num_parallel_calls=8)
 
         # Prefetches a batch at a time to smooth out the time taken to load input

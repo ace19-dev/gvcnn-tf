@@ -85,7 +85,7 @@ flags.DEFINE_boolean('ignore_missing_vars',
                      'When restoring a checkpoint would ignore missing variables.')
 
 # Dataset settings.
-flags.DEFINE_string('dataset_dir', '/home/ace19/dl_data/modelnet3',
+flags.DEFINE_string('dataset_dir', '/home/ace19/dl_data/modelnet2',
                     'Where the dataset reside.')
 
 flags.DEFINE_integer('how_many_training_epochs', 100,
@@ -100,14 +100,14 @@ flags.DEFINE_integer('height', 299, 'height')
 flags.DEFINE_integer('width', 299, 'width')
 flags.DEFINE_string('labels',
                     # 'airplane,bed,bookshelf,bottle,chair,monitor,sofa,table,toilet,vase',
-                    'bottle,table,toilet',
+                    'table,toilet',
                     'number of classes')
 
 # check total count before training
 # MODELNET_TRAIN_DATA_SIZE = 626+515+572+335+889+465+680+392+344+475   # 5293, 10 class
 # MODELNET_VALIDATE_DATA_SIZE = 1000
-MODELNET_TRAIN_DATA_SIZE = 405+462+414    # 2 class
-MODELNET_VALIDATE_DATA_SIZE = 90
+MODELNET_TRAIN_DATA_SIZE = 442+394    # 3 class
+MODELNET_VALIDATE_DATA_SIZE = 100
 
 
 
@@ -124,16 +124,32 @@ def main(unused_argv):
         X = tf.compat.v1.placeholder(tf.float32,
                                      [None, FLAGS.num_views, FLAGS.height, FLAGS.width, 3],
                                      name='X')
+        # Define the model - resnet_v2_50/block3
+        # fcn_inputs = tf.compat.v1.placeholder(tf.float32,
+        #                                      [FLAGS.num_views, None, 10, 10, 2048],
+        #                                      name='fcn')
         ground_truth = tf.compat.v1.placeholder(tf.int64, [None], name='ground_truth')
-        is_training = tf.compat.v1.placeholder(tf.bool)
-        dropout_keep_prob = tf.compat.v1.placeholder(tf.float32)
+        is_training = tf.compat.v1.placeholder(tf.bool, name='is_training')
+        dropout_keep_prob = tf.compat.v1.placeholder(tf.float32, name='dropout_keep_prob')
+        g_scheme = tf.compat.v1.placeholder(tf.int32, [FLAGS.num_group, FLAGS.num_views])
+        g_weight = tf.compat.v1.placeholder(tf.float32, [FLAGS.num_group])
 
         # GVCNN
-        _, logits, g_scheme = model.gvcnn(X, num_classes, FLAGS.num_group, FLAGS.num_views,
-                                                              is_training, dropout_keep_prob)
+        view_scores, _, logits = model.gvcnn(X,
+                                             num_classes,
+                                             g_scheme,
+                                             g_weight,
+                                             is_training,
+                                             dropout_keep_prob)
+
+        # # basic - for verify
+        # _, logits = model.basic(X,
+        #                         num_classes,
+        #                         is_training,
+        #                         dropout_keep_prob)
 
         # Define loss
-        tf.losses.sparse_softmax_cross_entropy(labels=ground_truth, logits=logits)
+        _loss = tf.losses.sparse_softmax_cross_entropy(labels=ground_truth, logits=logits)
 
         # Gather initial summaries.
         summaries = set(tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.SUMMARIES))
@@ -235,8 +251,8 @@ def main(unused_argv):
 
             # The filenames argument to the TFRecordDataset initializer can either be a string,
             # a list of strings, or a tf.Tensor of strings.
-            training_filenames = os.path.join(FLAGS.dataset_dir, 'modelnet3_6view_train.record')
-            validate_filenames = os.path.join(FLAGS.dataset_dir, 'modelnet3_6view_test.record')
+            training_filenames = os.path.join(FLAGS.dataset_dir, 'modelnet2_6view_train.record')
+            validate_filenames = os.path.join(FLAGS.dataset_dir, 'modelnet2_6view_test.record')
 
             ###################################
             # Training loop.
@@ -253,34 +269,35 @@ def main(unused_argv):
 
                     # TODO: checkpoint - debug
                     # Sets up a graph with feeds and fetches for partial run.
-                    handle = sess.partial_run_setup([g_scheme, learning_rate,
+                    handle = sess.partial_run_setup([view_scores, learning_rate,
                                                      # summary_op, top1_acc, loss, optimize_op, dummy],
-                                                    summary_op, accuracy, loss, train_op],
-                                                    [X, is_training, dropout_keep_prob,
-                                                     ground_truth])
+                                                    summary_op, accuracy, _loss, train_op],
+                                                    [X, ground_truth, g_scheme, g_weight,
+                                                     is_training, dropout_keep_prob])
 
-                    _g_schemes = \
-                        sess.partial_run(handle,
-                                         [g_scheme],
-                                         feed_dict={X: train_batch_xs,
-                                                    is_training: True,
-                                                    dropout_keep_prob: 0.8}
-                                         )
-                    # _g_schemes = model.group_scheme(_view_scores, FLAGS.num_group, FLAGS.num_views)
-                    # _g_weights = model.group_weight(_g_schemes)
+                    _view_scores = sess.partial_run(handle,
+                                                    [view_scores],
+                                                    feed_dict={
+                                                        X: train_batch_xs,
+                                                        is_training: True,
+                                                        dropout_keep_prob: 0.8}
+                                                    )
+                    _g_schemes = model.group_scheme(_view_scores, FLAGS.num_group, FLAGS.num_views)
+                    _g_weights = model.group_weight(_g_schemes)
 
                     # Run the graph with this batch of training data.
                     lr, train_summary, train_accuracy, train_loss, _ = \
                         sess.partial_run(handle,
                                          # [learning_rate, summary_op, accuracy, loss, dummy],
-                                         [learning_rate, summary_op, accuracy, loss, train_op],
+                                         [learning_rate, summary_op, accuracy, _loss, train_op],
                                          feed_dict={
-                                             # fcn_inputs: _view_descriptors,
-                                             ground_truth: train_batch_ys,}
+                                             ground_truth: train_batch_ys,
+                                             g_scheme: _g_schemes,
+                                             g_weight: _g_weights}
                                          )
 
                     # lr, train_summary, train_accuracy, train_loss, _ = \
-                    #     sess.run([learning_rate, summary_op, accuracy, loss, train_op],
+                    #     sess.run([learning_rate, summary_op, accuracy, _loss, train_op],
                     #              feed_dict={
                     #                  X: train_batch_xs,
                     #                  ground_truth: train_batch_ys,
@@ -311,32 +328,33 @@ def main(unused_argv):
                     validation_batch_xs, validation_batch_ys = sess.run(val_next_batch)
 
                     # Sets up a graph with feeds and fetches for partial run.
-                    handle = sess.partial_run_setup([g_scheme, summary_op,
-                                                     accuracy, loss, confusion_matrix],
-                                                    [X, is_training, dropout_keep_prob,
-                                                     ground_truth])
+                    handle = sess.partial_run_setup([view_scores, summary_op,
+                                                     accuracy, _loss, confusion_matrix],
+                                                    [X, g_scheme, g_weight,
+                                                     ground_truth, is_training, dropout_keep_prob])
 
-                    _g_schemes = \
-                        sess.partial_run(handle,
-                                         [g_scheme],
-                                         feed_dict={X: validation_batch_xs,
-                                                    is_training: False,
-                                                    dropout_keep_prob: 1.0}
-                                         )
-                    # _g_schemes = model.group_scheme(_view_scores, FLAGS.num_group, FLAGS.num_views)
-                    # _g_weights = model.group_weight(_g_schemes)
+                    _view_scores = sess.partial_run(handle,
+                                                    [view_scores],
+                                                    feed_dict={
+                                                         X: validation_batch_xs,
+                                                         is_training: False,
+                                                         dropout_keep_prob: 1.0}
+                                                    )
+                    _g_schemes = model.group_scheme(_view_scores, FLAGS.num_group, FLAGS.num_views)
+                    _g_weights = model.group_weight(_g_schemes)
 
                     # Run the graph with this batch of training data.
                     val_summary, val_accuracy, val_loss, conf_matrix = \
                         sess.partial_run(handle,
-                                         [summary_op, accuracy, loss, confusion_matrix],
+                                         [summary_op, accuracy, _loss, confusion_matrix],
                                          feed_dict={
-                                             # fcn_inputs: _view_descriptors,
-                                             ground_truth: validation_batch_ys,}
+                                             ground_truth: validation_batch_ys,
+                                             g_scheme: _g_schemes,
+                                             g_weight: _g_weights}
                                          )
 
                     # val_summary, val_accuracy, val_loss, conf_matrix = \
-                    #     sess.run([summary_op, accuracy, loss, confusion_matrix],
+                    #     sess.run([summary_op, accuracy, _loss, confusion_matrix],
                     #              feed_dict={
                     #                  X: validation_batch_xs,
                     #                  ground_truth: validation_batch_ys,

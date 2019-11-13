@@ -23,10 +23,10 @@ from dataset_tools import dataset_util
 
 flags = tf.compat.v1.app.flags
 flags.DEFINE_string('dataset_dir',
-                    '/home/ace19/dl_data/modelnet3/view/classes',
+                    '/home/ace19/dl_data/modelnet2/view/classes',
                     'Root Directory to raw modelnet dataset.')
 flags.DEFINE_string('output_dir',
-                    '/home/ace19/dl_data/modelnet3',
+                    '/home/ace19/dl_data/modelnet2',
                     'Path to output TFRecord')
 flags.DEFINE_string('dataset_category',
                     'train',
@@ -34,7 +34,7 @@ flags.DEFINE_string('dataset_category',
 
 FLAGS = flags.FLAGS
 
-_FILE_PATTERN = 'modelnet3_%dview_%s.record'
+_FILE_PATTERN = 'modelnet2_%dview_%s.record'
 
 filter = ['1','2','4','7','8','10']
 

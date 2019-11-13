@@ -18,35 +18,28 @@ def group_scheme(view_discrimination_score, num_group, num_views):
     Note that 1 ≤ M ≤ N because there may exist sub-ranges
     that have no views falling into it.
     '''
-    # schemes = np.full((num_group, num_views), 0, dtype=np.int)
-    schemes = tf.Variable(tf.zeros([num_group, num_views], tf.int32))
-    for idx, score in enumerate(view_discrimination_score):
-        s = tf.cast(tf.multiply(score, tf.constant(10.0)), tf.int32)
-        # schemes[int(score*10), idx] = 1 # 10 group
-        tf.assign(schemes[s, idx], tf.constant(1))
-        # tf.compat.v1.scatter_update(schemes, [s, idx], 1)
+    schemes = np.full((num_group, num_views), 0, dtype=np.int)
+    for idx, score in enumerate(view_discrimination_score[0]):
+        schemes[int(score*10), idx] = 1 # 10 group
 
     return schemes
 
 
-# TODO: recheck the paper.
+# TODO: check.
 def group_weight(g_schemes):
     num_group = g_schemes.shape[0]
     num_views = g_schemes.shape[1]
 
-    weights = []
-    groups = tf.unstack(g_schemes)
-    for g in groups:
-        # n = 0
-        # sum = tf.Variable(tf.zeros([], tf.int32))
-        sum = tf.cast(tf.reduce_sum(g), dtype=tf.float32)
-        # for j in range(num_views):
-        #     # if g_schemes[i][j] == 1:
-        #     #     sum += g_schemes[i][j]
-        #     #     # n += 1
-        weights.append(sum)
+    weights = np.zeros(shape=(num_group), dtype=np.float32)
+    for i in range(num_group):
+        sum = 0
+        for j in range(num_views):
+            if g_schemes[i][j] == 1:
+                sum += g_schemes[i][j]
 
-    return tf.stack(weights)
+        weights[i] = sum
+
+    return weights
 
 
 def view_pooling(final_view_descriptors, group_scheme):
@@ -63,22 +56,21 @@ def view_pooling(final_view_descriptors, group_scheme):
     the views in the same group have the similar discrimination,
     which are assigned the same weight.
 
-    :param group_scheme:
+    :param group_scheme: shape [num_group, num_view]
     :param final_view_descriptors:
     :return: group_descriptors
     '''
-
     group_descriptors = {}
-    dummy = tf.zeros_like(final_view_descriptors[0])
+    dummy = tf.zeros_like(final_view_descriptors)
 
     scheme_list = tf.unstack(group_scheme)
     indices = [tf.squeeze(tf.where(elem), axis=1) for elem in scheme_list]
     for i, ind in enumerate(indices):
-        view_descs = tf.cond(tf.greater(tf.size(ind), 0),
-                            lambda : tf.gather(final_view_descriptors, ind),
-                            lambda : tf.expand_dims(dummy, 0))
-        # TODO: max pooling ??
-        group_descriptors[i] = tf.reduce_mean(view_descs, axis=0)
+        pooled_view = tf.cond(tf.greater(tf.size(ind), 0),
+                            lambda: tf.gather(final_view_descriptors, ind),
+                            lambda: dummy)
+
+        group_descriptors[i] = tf.reduce_mean(pooled_view, axis=0)
 
     return group_descriptors
 
@@ -100,24 +92,20 @@ def group_fusion(group_descriptors, group_weight):
 
     :return:
     '''
+    # TODO: checkpoint-0
     group_weight_list = tf.unstack(group_weight)
     numerator = []
     for key, value in group_descriptors.items():
         numerator.append(tf.multiply(group_weight_list[key], group_descriptors[key]))
 
-    denominator = tf.reduce_sum(group_weight_list)   # denominator
+    denominator = tf.reduce_sum(group_weight_list)
     shape_descriptor = tf.div(tf.add_n(numerator), denominator)
 
     return shape_descriptor
 
 
-def gvcnn(inputs,
-          num_classes,
-          num_group,
-          num_views,
-          is_training=True,
-          dropout_keep_prob=0.8,
-          reuse=tf.compat.v1.AUTO_REUSE):
+def gvcnn(inputs, num_classes, group_scheme, group_weight,
+          is_training=True, dropout_keep_prob=0.8, reuse=tf.compat.v1.AUTO_REUSE):
     """
     Raw View Descriptor Generation
 
@@ -162,37 +150,59 @@ def gvcnn(inputs,
         view_discrimination_scores.append(batch_view_score)
         final_view_descriptors.append(end_points['resnet_v2_50/block4'])
 
-    g_schemes = group_scheme(view_discrimination_scores, num_group, num_views)
-    g_weight = group_weight(g_schemes)
-
+    # -----------------------------
     # TODO: checkpoint - debug
-    # -----------------------------
     # Intra-Group View Pooling
-    group_descriptors = view_pooling(final_view_descriptors, g_schemes)
+    group_descriptors = view_pooling(final_view_descriptors, group_scheme)
+
     # Group Fusion
-    shape_descriptor = group_fusion(group_descriptors, g_weight)
+    shape_descriptor = group_fusion(group_descriptors, group_weight)
     # -----------------------------
 
-    # # for debug
+    # # test - pooling view
     # shape_descriptor = tf.reduce_max(final_view_descriptors, axis=0)
 
     net = tf.keras.layers.GlobalAveragePooling2D()(shape_descriptor)
     logits = tf.keras.layers.Dense(num_classes)(net)
 
-    return shape_descriptor, logits, g_schemes
+    return view_discrimination_scores, shape_descriptor, logits
 
 
-# def basic(inputs,
-#           num_classes,
-#           is_training=True,
-#           dropout_keep_prob=0.8,
-#           reuse=tf.compat.v1.AUTO_REUSE):
-#
-#     with slim.arg_scope(inception_v3.inception_v3_arg_scope()):
-#         logits, end_points = inception_v3.inception_v3(inputs,
-#                                                        num_classes = num_classes,
-#                                                        is_training=is_training,
-#                                                        dropout_keep_prob=dropout_keep_prob,
-#                                                        reuse=reuse)
-#
-#     return end_points['Mixed_5d'], logits
+def basic(inputs,
+          num_classes,
+          is_training=True,
+          dropout_keep_prob=0.8,
+          reuse=tf.compat.v1.AUTO_REUSE):
+    '''
+    Args:
+    inputs: N x V x H x W x C tensor
+    scope:
+    '''
+    final_view_descriptors = []
+
+    n_views = inputs.get_shape().as_list()[1]
+    # transpose views: (NxVxHxWxC) -> (VxNxHxWxC)
+    views = tf.transpose(inputs, perm=[1, 0, 2, 3, 4])
+    for index in range(n_views):
+        batch_view = tf.gather(views, index)  # N x H x W x C
+
+        # with slim.arg_scope(inception_v3.inception_v3_arg_scope()):
+        #     logits, end_points = inception_v3.inception_v3(batch_view,
+        #                                                    num_classes = num_classes,
+        #                                                    is_training=is_training,
+        #                                                    dropout_keep_prob=dropout_keep_prob,
+        #                                                    reuse=reuse)
+        # final_view_descriptors.append(end_points['Mixed_7c'])
+
+        with slim.arg_scope(resnet_v2.resnet_arg_scope()):
+            logits, end_points = resnet_v2.resnet_v2_50(batch_view,
+                                                       num_classes=num_classes,
+                                                       is_training=is_training,
+                                                       reuse=reuse)
+        final_view_descriptors.append(end_points['resnet_v2_50/block4'])
+
+    shape_descriptor = tf.reduce_max(final_view_descriptors, axis=0)
+    net = tf.keras.layers.GlobalAveragePooling2D()(shape_descriptor)
+    logits = tf.keras.layers.Dense(num_classes)(net)
+
+    return shape_descriptor, logits
