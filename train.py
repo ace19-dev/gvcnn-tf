@@ -85,7 +85,7 @@ flags.DEFINE_boolean('ignore_missing_vars',
                      'When restoring a checkpoint would ignore missing variables.')
 
 # Dataset settings.
-flags.DEFINE_string('dataset_dir', '/home/ace19/dl_data/modelnet3',
+flags.DEFINE_string('dataset_dir', '/home/ace19/dl_data/modelnet2',
                     'Where the dataset reside.')
 
 flags.DEFINE_integer('how_many_training_epochs', 100,
@@ -100,14 +100,14 @@ flags.DEFINE_integer('height', 299, 'height')
 flags.DEFINE_integer('width', 299, 'width')
 flags.DEFINE_string('labels',
                     # 'airplane,bed,bookshelf,bottle,chair,monitor,sofa,table,toilet,vase',
-                    'monitor,table,toilet',
+                    'table,toilet',
                     'number of classes')
 
 # check total count before training
 # MODELNET_TRAIN_DATA_SIZE = 626+515+572+335+889+465+680+392+344+475   # 5293, 10 class
 # MODELNET_VALIDATE_DATA_SIZE = 1000
-MODELNET_TRAIN_DATA_SIZE = 442+515+394    # 3 class
-MODELNET_VALIDATE_DATA_SIZE = 150
+MODELNET_TRAIN_DATA_SIZE = 442+394    # 3 class
+MODELNET_VALIDATE_DATA_SIZE = 100
 
 
 
@@ -132,7 +132,7 @@ def main(unused_argv):
         is_training = tf.compat.v1.placeholder(tf.bool, name='is_training')
         dropout_keep_prob = tf.compat.v1.placeholder(tf.float32, name='dropout_keep_prob')
         g_scheme = tf.compat.v1.placeholder(tf.int32, [FLAGS.num_group, FLAGS.num_views])
-        g_weight = tf.compat.v1.placeholder(tf.float32, [FLAGS.num_group,])
+        g_weight = tf.compat.v1.placeholder(tf.float32, [FLAGS.num_group])
 
         # GVCNN
         view_scores, _, logits = model.gvcnn(X,
@@ -251,8 +251,8 @@ def main(unused_argv):
 
             # The filenames argument to the TFRecordDataset initializer can either be a string,
             # a list of strings, or a tf.Tensor of strings.
-            training_filenames = os.path.join(FLAGS.dataset_dir, 'modelnet3_6view_train.record')
-            validate_filenames = os.path.join(FLAGS.dataset_dir, 'modelnet3_6view_test.record')
+            training_filenames = os.path.join(FLAGS.dataset_dir, 'modelnet2_6view_train.record')
+            validate_filenames = os.path.join(FLAGS.dataset_dir, 'modelnet2_6view_test.record')
 
             ###################################
             # Training loop.

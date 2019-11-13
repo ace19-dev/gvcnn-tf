@@ -61,24 +61,16 @@ def view_pooling(final_view_descriptors, group_scheme):
     :return: group_descriptors
     '''
     group_descriptors = {}
-    dummy = tf.zeros_like(final_view_descriptors[0])
+    dummy = tf.zeros_like(final_view_descriptors)
 
-    # TODO: checkpoint-0
     scheme_list = tf.unstack(group_scheme)
     indices = [tf.squeeze(tf.where(elem), axis=1) for elem in scheme_list]
     for i, ind in enumerate(indices):
         pooled_view = tf.cond(tf.greater(tf.size(ind), 0),
-                            lambda : tf.gather(final_view_descriptors, ind),
-                            lambda : tf.expand_dims(dummy, 0))
+                            lambda: tf.gather(final_view_descriptors, ind),
+                            lambda: dummy)
 
-        group_descriptors[i] = tf.reduce_max(pooled_view, axis=0)
-        # descriptor = pooled_view
-        # for i in range(1, 6):
-        #     try:
-        #         descriptor = tf.maximum(descriptor, pooled_view[i])
-        #     except tf.errors.InvalidArgumentError:
-        #         break
-        # group_descriptors[i] = descriptor
+        group_descriptors[i] = tf.reduce_mean(pooled_view, axis=0)
 
     return group_descriptors
 
@@ -100,12 +92,13 @@ def group_fusion(group_descriptors, group_weight):
 
     :return:
     '''
+    # TODO: checkpoint-0
     group_weight_list = tf.unstack(group_weight)
     numerator = []
     for key, value in group_descriptors.items():
         numerator.append(tf.multiply(group_weight_list[key], group_descriptors[key]))
 
-    denominator = tf.reduce_sum(group_weight_list)   # denominator
+    denominator = tf.reduce_sum(group_weight_list)
     shape_descriptor = tf.div(tf.add_n(numerator), denominator)
 
     return shape_descriptor
@@ -157,13 +150,17 @@ def gvcnn(inputs, num_classes, group_scheme, group_weight,
         view_discrimination_scores.append(batch_view_score)
         final_view_descriptors.append(end_points['resnet_v2_50/block4'])
 
-    # TODO: checkpoint - debug
     # -----------------------------
+    # TODO: checkpoint - debug
     # Intra-Group View Pooling
     group_descriptors = view_pooling(final_view_descriptors, group_scheme)
+
     # Group Fusion
     shape_descriptor = group_fusion(group_descriptors, group_weight)
     # -----------------------------
+
+    # # test - pooling view
+    # shape_descriptor = tf.reduce_max(final_view_descriptors, axis=0)
 
     net = tf.keras.layers.GlobalAveragePooling2D()(shape_descriptor)
     logits = tf.keras.layers.Dense(num_classes)(net)
@@ -195,17 +192,16 @@ def basic(inputs,
         #                                                    is_training=is_training,
         #                                                    dropout_keep_prob=dropout_keep_prob,
         #                                                    reuse=reuse)
+        # final_view_descriptors.append(end_points['Mixed_7c'])
+
         with slim.arg_scope(resnet_v2.resnet_arg_scope()):
             logits, end_points = resnet_v2.resnet_v2_50(batch_view,
                                                        num_classes=num_classes,
                                                        is_training=is_training,
                                                        reuse=reuse)
-            final_view_descriptors.append(end_points['resnet_v2_50/block4'])
+        final_view_descriptors.append(end_points['resnet_v2_50/block4'])
 
-    shape_descriptor = final_view_descriptors[0]
-    for i in range(1, len(final_view_descriptors)):
-        shape_descriptor = tf.maximum(shape_descriptor, final_view_descriptors[i])
-
+    shape_descriptor = tf.reduce_max(final_view_descriptors, axis=0)
     net = tf.keras.layers.GlobalAveragePooling2D()(shape_descriptor)
     logits = tf.keras.layers.Dense(num_classes)(net)
 
