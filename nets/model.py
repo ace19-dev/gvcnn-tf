@@ -12,15 +12,19 @@ from nets import inception_v3, resnet_v2
 slim = tf.contrib.slim
 
 
-# find best group count for accuracy?
+# best group count for accuracy?
 def group_scheme(view_discrimination_score, num_group, num_views):
     '''
     Note that 1 ≤ M ≤ N because there may exist sub-ranges
     that have no views falling into it.
     '''
-    schemes = np.full((num_group, num_views), 0, dtype=np.int)
+    # schemes = np.full((num_group, num_views), 0, dtype=np.int)
+    schemes = tf.Variable(tf.zeros([num_group, num_views], tf.int32))
     for idx, score in enumerate(view_discrimination_score):
-        schemes[int(score*10), idx] = 1 # 10 group
+        s = tf.cast(tf.multiply(score, tf.constant(10.0)), tf.int32)
+        # schemes[int(score*10), idx] = 1 # 10 group
+        tf.assign(schemes[s, idx], tf.constant(1))
+        # tf.compat.v1.scatter_update(schemes, [s, idx], 1)
 
     return schemes
 
@@ -30,19 +34,19 @@ def group_weight(g_schemes):
     num_group = g_schemes.shape[0]
     num_views = g_schemes.shape[1]
 
-    weights = np.zeros(shape=(num_group), dtype=np.float32)
-    for i in range(num_group):
-        n = 0
-        sum = 0
-        for j in range(num_views):
-            if g_schemes[i][j] == 1:
-                sum += g_schemes[i][j]
-                n += 1
+    weights = []
+    groups = tf.unstack(g_schemes)
+    for g in groups:
+        # n = 0
+        # sum = tf.Variable(tf.zeros([], tf.int32))
+        sum = tf.cast(tf.reduce_sum(g), dtype=tf.float32)
+        # for j in range(num_views):
+        #     # if g_schemes[i][j] == 1:
+        #     #     sum += g_schemes[i][j]
+        #     #     # n += 1
+        weights.append(sum)
 
-        if n != 0:
-            weights[i] = sum / n
-
-    return weights
+    return tf.stack(weights)
 
 
 def view_pooling(final_view_descriptors, group_scheme):
@@ -107,24 +111,29 @@ def group_fusion(group_descriptors, group_weight):
     return shape_descriptor
 
 
-def fcn(inputs, num_classes, is_training=True,
-        dropout_keep_prob=0.8, reuse=tf.compat.v1.AUTO_REUSE):
+def gvcnn(inputs,
+          num_classes,
+          num_group,
+          num_views,
+          is_training=True,
+          dropout_keep_prob=0.8,
+          reuse=tf.compat.v1.AUTO_REUSE):
     """
-        Raw View Descriptor Generation
+    Raw View Descriptor Generation
 
-        first part of the network (FCN) to get the raw descriptor in the view level.
-        The “FCN” part is the top five convolutional layers of GoogLeNet.
-        (mid-level representation)
+    first part of the network (FCN) to get the raw descriptor in the view level.
+    The “FCN” part is the top five convolutional layers of GoogLeNet.
+    (mid-level representation)
 
-        Extract the raw view descriptors.
-        Compared with deeper CNN, shallow FCN could have more position information,
-        which is needed for the followed grouping module and the deeper CNN will have
-        the content information which could represent the view feature better.
+    Extract the raw view descriptors.
+    Compared with deeper CNN, shallow FCN could have more position information,
+    which is needed for the followed grouping module and the deeper CNN will have
+    the content information which could represent the view feature better.
 
-        Args:
-        inputs: N x V x H x W x C tensor
-        scope:
-        """
+    Args:
+    inputs: N x V x H x W x C tensor
+    scope:
+    """
     view_discrimination_scores = []
     final_view_descriptors = []
 
@@ -153,29 +162,24 @@ def fcn(inputs, num_classes, is_training=True,
         view_discrimination_scores.append(batch_view_score)
         final_view_descriptors.append(end_points['resnet_v2_50/block4'])
 
-    return view_discrimination_scores, final_view_descriptors
-
-
-def gvcnn(fcn_inputs,
-          num_classes,
-          group_scheme,
-          group_weight):
+    g_schemes = group_scheme(view_discrimination_scores, num_group, num_views)
+    g_weight = group_weight(g_schemes)
 
     # TODO: checkpoint - debug
     # -----------------------------
     # Intra-Group View Pooling
-    group_descriptors = view_pooling(fcn_inputs, group_scheme)
+    group_descriptors = view_pooling(final_view_descriptors, g_schemes)
     # Group Fusion
-    shape_descriptor = group_fusion(group_descriptors, group_weight)
+    shape_descriptor = group_fusion(group_descriptors, g_weight)
     # -----------------------------
 
     # # for debug
-    # shape_descriptor = tf.reduce_max(fcn_inputs, axis=0)
+    # shape_descriptor = tf.reduce_max(final_view_descriptors, axis=0)
 
     net = tf.keras.layers.GlobalAveragePooling2D()(shape_descriptor)
     logits = tf.keras.layers.Dense(num_classes)(net)
 
-    return shape_descriptor, logits
+    return shape_descriptor, logits, g_schemes
 
 
 # def basic(inputs,
