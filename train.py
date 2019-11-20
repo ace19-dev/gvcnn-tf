@@ -106,8 +106,8 @@ flags.DEFINE_string('labels',
 # check total count before training
 # MODELNET_TRAIN_DATA_SIZE = 626+515+572+335+889+465+680+392+344+475   # 5293, 10 class
 # MODELNET_VALIDATE_DATA_SIZE = 1000
-MODELNET_TRAIN_DATA_SIZE = 442+394    # 3 class
-MODELNET_VALIDATE_DATA_SIZE = 100
+MODELNET_TRAIN_DATA_SIZE = 462+414    # 3 class
+MODELNET_VALIDATE_DATA_SIZE = 60
 
 
 
@@ -142,7 +142,7 @@ def main(unused_argv):
                                              is_training,
                                              dropout_keep_prob)
 
-        # # basic - for verify
+        # # basic - for verification
         # _, logits = model.basic(X,
         #                         num_classes,
         #                         is_training,
