@@ -8,7 +8,7 @@ import numpy as np
 import train_data
 import val_data
 from nets import model
-from utils import train_utils, train_helper
+from utils import train_utils, _train_helper
 
 slim = tf.contrib.slim
 
@@ -78,36 +78,33 @@ flags.DEFINE_string('checkpoint_model_scope',
                     None,
                     'Model scope in the checkpoint. None if the same as the trained model.')
 flags.DEFINE_string('model_name',
-                    'inception_v3',
+                    'resnet_v2_50',
                     'The name of the architecture to train.')
 flags.DEFINE_boolean('ignore_missing_vars',
                      False,
                      'When restoring a checkpoint would ignore missing variables.')
 
 # Dataset settings.
-flags.DEFINE_string('dataset_dir', '/home/ace19/dl_data/modelnet2',
+flags.DEFINE_string('dataset_dir', '/home/ace19/dl_data/modelnet5',
                     'Where the dataset reside.')
 
 flags.DEFINE_integer('how_many_training_epochs', 100,
                      'How many training loops to runs')
 
-# currently only use 1 batch size
-# flags.DEFINE_integer('batch_size', 1, 'batch size')
-# flags.DEFINE_integer('val_batch_size', 1, 'val batch size')
+flags.DEFINE_integer('batch_size', 4, 'batch size')
+flags.DEFINE_integer('val_batch_size', 4, 'val batch size')
 flags.DEFINE_integer('num_views', 6, 'number of views')
 flags.DEFINE_integer('num_group', 10, 'number of group')
 flags.DEFINE_integer('height', 299, 'height')
 flags.DEFINE_integer('width', 299, 'width')
 flags.DEFINE_string('labels',
                     # 'airplane,bed,bookshelf,bottle,chair,monitor,sofa,table,toilet,vase',
-                    'table,toilet',
+                    'bottle,monitor,table,toilet,vase',
                     'number of classes')
 
 # check total count before training
-# MODELNET_TRAIN_DATA_SIZE = 626+515+572+335+889+465+680+392+344+475   # 5293, 10 class
-# MODELNET_VALIDATE_DATA_SIZE = 1000
-MODELNET_TRAIN_DATA_SIZE = 462+414    # 3 class
-MODELNET_VALIDATE_DATA_SIZE = 60
+MODELNET_TRAIN_DATA_SIZE = 392+335+344+475+465    # 5 class
+MODELNET_VALIDATE_DATA_SIZE = 500
 
 
 
@@ -124,10 +121,6 @@ def main(unused_argv):
         X = tf.compat.v1.placeholder(tf.float32,
                                      [None, FLAGS.num_views, FLAGS.height, FLAGS.width, 3],
                                      name='X')
-        # Define the model - resnet_v2_50/block3
-        # fcn_inputs = tf.compat.v1.placeholder(tf.float32,
-        #                                      [FLAGS.num_views, None, 10, 10, 2048],
-        #                                      name='fcn')
         ground_truth = tf.compat.v1.placeholder(tf.int64, [None], name='ground_truth')
         is_training = tf.compat.v1.placeholder(tf.bool, name='is_training')
         dropout_keep_prob = tf.compat.v1.placeholder(tf.float32, name='dropout_keep_prob')
@@ -202,7 +195,7 @@ def main(unused_argv):
                                          FLAGS.num_views,
                                          FLAGS.height,
                                          FLAGS.width,
-                                         1)  # batch_size
+                                         FLAGS.batch_size)  # batch_size
         iterator = tr_dataset.dataset.make_initializable_iterator()
         next_batch = iterator.get_next()
 
@@ -211,7 +204,7 @@ def main(unused_argv):
                                         FLAGS.num_views,
                                         FLAGS.height,
                                         FLAGS.width,
-                                        1)   # val_batch_size
+                                        FLAGS.val_batch_size)   # val_batch_size
         val_iterator = val_dataset.dataset.make_initializable_iterator()
         val_next_batch = val_iterator.get_next()
 
@@ -242,17 +235,17 @@ def main(unused_argv):
 
             start_epoch = 0
             # Get the number of training/validation steps per epoch
-            tr_batches = int(MODELNET_TRAIN_DATA_SIZE / 1)
-            if MODELNET_TRAIN_DATA_SIZE % 1 > 0:
+            tr_batches = int(MODELNET_TRAIN_DATA_SIZE / FLAGS.batch_size)
+            if MODELNET_TRAIN_DATA_SIZE % FLAGS.batch_size > 0:
                 tr_batches += 1
-            val_batches = int(MODELNET_VALIDATE_DATA_SIZE / 1)
-            if MODELNET_VALIDATE_DATA_SIZE % 1 > 0:
+            val_batches = int(MODELNET_VALIDATE_DATA_SIZE / FLAGS.val_batch_size)
+            if MODELNET_VALIDATE_DATA_SIZE % FLAGS.val_batch_size > 0:
                 val_batches += 1
 
             # The filenames argument to the TFRecordDataset initializer can either be a string,
             # a list of strings, or a tf.Tensor of strings.
-            training_filenames = os.path.join(FLAGS.dataset_dir, 'modelnet2_6view_train.record')
-            validate_filenames = os.path.join(FLAGS.dataset_dir, 'modelnet2_6view_test.record')
+            training_filenames = os.path.join(FLAGS.dataset_dir, 'modelnet5_6view_train.record')
+            validate_filenames = os.path.join(FLAGS.dataset_dir, 'modelnet5_6view_test.record')
 
             ###################################
             # Training loop.
@@ -267,7 +260,6 @@ def main(unused_argv):
                     # Pull the image batch we'll use for training.
                     train_batch_xs, train_batch_ys = sess.run(next_batch)
 
-                    # TODO: checkpoint - debug
                     # Sets up a graph with feeds and fetches for partial run.
                     handle = sess.partial_run_setup([view_scores, learning_rate,
                                                      # summary_op, top1_acc, loss, optimize_op, dummy],
@@ -296,6 +288,7 @@ def main(unused_argv):
                                              g_weight: _g_weights}
                                          )
 
+                    # for verification
                     # lr, train_summary, train_accuracy, train_loss, _ = \
                     #     sess.run([learning_rate, summary_op, accuracy, _loss, train_op],
                     #              feed_dict={
@@ -353,6 +346,7 @@ def main(unused_argv):
                                              g_weight: _g_weights}
                                          )
 
+                    # for verification
                     # val_summary, val_accuracy, val_loss, conf_matrix = \
                     #     sess.run([summary_op, accuracy, _loss, confusion_matrix],
                     #              feed_dict={

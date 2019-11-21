@@ -23,18 +23,18 @@ from dataset_tools import dataset_util
 
 flags = tf.compat.v1.app.flags
 flags.DEFINE_string('dataset_dir',
-                    '/home/ace19/dl_data/modelnet2/view/classes',
+                    '/home/ace19/dl_data/modelnet5/view/classes',
                     'Root Directory to raw modelnet dataset.')
 flags.DEFINE_string('output_dir',
-                    '/home/ace19/dl_data/modelnet2',
+                    '/home/ace19/dl_data/modelnet5',
                     'Path to output TFRecord')
 flags.DEFINE_string('dataset_category',
-                    'test',
+                    'train',
                     'dataset category, train|validate|test')
 
 FLAGS = flags.FLAGS
 
-_FILE_PATTERN = 'modelnet2_%dview_%s.record'
+_FILE_PATTERN = 'modelnet%d_%dview_%s.record'
 
 filter = ['1','2','4','7','8','10']
 
@@ -133,13 +133,16 @@ def dict_to_tf_example(image,
 def main(_):
     tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.INFO)
 
-    tfrecord_name = os.path.join(FLAGS.output_dir,
-                                 _FILE_PATTERN % (12-len(filter), FLAGS.dataset_category))
+    dataset_lst = os.listdir(FLAGS.dataset_dir)
+    dataset_lst.sort()
+
+    tfrecord_name = os.path.join(FLAGS.output_dir, _FILE_PATTERN %
+                                 (len(dataset_lst), 12-len(filter), FLAGS.dataset_category))
     options = tf.io.TFRecordOptions(tf.compat.v1.io.TFRecordCompressionType.GZIP)
     writer = tf.io.TFRecordWriter(tfrecord_name, options=options)
 
-    dataset_lst = os.listdir(FLAGS.dataset_dir)
-    dataset_lst.sort()
+    # dataset_lst = os.listdir(FLAGS.dataset_dir)
+    # dataset_lst.sort()
     label_to_index = {}
     for i, cls in enumerate(dataset_lst):
         cls_path = os.path.join(FLAGS.dataset_dir, cls)

@@ -25,7 +25,6 @@ def group_scheme(view_discrimination_score, num_group, num_views):
     return schemes
 
 
-# TODO: check.
 def group_weight(g_schemes):
     num_group = g_schemes.shape[0]
     num_views = g_schemes.shape[1]
@@ -92,7 +91,6 @@ def group_fusion(group_descriptors, group_weight):
 
     :return:
     '''
-    # TODO: checkpoint-0
     group_weight_list = tf.unstack(group_weight)
     numerator = []
     for key, value in group_descriptors.items():
@@ -150,8 +148,7 @@ def gvcnn(inputs, num_classes, group_scheme, group_weight,
         view_discrimination_scores.append(batch_view_score)
         final_view_descriptors.append(end_points['resnet_v2_50/block4'])
 
-    # TODO: checkpoint - problem happens on block below.
-    #       why is validation accuracy not working?
+    # TODO: Checkpoint.
     # -----------------------------
     # Intra-Group View Pooling
     group_descriptors = view_pooling(final_view_descriptors, group_scheme)

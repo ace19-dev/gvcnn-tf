@@ -20,7 +20,7 @@ flags = tf.app.flags
 FLAGS = flags.FLAGS
 
 
-NUM_GROUP = 8
+NUM_GROUP = 10
 
 # temporary constant
 MODELNET_EVAL_DATA_SIZE = 150
@@ -34,8 +34,8 @@ flags.DEFINE_string('checkpoint_path',
                     os.getcwd() + '/models',
                     'Directory where to read training checkpoints.')
 
-flags.DEFINE_integer('batch_size', 1, 'batch size')
-flags.DEFINE_integer('num_views', 8, 'number of views')
+flags.DEFINE_integer('batch_size', 4, 'batch size')
+flags.DEFINE_integer('num_views', 6, 'number of views')
 flags.DEFINE_integer('height', 299, 'height')
 flags.DEFINE_integer('width', 299, 'width')
 flags.DEFINE_string('labels',

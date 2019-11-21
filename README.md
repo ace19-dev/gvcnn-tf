@@ -1,7 +1,3 @@
-# On debugging.
-- balance sampler
-- N-batch
-
 ## GVCNN (Group-View Convolutional Neural Networks for 3D Shape Recognition)
 ![](assets/gvcnn_framework.png)
 
@@ -20,8 +16,8 @@
 - train.py 
   - Note that the value (batch_size // num_gpu) should not be 0.
 
-## Retrieval
-- For training efficiency, it was implemented at the [here 1](https://github.com/ace19-dev/mvcnn-tf) and [here 2](https://github.com/ace19-dev/image-retrieval-tf)
+## TODO
+- balance sampler
 
 ## Caution.
 - It had better use lighter model or decrease view number because it needs a big resources.
