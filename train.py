@@ -280,7 +280,6 @@ def main(unused_argv):
                     # Run the graph with this batch of training data.
                     lr, train_summary, train_accuracy, train_loss, _ = \
                         sess.partial_run(handle,
-                                         # [learning_rate, summary_op, accuracy, loss, dummy],
                                          [learning_rate, summary_op, accuracy, _loss, train_op],
                                          feed_dict={
                                              ground_truth: train_batch_ys,
