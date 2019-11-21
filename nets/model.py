@@ -32,7 +32,7 @@ def group_weight(g_schemes):
 
     weights = np.zeros(shape=(num_group), dtype=np.float32)
     for i in range(num_group):
-        sum = 0
+        sum = 1
         for j in range(num_views):
             if g_schemes[i][j] == 1:
                 sum += g_schemes[i][j]
@@ -61,7 +61,7 @@ def view_pooling(final_view_descriptors, group_scheme):
     :return: group_descriptors
     '''
     group_descriptors = {}
-    dummy = tf.zeros_like(final_view_descriptors)
+    dummy = tf.ones_like(final_view_descriptors)
 
     scheme_list = tf.unstack(group_scheme)
     indices = [tf.squeeze(tf.where(elem), axis=1) for elem in scheme_list]
@@ -70,7 +70,7 @@ def view_pooling(final_view_descriptors, group_scheme):
                             lambda: tf.gather(final_view_descriptors, ind),
                             lambda: dummy)
 
-        group_descriptors[i] = tf.reduce_mean(pooled_view, axis=0)
+        group_descriptors[i] = tf.reduce_max(pooled_view, axis=0)
 
     return group_descriptors
 
@@ -96,7 +96,7 @@ def group_fusion(group_descriptors, group_weight):
     group_weight_list = tf.unstack(group_weight)
     numerator = []
     for key, value in group_descriptors.items():
-        numerator.append(tf.multiply(group_weight_list[key], group_descriptors[key]))
+        numerator.append(tf.multiply(group_weight_list[key], value))
 
     denominator = tf.reduce_sum(group_weight_list)
     shape_descriptor = tf.div(tf.add_n(numerator), denominator)
@@ -159,7 +159,7 @@ def gvcnn(inputs, num_classes, group_scheme, group_weight,
     shape_descriptor = group_fusion(group_descriptors, group_weight)
     # -----------------------------
 
-    # # test - pooling view
+    # # test - simple pooling view
     # shape_descriptor = tf.reduce_max(final_view_descriptors, axis=0)
 
     net = tf.keras.layers.GlobalAveragePooling2D()(shape_descriptor)
