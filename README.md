@@ -1,5 +1,7 @@
 ## GVCNN (Group-View Convolutional Neural Networks for 3D Shape Recognition)
 ![](assets/gvcnn_framework.png)
+![](assets/view-group-shape_architecture.png)
+
 
 ## Data
 - Download [modelnet10-Class Orientation-aligned Subset](http://modelnet.cs.princeton.edu/)
@@ -14,13 +16,9 @@
 - make group-view image tfrecord file
   - dataset_tools/create_modelnet_tf_record.py
 - train.py 
-  - Note that the value (batch_size // num_gpu) should not be 0.
 
 ## TODO
-- balance sampler
-
-## Caution.
-- It had better use lighter model or decrease view number because it needs a big resources.
+- balanced sampler
 
 ## References from
 - http://openaccess.thecvf.com/content_cvpr_2018/papers/Feng_GVCNN_Group-View_Convolutional_CVPR_2018_paper.pdf
