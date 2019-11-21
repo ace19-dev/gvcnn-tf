@@ -150,8 +150,8 @@ def gvcnn(inputs, num_classes, group_scheme, group_weight,
         view_discrimination_scores.append(batch_view_score)
         final_view_descriptors.append(end_points['resnet_v2_50/block4'])
 
+    # TODO: checkpoint - problem happens on block below.
     # -----------------------------
-    # TODO: checkpoint - problem happens on block below. 
     # Intra-Group View Pooling
     group_descriptors = view_pooling(final_view_descriptors, group_scheme)
 
