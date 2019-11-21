@@ -30,7 +30,6 @@ def main(unused_argv):
 
             group_descriptors[i] = tf.reduce_mean(pooled_view, axis=0)
 
-
         sess_config = tf.compat.v1.ConfigProto(gpu_options=tf.compat.v1.GPUOptions(allow_growth=True))
         with tf.compat.v1.Session(config=sess_config) as sess:
             sess.run(tf.compat.v1.global_variables_initializer())
