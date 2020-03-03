@@ -195,7 +195,7 @@ def main(unused_argv):
                                          FLAGS.num_views,
                                          FLAGS.height,
                                          FLAGS.width,
-                                         FLAGS.batch_size)  # batch_size
+                                         FLAGS.batch_size)
         iterator = tr_dataset.dataset.make_initializable_iterator()
         next_batch = iterator.get_next()
 
